@@ -1,0 +1,19 @@
+# data never goes into git
+data/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# editors and OS
+.idea/
+.vscode/
+.DS_Store
