@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "besslib"
+version = "0.0.1.dev0"
+description = "State of health from battery storage operating data, with confidence bands, in the fields of EU Regulation 2023/1542 Annex VII."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+dependencies = ["numpy>=1.26", "pandas>=2.1", "pyarrow>=14"]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.8"]
+dev = ["pytest>=8", "matplotlib>=3.8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"besslib.io" = ["figgener_meta/*.csv", "figgener_meta/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
