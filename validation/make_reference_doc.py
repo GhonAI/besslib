@@ -175,7 +175,7 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
                 "Systems with tests": part["system_id"].nunique(),
                 "Tests measured": len(part),
                 "Capacity, % of nominal (min – max)": f"{100 * part['soh_capacity'].min():.1f} – {100 * part['soh_capacity'].max():.1f}",
-                "Test C-rate (min – max)": f"{part['c_rate'].min():.2f} – {part['c_rate'].max():.2f}",
+                "Test C-rate (min – max)": f"{part['test_c_rate'].min():.2f} – {part['test_c_rate'].max():.2f}",
                 "Change between tests, points per year (median of systems)": f"{np.median(slopes):+.1f} (n = {len(slopes)})" if slopes else "–",
             }
         )
@@ -188,13 +188,39 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         Ah=ok["capacity_ah"].map("{:.2f}".format),
         kWh=ok["energy_kwh"].map("{:.3f}".format),
         Share=(100 * ok["soh_capacity"]).map("{:.1f}".format),
-        C=ok["c_rate"].map("{:.2f}".format),
+        C=ok["test_c_rate"].map("{:.2f}".format),
+        Median=ok["c_rate"].map("{:.2f}".format),
         Minutes=ok["duration_min"].map("{:.0f}".format),
         Temp=ok["temp_pack_mean_c"].map("{:.1f}".format),
-        Before=ok["pre_start_ah"].map("{:.2f}".format),
-    )[["System", "chemistry", "Set", "Start", "Age", "Ah", "kWh", "Share", "C", "Minutes", "Temp", "Before"]]
+        Before=(ok["pre_start_ah"].round(2) + 0.0).map("{:.2f}".format),
+    )[["System", "chemistry", "Set", "Start", "Age", "Ah", "kWh", "Share", "C", "Median", "Minutes", "Temp", "Before"]]
     full.columns = ["System", "Chemistry", "Set", "Documented start", "Age, years", "Capacity, Ah", "Energy, kWh",
-                    "% of nominal", "C-rate", "Minutes", "Pack temp, °C", "Ah out before the start"]  # fmt: skip
+                    "% of nominal", "Test C-rate", "Median C-rate", "Minutes", "Pack temp, °C", "Ah out before the start"]  # fmt: skip
+
+    moved = ok[ok["probe_delay_min"] > 0]
+    moved_table = pd.DataFrame(
+        {
+            "System": moved["system_id"].map("{:02d}".format),
+            "Set": moved["set"],
+            "Documented start": moved["documented_start"].dt.strftime("%Y-%m-%d %H:%M"),
+            "Probe moved, min": moved["probe_delay_min"].map("{:.0f}".format),
+            "Discharge began": moved["onset"].dt.strftime("%H:%M:%S"),
+            "Capacity, Ah": moved["capacity_ah"].map("{:.2f}".format),
+        }
+    )
+    stepped = sorted(ok.loc[ok["c_rate"] < 0.8 * ok["test_c_rate"], "system_id"].unique())
+    early_share = ok["discharged_hour_before_ah"] / ok["capacity_ah"]
+    early = ok[early_share > 0.01]
+    early_table = pd.DataFrame(
+        {
+            "System": early["system_id"].map("{:02d}".format),
+            "Set": early["set"],
+            "Documented start": early["documented_start"].dt.strftime("%Y-%m-%d %H:%M"),
+            "Discharged in the hour before, Ah": early["discharged_hour_before_ah"].map("{:.2f}".format),
+            "Share of the measured capacity, %": (100 * early_share[early.index]).map("{:.1f}".format),
+            "Ah out since the last charge": (early["pre_start_ah"].round(2) + 0.0).map("{:.2f}".format),
+        }
+    )
 
     per_system = quality.groupby("system_id").agg(
         months=("month", "count"), rows=("rows", "sum"), missing=("missing_seconds", "sum"),
@@ -258,13 +284,28 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         "A test is a full charge, then a discharge at the system's maximum power until it stops by itself",
         "(Figgener et al. 2024, Supplementary Note 6). `besslib.soh.measure_capacity_test` uses three rules:",
         "",
-        "1. The test current is the median current from 2 to 12 minutes after the documented start.",
+        "1. The test current is the median current from 2 to 12 minutes after the documented start. It must be a",
+        "   discharge of at least C/10. If it is not, the probe moves one minute later, up to 60 minutes, until it",
+        "   is and the probe also begins inside the discharge.",
         "2. The discharge begins where the current last was weaker than 20 % of the test current.",
         "3. The discharge ends when the current stays weaker than 5 % of the test current for 5 minutes;",
         "   the tail down to 1 % is kept.",
         "",
         "Capacity is the integral of the current between the two, energy the integral of the power.",
         "No estimator and no battery model is involved. The rules were written on the development systems.",
+        "",
+        "**Rule 1 was changed on 14 Nov 2026**, after every test on the sheet below was checked by eye. Before, the",
+        "probe stayed at the documented start and needed only C/20, and the tests below were reported as not",
+        "measured although their discharge is in the data: it began late, or after a few minutes at low power, or",
+        "after a pause. The change leaves every other test exactly as it was measured before.",
+        "",
+        *([table(moved_table), ""] if len(moved) else []),
+        f"In some tests of systems {', '.join(f'{i:02d}' for i in stepped)} the current steps down before the end, so the",
+        "median C-rate over the whole discharge is below 80 % of the test C-rate. The lower-current part is kept:",
+        "each step comes when the voltage reaches a low point, so the system is lowering its power to keep",
+        "discharging, and the test runs until it stops by itself. \"Test C-rate\" on this page is the test current",
+        "of rule 1, measured 2 to 12 minutes into the test; \"Median C-rate\" is the median over the whole",
+        "discharge. Where the two differ much, the power changed during the test.",
         "",
         "## Summary by chemistry",
         "",
@@ -327,6 +368,15 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         "",
         table(full),
         "",
+        *(["### Tests with discharge just before they began",
+           "",
+           "In these tests more than 1 % of the measured capacity was discharged in the hour before the test discharge",
+           "began. The battery may not have been full when the test began, and then the measured value is below",
+           "what a test from full would give. It is shown, not added.",
+           "\"Ah out since the last charge\" can read lower when a short charge happened in between.",
+           "",
+           table(early_table),
+           ""] if len(early) else []),
         "## Source and credit",
         "",
         "Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in",

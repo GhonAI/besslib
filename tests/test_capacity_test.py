@@ -45,6 +45,8 @@ def test_recovers_the_known_capacity_and_energy():
     assert result.c_rate == pytest.approx(0.4)
     assert result.energy_kwh == pytest.approx(-(frame["power_w"].loc[result.onset : result.end].sum()) / 3.6e6, rel=1e-3)
     assert result.pre_start_ah == pytest.approx(0.5, abs=0.05)  # 30 min at 1 A, reported, not added
+    assert result.discharged_hour_before_ah == pytest.approx(0.5, abs=0.05)
+    assert result.test_c_rate == pytest.approx(0.4) and result.probe_delay_min == 0
     assert result.missing_seconds == 0 and result.interpolated_share == 0.0
 
 
@@ -58,8 +60,25 @@ def test_noise_and_a_late_documented_start_do_not_move_the_result():
 def test_says_so_when_there_is_no_discharge_at_the_documented_start():
     frame, _ = synthetic_test()
     wrong = measure_capacity_test(frame, SPEC, START - pd.Timedelta(hours=2, minutes=30))
-    assert wrong.status == "no full-power discharge at the documented start"
+    assert wrong.status == "no full-power discharge within 60 min after the documented start"
     assert np.isnan(wrong.capacity_ah)
+
+
+def test_finds_a_discharge_that_begins_late_with_a_low_power_step():
+    """As in field tests 07/5 and 07/6: a few minutes at low power, then full power, after the documented time."""
+    frame, _ = synthetic_test(pre_load_a=0.0)
+    seconds = (frame.index - START).total_seconds().to_numpy()
+    current = frame["current_a"].to_numpy().copy()
+    current[(seconds >= 0) & (seconds < 25 * 60)] = 0.0  # nothing for 25 min after the documented start
+    current[(seconds >= 25 * 60) & (seconds < 33 * 60)] = -5.0  # then 8 min at C/20
+    frame["current_a"] = current
+    frame["power_w"] = frame["voltage_v"] * current
+    result = measure_capacity_test(frame, SPEC, START)
+    assert result.status == "ok"
+    assert 25 <= result.probe_delay_min <= 33
+    assert abs((result.onset - (START + pd.Timedelta(minutes=33))).total_seconds()) <= 15  # the 10-s mean lags
+    assert result.pre_start_ah == pytest.approx(8 * 5.0 / 60, rel=0.05)  # the low step is reported, not added
+    assert result.c_rate == pytest.approx(0.4)
 
 
 def test_says_so_when_the_data_does_not_cover_the_start():

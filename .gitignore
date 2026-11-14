@@ -17,3 +17,6 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# resumable-run state of validation/build_reference.py; the merged tables above it are kept
+validation/results/parts/
