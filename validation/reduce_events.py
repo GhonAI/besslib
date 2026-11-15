@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "reduced" / "rests"
 
-#: The tuning grid of PLAN section 12.3: current threshold (x C) and minimum rest duration (min).
+#: The tuning grid: current threshold (x C) and minimum rest duration (min).
 CURRENT_GRID = (0.005, 0.01, 0.02)
 DURATION_GRID = (10.0, 20.0, 40.0)
 

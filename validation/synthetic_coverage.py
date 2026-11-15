@@ -1,7 +1,10 @@
 """Check V6: on synthetic packs with a known fade, does the 90 % band hold the truth?
 
-200 packs (``tests/synth.py``), each 24 months at a 10-second step, each with its own
-random operation, sensor gain error and BMS stop errors. Their capacity (state of charge
+200 packs (``tests/synth.py``), each 36 months at a 10-second step, each with its own
+random operation, sensor gain error and BMS stop errors. The first year of each record
+only sets the full and empty levels (``CapacityConfig.level_warmup_days``); the fade is
+measured on the two years after it, which keeps the span of the fade fit above
+``fade_min_span_years``. Their capacity (state of charge
 0 to 1) fades by 2 points per year. Their BMS stops at voltage limits, so the *usable*
 capacity, which the estimator measures, is a few points smaller and fades a little
 slower. The truth of the check is the expected usable fade: the mean, over the 200
@@ -37,7 +40,7 @@ from besslib.soh.config import CapacityConfig, config_hash  # noqa: E402
 from besslib.soh.rests import classify_rests, detect_rests_in_parts, rest_chain, rest_pairs  # noqa: E402
 
 RESULTS = ROOT / "validation" / "results"
-MONTHS = 24
+MONTHS = 36  # one year of level warm-up, then two years of pairs
 STEP_S = 10
 PASS_RANGE = (0.85, 0.95)
 

@@ -17,22 +17,42 @@ Weights: ``1 / (sigma_q**2 + c_weight**2 * sigma_x**2)``, the effective variance
 Orear, Am. J. Phys. 50, 912 (1982), doi:10.1119/1.12972, with a fixed prior
 ``c_weight`` (the nominal capacity), so the weights do not depend on the estimate.
 
-Band: consecutive pairs share a rest, so their errors are correlated (lag 1). The
-covariance is the weighted least-squares one times the Birge ratio (reduced
-chi-square, at least 1), corrected by the lag-1 residual correlation ``rho``:
-``V = s2 * (A^-1 + rho * A^-1 (L + L') A^-1)``, where ``L`` sums the products of
-consecutive regressor rows (a Newey-West form with one lag: Newey and West,
-Econometrica 55, 703 (1987), doi:10.2307/1913610). A Student-t quantile and the
-current sensor's gain error (a systematic term) complete it.
+Band: the weights fix only the relative size of the pair errors, and not even that
+well: the scatter differs between kinds of pair (a full-to-full pair and an
+empty-to-empty pair rest on different edges of the charge). And consecutive pairs share
+a rest, so their errors are correlated at lag 1 and at no longer lag. The covariance is
+therefore the sandwich ``V = A^-1 M A^-1 * m / (m - p)`` with the residuals' own
+scores ``g_k = w_k a_k e_k``:
 
-Old pairs fade by ``exp(-age / tau_days)``. Related work: Plett, J. Power Sources 196,
-2319 (2011), doi:10.1016/j.jpowsour.2010.09.048 (recursive total least squares for
-capacity; not read, cited as related work).
+    M = sum g_k g_k' + sum over linked pairs (g_k g_(k-1)' + g_(k-1) g_k')
 
-Portability rule: plain float arithmetic, a fixed-size state (arrays of length 3 or 9),
-no numpy, no pandas, no growing containers, no recursion, no exceptions for control
-flow. Each class maps to a C struct, each function to a C function. The test vectors
-live in ``tests/vectors/``.
+the lag-1 heteroskedasticity- and autocorrelation-consistent form of Newey and West,
+Econometrica 55, 703 (1987), doi:10.2307/1913610, with full weight at lag 1 instead of
+their Bartlett weight 1/2, because the pair errors are known to be correlated at lag 1
+only. ``m / (m - p)`` is the usual degrees-of-freedom factor, and the band uses a
+Student-t quantile with ``m - p`` degrees of freedom. This form is not positive by
+construction: a negative variance of the main quantity is reported as not possible,
+never replaced by a floor. The current sensor's gain error is added to the capacity's
+band as a systematic term. The Birge ratio (reduced chi-square) and the lag-1
+correlation ``rho`` of the weighted residuals are reported as diagnostics; they no
+longer scale the band.
+
+The residuals are not known until the fit is solved, so ``M`` is kept as fixed-size
+sums of fourth-order products of ``z = (a, q - c_weight * x)``; ``solve`` contracts them
+with ``(-theta', 1)``. Subtracting ``c_weight * x`` keeps these sums small, which
+matters in 32-bit arithmetic.
+
+Old pairs fade by ``exp(-age / tau_days)``: a pair of age ``s`` counts as if its
+variance were ``exp(s / tau_days)`` times larger (the convention of least squares with
+forgetting). A lag-1 link counts with ``sqrt(lambda_k lambda_(k-1))``, which keeps the
+two pairs of a link on the same footing. Related work: Plett, J. Power Sources 196, 2319
+(2011), doi:10.1016/j.jpowsour.2010.09.048 (recursive total least squares for capacity;
+not read, cited as related work).
+
+Portability rule: plain float arithmetic, a fixed-size state (arrays of length 3, 9 and
+144), no numpy, no pandas, no growing containers, no recursion, no exceptions for
+control flow. Each class maps to a C struct, each function to a C function. The test
+vectors live in ``tests/vectors/``.
 """
 
 from __future__ import annotations
@@ -45,6 +65,9 @@ TOO_FEW_FULL_EMPTY = 1
 TOO_FEW_SAME_KIND = 2
 SINGULAR = 3
 STALE = 4
+NO_BAND = 5
+NO_LEVELS = 6  # set by the caller: the core sees pairs, not the rests that set the levels
+SHORT_SPAN = 7
 
 STATUS_TEXT = {
     OK: "estimated",
@@ -52,7 +75,16 @@ STATUS_TEXT = {
     TOO_FEW_SAME_KIND: "not possible from this data: too few full-to-full or empty-to-empty pairs to fix the offset",
     SINGULAR: "not possible from this data: the pairs do not separate capacity from offset",
     STALE: "not possible from this data: no full-to-empty or empty-to-full pair within the memory time",
+    NO_BAND: "not possible from this data: the residuals give no positive variance for the band",
+    NO_LEVELS: "not possible from this data: not enough history yet to set the full and empty levels",
+    SHORT_SPAN: "not possible from this data: the full-to-empty and empty-to-full pairs span too short a time",
 }
+
+#: Relative rounding tolerance of the band's sums, for 64-bit arithmetic. A 32-bit port
+#: needs a larger one, set from its own test vectors.
+ROUNDING = 1.0e-9
+
+_NZ = 4  # length of z = (regressors, centred charge); index of s4 is ((r * 3 + s) * 4 + i) * 4 + j
 
 _NEVER = -1.0e30
 
@@ -62,15 +94,19 @@ class Fit:
 
     ``p`` regressors (2 or 3). ``a`` = sum w a a' (row-major 3 x 3), ``h`` = sum w a q,
     ``c`` = sum w q q; ``l`` = sum v a_k a_(k-1)', ``ly`` = sum v q_k a_(k-1),
-    ``yl`` = sum v a_k q_(k-1), ``yy1`` = sum v q_k q_(k-1), with v = sqrt(w_k w_(k-1)),
-    over pairs that share a rest with the pair before them.
+    ``yl`` = sum v a_k q_(k-1), ``yy1`` = sum v q_k q_(k-1), with v = g sqrt(w_k w_(k-1)),
+    over pairs that share a rest with the pair before them; ``g`` =
+    exp(-(t_k - t_(k-1)) / (2 tau_days)) makes a link decay as sqrt(lambda_k lambda_(k-1)).
+    ``s4`` = sum w^2 a_r a_s z_i z_j and ``s4l`` = sum g w_k w_(k-1) (a_k,r a_(k-1),s +
+    a_(k-1),r a_k,s) z_k,i z_(k-1),j, with z = (a, q - c_weight x): the sums of the band's
+    sandwich (3 x 3 x 4 x 4 each).
     """
 
     __slots__ = (
         "p", "c_weight", "tau_days", "t_last", "t_last_cross", "t0_days",
-        "a", "h", "c", "l", "ly", "yl", "yy1",
+        "a", "h", "c", "l", "ly", "yl", "yy1", "s4", "s4l",
         "m", "m_lag", "m_cross", "m_same", "n", "y_min", "y_max",
-        "prev_ok", "prev_a", "prev_q", "prev_w",
+        "prev_ok", "prev_a", "prev_q", "prev_w", "prev_t", "prev_z",
     )
 
     def __init__(self, p: int, c_weight: float, tau_days: float, t0_days: float = 0.0) -> None:
@@ -87,6 +123,8 @@ class Fit:
         self.ly = [0.0] * 3
         self.yl = [0.0] * 3
         self.yy1 = 0.0
+        self.s4 = [0.0] * 144
+        self.s4l = [0.0] * 144
         self.m = 0.0  # decayed number of pairs
         self.m_lag = 0.0  # decayed number of lag-1 links
         self.m_cross = 0.0  # decayed number of pairs with x != 0
@@ -98,6 +136,8 @@ class Fit:
         self.prev_a = [0.0] * 3
         self.prev_q = 0.0
         self.prev_w = 0.0
+        self.prev_t = _NEVER
+        self.prev_z = [0.0] * _NZ
 
 
 def capacity_state(c_weight: float, tau_days: float) -> Fit:
@@ -125,6 +165,9 @@ def decay(state: Fit, t_days: float) -> None:
     for k in range(9):
         state.a[k] *= f
         state.l[k] *= f
+    for k in range(144):
+        state.s4[k] *= f
+        state.s4l[k] *= f
     for k in range(3):
         state.h[k] *= f
         state.ly[k] *= f
@@ -158,25 +201,48 @@ def update(
     if state.p == 3:
         row = [x, x * y, dt_days]
     p = state.p
+    z = [0.0] * _NZ
+    for r in range(p):
+        z[r] = row[r]
+    z[p] = q_ah - state.c_weight * x
     for r in range(p):
         for k in range(p):
             state.a[3 * r + k] += w * row[r] * row[k]
         state.h[r] += w * row[r] * q_ah
     state.c += w * q_ah * q_ah
+    for r in range(p):
+        for s in range(p):
+            ww = w * w * row[r] * row[s]
+            for i in range(p + 1):
+                for j in range(p + 1):
+                    state.s4[((r * 3 + s) * 4 + i) * 4 + j] += ww * z[i] * z[j]
     if linked != 0 and state.prev_ok != 0:
-        v = math.sqrt(w * state.prev_w)
+        g = 1.0
+        if state.tau_days > 0.0:
+            g = math.exp(-(t_days - state.prev_t) / (2.0 * state.tau_days))
+        v = g * math.sqrt(w * state.prev_w)
         for r in range(p):
             for k in range(p):
                 state.l[3 * r + k] += v * row[r] * state.prev_a[k]
             state.ly[r] += v * q_ah * state.prev_a[r]
             state.yl[r] += v * row[r] * state.prev_q
         state.yy1 += v * q_ah * state.prev_q
-        state.m_lag += 1.0
+        state.m_lag += g
+        u = g * w * state.prev_w
+        for r in range(p):
+            for s in range(p):
+                aa = u * (row[r] * state.prev_a[s] + state.prev_a[r] * row[s])
+                for i in range(p + 1):
+                    for j in range(p + 1):
+                        state.s4l[((r * 3 + s) * 4 + i) * 4 + j] += aa * z[i] * state.prev_z[j]
     state.prev_ok = 1
     for r in range(3):
         state.prev_a[r] = row[r]
+    for r in range(_NZ):
+        state.prev_z[r] = z[r]
     state.prev_q = q_ah
     state.prev_w = w
+    state.prev_t = t_days
     state.m += 1.0
     if x != 0.0:
         state.m_cross += 1.0
@@ -267,7 +333,10 @@ def solve(
 ) -> Estimate:
     """The estimate at ``t_days`` (the state is decayed to it first).
 
-    ``z`` is the two-sided normal quantile of the band (1.6449 for 90 %). For the
+    ``z`` is the two-sided normal quantile of the band (1.6449 for 90 %). The band of the
+    main quantity is the Student-t quantile times its sandwich standard error (module
+    docstring). A parameter other than the main one whose sandwich variance comes out
+    negative gets ``sigma`` NaN. For the
     capacity fit, ``gain_error`` (the current sensor's relative accuracy) is added to the
     band of C as a systematic term: it moves every pair the same way, so averaging does
     not reduce it. For the fade fit it is left out (it scales the rate by at most that
@@ -291,7 +360,7 @@ def solve(
         out.status = STALE
         return out
     if p == 3 and out.span_years < min_span_years:
-        out.status = STALE
+        out.status = SHORT_SPAN
         return out
     inv = [0.0] * 9
     if _invert(p, state.a, inv) == 0:
@@ -309,39 +378,60 @@ def solve(
     if chi2 < 0.0:
         chi2 = 0.0
     nu = state.m - p
-    birge = 1.0
-    if nu > 0.0 and chi2 / nu > 1.0:
-        birge = chi2 / nu
-    # Lag-1 correlation of the residuals: sum e_k e_(k-1) from the lag sums.
-    rho = 0.0
+    out.chi2 = chi2
+    out.dof = nu
+    if nu <= 0.0:
+        out.status = NO_BAND
+        return out
+    out.birge = chi2 / nu  # diagnostic: 1 when the weights' error sizes match the scatter
+    # Lag-1 correlation of the weighted residuals (diagnostic): sum e_k e_(k-1) from the lag sums.
+    out.rho = 0.0
     if state.m_lag > 1.0 and chi2 > 0.0:
         cross = state.yy1
         for r in range(p):
             cross -= th[r] * (state.ly[r] + state.yl[r])
             for k in range(p):
                 cross += th[r] * state.l[3 * r + k] * th[k]
-        rho = (cross / state.m_lag) / (chi2 / state.m)
-        if rho > 0.5:
-            rho = 0.5
-        if rho < -0.5:
-            rho = -0.5
-    # V = s2 (inv + rho inv (L + L') inv); kept at least half the uncorrected value.
-    sym = [0.0] * 9
+        out.rho = (cross / state.m_lag) / (chi2 / state.m)
+    # The sandwich's meat M_rs = phi' (S_rs + SL_rs) phi with phi = (-theta + c_weight e_0, 1).
+    phi = [0.0] * _NZ
     for r in range(p):
-        for k in range(p):
-            sym[3 * r + k] = state.l[3 * r + k] + state.l[3 * k + r]
+        phi[r] = -th[r]
+    phi[0] += state.c_weight
+    phi[p] = 1.0
+    meat = [0.0] * 9
+    size = [0.0] * 9  # the same sums in absolute values: the scale of their rounding error
+    for r in range(p):
+        for s in range(p):
+            acc = 0.0
+            mag = 0.0
+            for i in range(p + 1):
+                for j in range(p + 1):
+                    idx = ((r * 3 + s) * 4 + i) * 4 + j
+                    acc += phi[i] * (state.s4[idx] + state.s4l[idx]) * phi[j]
+                    mag += abs(phi[i] * phi[j]) * (abs(state.s4[idx]) + abs(state.s4l[idx]))
+            meat[3 * r + s] = acc
+            size[3 * r + s] = mag
+    scale = state.m / nu
+    main = 0 if p == 2 else 1
     for r in range(p):
         acc = 0.0
+        mag = 0.0
         for i in range(p):
             for j in range(p):
-                acc += inv[3 * r + i] * sym[3 * i + j] * inv[3 * j + r]
-        var = inv[3 * r + r] + rho * acc
-        if var < 0.5 * inv[3 * r + r]:
-            var = 0.5 * inv[3 * r + r]
-        out.sigma[r] = math.sqrt(birge * var)
+                acc += inv[3 * r + i] * meat[3 * i + j] * inv[3 * j + r]
+                mag += abs(inv[3 * r + i] * inv[3 * j + r]) * size[3 * i + j]
+        # A negative value within rounding of the sums is zero (a fit with no scatter).
+        if acc < 0.0 and -acc <= ROUNDING * mag:
+            acc = 0.0
+        var = scale * acc
+        if var >= 0.0:
+            out.sigma[r] = math.sqrt(var)
+        elif r == main:
+            out.status = NO_BAND
+            return out
     for r in range(p):
         out.theta[r] = th[r]
-    main = 0 if p == 2 else 1
     k = t_quantile(z, nu)
     sys_part = gain_error * th[0] if p == 2 else 0.0
     half = math.sqrt(k * k * out.sigma[main] * out.sigma[main] + z * z * sys_part * sys_part)
@@ -350,8 +440,4 @@ def solve(
     out.low = th[main] - half
     out.high = th[main] + half
     out.status = OK
-    out.chi2 = chi2
-    out.dof = nu
-    out.birge = birge
-    out.rho = rho
     return out

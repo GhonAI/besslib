@@ -1,4 +1,4 @@
 test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
-14/1,development,14,LFP,145.70060,0.40560,ok,2017-06-01 09:42:52,138.47870,131.23543,145.72197,-0.25073,30.97365,4.52404,26.44961,2.54887,-0.48252,estimated,-4.57082,9.16870,True,8de3104858ec
-14/2,development,14,LFP,144.83760,0.40770,ok,2018-02-18 09:41:14,,,,,33.98148,7.44811,26.53337,,,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,,,False,8de3104858ec
-14/3,development,14,LFP,141.17450,0.23930,ok,2019-05-08 07:54:54,139.19242,129.99041,148.39443,-0.27501,35.92729,3.64059,32.28669,3.95367,-0.29214,estimated,-1.25448,11.64811,True,8de3104858ec
+14/1,development,14,LFP,145.70060,0.40560,ok,2017-06-01 09:42:52,149.28542,147.87370,150.69714,-0.24531,46.58022,3.64888,42.93135,0.02263,0.18127,estimated,2.26887,1.78699,False,109e9eb1efa5
+14/2,development,14,LFP,144.83760,0.40770,ok,2018-02-18 09:41:14,146.61436,144.44815,148.78056,-0.25104,45.53252,3.43897,42.09355,0.05512,0.04132,estimated,1.12453,2.74203,True,109e9eb1efa5
+14/3,development,14,LFP,141.17450,0.23930,ok,2019-05-08 07:54:54,142.93389,139.74912,146.11867,-0.26609,51.62043,4.13000,47.49043,0.80995,0.05688,estimated,1.11354,4.03136,True,109e9eb1efa5

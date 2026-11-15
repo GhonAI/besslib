@@ -10,7 +10,12 @@ Rules fixed before the held-out run:
   paper's (3.1, 1.9 and 2.0 points per year of decrease for LMO/NMC, NMC and LFP); all 21
   systems are an information line.
 * V7 runs the step-by-step core against the batch path at every day of three
-  development test months.
+  development test months: for systems 01, 07 and 17 (one of each chemistry), the month
+  of the first test with an estimate. Only the estimate's status chooses the month; no
+  test value enters the choice.
+
+A check without results (no held-out tests or systems yet, or fewer than 21 systems for
+V8) is written as ``not run``, never as ``fail``.
 
 Writes ``validation/results/checks_phase2.csv`` and ``validation/results/phase2_tests.csv``.
 
@@ -38,7 +43,8 @@ RESULTS = ROOT / "validation" / "results"
 PHASE2 = RESULTS / "phase2"
 FLAGGED = ("03/3", "08/1")
 PAPER_FADE = {"LMO/NMC": -3.1, "NMC": -1.9, "LFP": -2.0}  # points per year, algorithm (Figgener et al. 2024)
-V7_TESTS = ("01/1", "07/3", "17/1")
+NOT_RUN = "not run"
+V7_SYSTEMS = (1, 7, 17)  # LMO/NMC, NMC, LFP
 
 
 def load():
@@ -63,10 +69,16 @@ def v7(config: CapacityConfig) -> dict:
     tests = reference_tests("development")
     worst = 0.0
     n = 0
-    for test_id in V7_TESTS:
-        sid = int(test_id[:2])
+    months = []
+    for sid in V7_SYSTEMS:
         spec = figgener.pack_spec(sid)
-        _, pairs = estimate_at_tests(pd.read_parquet(rest_file(sid, config.current_c_rate)), sid, tests, config)
+        per_test, pairs, _ = estimate_at_tests(pd.read_parquet(rest_file(sid, config.current_c_rate)), sid, tests, config)
+        per_test = per_test.sort_values("time")
+        estimated = per_test.loc[per_test["status"] == "estimated", "test_id"]
+        if estimated.empty:
+            continue
+        test_id = estimated.iloc[0]
+        months.append(test_id)
         onset = tests.loc[tests["test_id"] == test_id, "onset"].iloc[0]
         at = pd.date_range(onset.to_period("M").start_time, onset.to_period("M").end_time.normalize(), freq="D")
         core = run_core(pairs, spec, config, at)
@@ -76,7 +88,7 @@ def v7(config: CapacityConfig) -> dict:
             if c.status == 0 and b.status == 0:
                 worst = max(worst, abs(b.theta[0] - c.theta[0]) / abs(c.theta[0]), abs(b.high - c.high) / abs(c.high))
                 n += 1
-    return {"max_relative_difference": worst, "n_estimates": n}
+    return {"max_relative_difference": worst, "n_estimates": n, "months_of": months}
 
 
 def main() -> None:
@@ -95,31 +107,32 @@ def main() -> None:
     a2 = accuracy(lmo_nmc)
     a2b = accuracy(lmo_nmc[~lmo_nmc["test_id"].isin(FLAGGED)])
     a3 = accuracy(lfp)
+    none = "no held-out results yet (0 tests)"
     rows = [
-        ("V2", "held-out LMO/NMC and NMC", f"median |error| {a2['median_abs_error']:.2f} points ({a2['n_estimated']}/{a2['n']} estimated)", "<= 3 points", a2["median_abs_error"] <= 3.0),
-        ("V2 info", "same, without 03/3 and 08/1", f"median |error| {a2b['median_abs_error']:.2f} points ({a2b['n']} tests)", "information", None),
-        ("V3", "held-out LFP", f"median |error| {a3['median_abs_error']:.2f} points; median error {a3['median_error']:+.2f} ({a3['n_estimated']}/{a3['n']} estimated)", "<= 5 points, bias shown", a3["median_abs_error"] <= 5.0),
-        ("V4", "held-out LMO/NMC and NMC", f"band held the test in {a2['coverage']:.0%} of {a2['n']}", ">= 80 %", a2["coverage"] >= 0.80),
-        ("V4 info", "held-out LFP", f"band held the test in {a3['coverage']:.0%} of {a3['n']}", "information", None),
-        ("V4 info", "same as V4, without 03/3 and 08/1", f"band held the test in {a2b['coverage']:.0%} of {a2b['n']}", "information", None),
+        ("V2", "held-out LMO/NMC and NMC", f"median |error| {a2['median_abs_error']:.2f} points ({a2['n_estimated']}/{a2['n']} estimated)" if a2["n"] else none, "<= 3 points", a2["median_abs_error"] <= 3.0 if a2["n"] else NOT_RUN),
+        ("V2 info", "same, without 03/3 and 08/1", f"median |error| {a2b['median_abs_error']:.2f} points ({a2b['n']} tests)" if a2b["n"] else none, "information", None),
+        ("V3", "held-out LFP", f"median |error| {a3['median_abs_error']:.2f} points; median error {a3['median_error']:+.2f} ({a3['n_estimated']}/{a3['n']} estimated)" if a3["n"] else none, "<= 5 points, bias shown", a3["median_abs_error"] <= 5.0 if a3["n"] else NOT_RUN),
+        ("V4", "held-out LMO/NMC and NMC", f"band held the test in {a2['coverage']:.0%} of {a2['n']}" if a2["n"] else none, ">= 80 %", a2["coverage"] >= 0.80 if a2["n"] else NOT_RUN),
+        ("V4 info", "held-out LFP", f"band held the test in {a3['coverage']:.0%} of {a3['n']}" if a3["n"] else none, "information", None),
+        ("V4 info", "same as V4, without 03/3 and 08/1", f"band held the test in {a2b['coverage']:.0%} of {a2b['n']}" if a2b["n"] else none, "information", None),
     ]
     for chem, paper in PAPER_FADE.items():
         mine = summaries[(summaries["chemistry"] == chem) & (summaries["set"] == "held-out")]["rate_points_per_year"].dropna()
         every = summaries[summaries["chemistry"] == chem]["rate_points_per_year"].dropna()
         mean = float(mine.mean()) if len(mine) else np.nan
-        rows.append(("V5", f"held-out {chem} ({len(mine)} systems)", f"mean fade {mean:+.2f} points/year; paper {paper:+.1f}", "within +-0.5", bool(abs(mean - paper) <= 0.5)))
-        rows.append(("V5 info", f"all {chem} ({len(every)} systems)", f"mean fade {every.mean():+.2f} points/year", "information", None))
+        rows.append(("V5", f"held-out {chem} ({len(mine)} systems)", f"mean fade {mean:+.2f} points/year; paper {paper:+.1f}" if len(mine) else "no held-out results yet (0 systems)", "within +-0.5", bool(abs(mean - paper) <= 0.5) if len(mine) else NOT_RUN))
+        rows.append(("V5 info", f"all {chem} ({len(every)} systems)", f"mean fade {every.mean():+.2f} points/year" if len(every) else "no results yet (0 systems)", "information", None))
     synth_path = RESULTS / "synthetic_coverage.csv"
     if synth_path.exists():
         synth = pd.read_csv(synth_path)
         share = synth["held"].mean()
         rows.append(("V6", f"{len(synth)} synthetic packs", f"band held the true usable fade ({synth['truth_points_per_year'].iloc[0]:.2f}) in {share:.1%}", "85-95 %", bool(0.85 <= share <= 0.95)))
     v = v7(config)
-    rows.append(("V7", f"core against batch path, {v['n_estimates']} daily estimates", f"max relative difference {v['max_relative_difference']:.1e}", "<= 1e-6", v["max_relative_difference"] <= 1e-6))
+    rows.append(("V7", f"core against batch path, {v['n_estimates']} daily estimates (months of tests {', '.join(v['months_of'])})", f"max relative difference {v['max_relative_difference']:.1e}", "<= 1e-6", v["max_relative_difference"] <= 1e-6))
     complete = len(summaries) == 21 and set(summaries["config_hash"]) == {digest}
-    rows.append(("V8", "21 systems", "one command per system: python validation/run_capacity.py <id>", "all 21 rebuilt with one hash", complete))
+    rows.append(("V8", "21 systems", "one command per system: python validation/run_capacity.py <id>", "all 21 rebuilt with one hash", complete if len(summaries) == 21 else NOT_RUN))
     table = pd.DataFrame(rows, columns=["check", "scope", "value", "pass_if", "passed"])
-    table["result"] = table["passed"].map({True: "pass", False: "fail", None: ""})
+    table["result"] = table["passed"].map({True: "pass", False: "fail", None: "", NOT_RUN: "not run"})
     table["config_hash"] = digest
     table.drop(columns="passed").to_csv(RESULTS / "checks_phase2.csv", index=False)
     print(table[["check", "scope", "value", "result"]].to_string(index=False))

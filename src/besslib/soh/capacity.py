@@ -13,7 +13,11 @@ power may read lower; besslib does not correct for that.
 
 Two paths give the same numbers: ``run_core`` feeds the core one pair at a time (the
 form a BMS or the C port uses); ``capacity_state_at`` builds the same state from sums
-in one step (the fast path). Check V7 keeps them equal.
+in one step (the fast path). The tests keep them equal.
+
+The band is a band on the exponentially weighted capacity the estimate measures. It
+does not include the lag of a fading capacity, nor a systematic offset of the usable
+capacity (for example a field test at a different current).
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ from besslib.frames import PackSpec
 from besslib.soh import _core
 from besslib.soh.config import CapacityConfig, config_hash
 from besslib.soh.rests import find_rests, rest_chain, rest_pairs
+from besslib.soh.rests import levels_from as rest_levels_from
 
 _EPOCH = pd.Timestamp("2000-01-01")
 
@@ -64,27 +69,38 @@ def capacity_state_at(pairs: pd.DataFrame, spec: PackSpec, config: CapacityConfi
     lam = np.exp(-(t_days - t) / config.tau_days) if config.tau_days > 0 else np.ones_like(t)
     w = 1.0 / (sq * sq + (spec.nominal_capacity_ah * sx) ** 2)
     rows = np.column_stack([x, dt])
+    zs = np.column_stack([x, dt, q - spec.nominal_capacity_ah * x])
     lw = lam * w
     a = (lw[:, None, None] * rows[:, :, None] * rows[:, None, :]).sum(axis=0)
     h = (lw[:, None] * rows * q[:, None]).sum(axis=0)
+    s4 = np.einsum("n,nr,ns,ni,nj->rsij", lam * w * w, rows, rows, zs, zs)
     lag = np.r_[False, linked[1:] == 1]
-    v = np.zeros_like(w)
-    v[1:] = np.sqrt(w[1:] * w[:-1])
-    lv = (lam * v)[lag]
-    cur, prev = rows[lag], rows[np.flatnonzero(lag) - 1]
-    qc, qp = q[lag], q[np.flatnonzero(lag) - 1]
+    cur_i = np.flatnonzero(lag)
+    prev_i = cur_i - 1
+    g = np.exp(-(t[cur_i] - t[prev_i]) / (2.0 * config.tau_days)) if config.tau_days > 0 else np.ones(len(cur_i))
+    lg = lam[cur_i] * g
+    lv = lg * np.sqrt(w[cur_i] * w[prev_i])
+    cur, prev = rows[cur_i], rows[prev_i]
+    qc, qp = q[cur_i], q[prev_i]
     lmat = (lv[:, None, None] * cur[:, :, None] * prev[:, None, :]).sum(axis=0)
+    u = lg * w[cur_i] * w[prev_i]
+    aa = cur[:, :, None] * prev[:, None, :] + prev[:, :, None] * cur[:, None, :]
+    s4l = np.einsum("n,nrs,ni,nj->rsij", u, aa, zs[cur_i], zs[prev_i])
     for r in range(2):
         for k in range(2):
             state.a[3 * r + k] = float(a[r, k])
             state.l[3 * r + k] = float(lmat[r, k])
+            for i in range(3):
+                for j in range(3):
+                    state.s4[((r * 3 + k) * 4 + i) * 4 + j] = float(s4[r, k, i, j])
+                    state.s4l[((r * 3 + k) * 4 + i) * 4 + j] = float(s4l[r, k, i, j])
         state.h[r] = float(h[r])
         state.ly[r] = float((lv * qc * prev[:, r]).sum())
         state.yl[r] = float((lv * cur[:, r] * qp).sum())
     state.c = float((lw * q * q).sum())
     state.yy1 = float((lv * qc * qp).sum())
     state.m = float(lam.sum())
-    state.m_lag = float(lam[lag].sum())
+    state.m_lag = float(lg.sum())
     cross = x != 0
     state.m_cross = float(lam[cross].sum())
     state.m_same = float(lam[~cross].sum())
@@ -121,6 +137,7 @@ def estimate_capacity(
     at=None,
     mask=None,
     pairs: pd.DataFrame | None = None,
+    levels_from: pd.Timestamp | None = None,
 ) -> pd.DataFrame:
     """Usable capacity with its band at each time in ``at``.
 
@@ -141,15 +158,23 @@ def estimate_capacity(
     mask
         Intervals ``(start, end)`` whose rests are left out and across which no two rests
         are paired.
+    levels_from
+        The first time at which the full and empty levels exist (``rests.levels_from``).
+        Taken from ``rests`` (or ``frame``) when they are given; with ``pairs`` alone it
+        must be passed to be known. Before it, the status says that the record has not
+        enough history yet to set the levels.
 
     Returns
     -------
     DataFrame, one row per time: ``capacity_ah``, ``capacity_ah_low``, ``capacity_ah_high``,
     ``soh_capacity`` (with ``_low`` and ``_high``), ``reference_capacity_ah``,
     ``offset_current_a`` (negative = the battery loses charge the meter does not see),
-    ``n_pairs``, ``n_full_empty``, ``n_same_kind`` (pairs in memory, decayed), ``birge``,
-    ``rho`` (lag-1 correlation), ``status``. ``attrs`` hold the pairs and the
-    configuration hash.
+    ``n_pairs``, ``n_full_empty``, ``n_same_kind`` (pairs in memory, decayed), ``birge``
+    (reduced chi-square: below 1 when the pairs scatter less than the settings'
+    ``sigma_q_rel`` and ``sigma_soc_edge`` assume), ``rho`` (lag-1 correlation of the
+    weighted residuals), ``status``. Both diagnostics are reported only; the band comes
+    from the residuals themselves (``besslib.soh._core``). ``attrs`` hold the pairs and
+    the configuration hash.
     """
     config = config or CapacityConfig()
     if pairs is None:
@@ -158,6 +183,9 @@ def estimate_capacity(
                 raise ValueError("give a frame, rests or pairs")
             rests = find_rests(frame, spec, config)
         pairs = rest_pairs(rest_chain(rests, spec, config, mask=mask), config)
+    if levels_from is None and rests is not None:
+        levels_from = rest_levels_from(rests, config)
+    ready = float(days([levels_from])[0]) if levels_from is not None and pd.notna(levels_from) else -np.inf
     if at is None:
         times = pairs["t_end"] if len(pairs) else (frame.index if frame is not None else [])
         if len(times) == 0:
@@ -167,7 +195,11 @@ def estimate_capacity(
     z = _z(config.level)
     rows = []
     for t in days(at):
-        est = _solve(capacity_state_at(pairs, spec, config, float(t)), float(t), z, config)
+        if t < ready:
+            est = _core.Estimate()
+            est.status = _core.NO_LEVELS
+        else:
+            est = _solve(capacity_state_at(pairs, spec, config, float(t)), float(t), z, config)
         rows.append(estimate_row(est, spec))
     out = pd.DataFrame(rows, index=at)
     out.index.name = "time"
@@ -208,14 +240,21 @@ def fade_rate(
 ) -> dict:
     """The fade rate over the whole record: ``q = (c0 + r y) x + beta dt`` over all pairs.
 
-    The band is the wider of two: the core's lag-corrected t-band and a bootstrap that
-    resamples whole calendar months of pairs (``n_boot`` times, fixed ``seed``), which
-    keeps the correlation of pairs within a month (temperature, season, operation).
+    The band is the core's: a Student-t interval on the lag-1 sandwich standard error,
+    which allows for scatter that differs between kinds of pair and for the correlation
+    of pairs that share a rest (``besslib.soh._core``). A bootstrap that resamples whole
+    calendar months of pairs (``n_boot`` times, fixed ``seed``) is reported next to it as
+    a check (``rate_boot_low``, ``rate_boot_high``): it also keeps any correlation
+    within a month (temperature, season, operation) that the core does not model. A band
+    much narrower than the bootstrap's points to such correlation. The two are not
+    merged: the union of two 90 % intervals holds the truth more often than 90 %.
 
     Returns, in points of ``spec.reference_capacity_ah``: ``rate_points_per_year``
     (negative = fade) with ``_low`` and ``_high``; the same per 100 equivalent full
     cycles (charge throughput / (2 x reference capacity)); ``capacity_start_ah``;
-    ``offset_current_a``; ``n_pairs``; ``span_years``; ``status``.
+    ``offset_current_a``; ``n_pairs``; ``span_years``; ``status``; and the diagnostics
+    ``birge`` (reduced chi-square of the weighted fit) and ``rho`` (lag-1 correlation
+    of its weighted residuals).
     """
     config = config or CapacityConfig()
     ref = spec.reference_capacity_ah
@@ -243,7 +282,6 @@ def fade_rate(
     if n_boot > 0 and len(boot) >= 0.9 * n_boot:
         a = (1.0 - config.level) / 2.0
         boot_low, boot_high = np.quantile(boot, [a, 1.0 - a])
-        low, high = min(low, boot_low), max(high, boot_high)
     years = (t[-1] - t[0]) / 365.25
     throughput = float(pairs["throughput_ah"].abs().sum())
     efc_per_year = throughput / (2.0 * ref) / years if years > 0 else np.nan

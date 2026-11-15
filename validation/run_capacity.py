@@ -36,7 +36,7 @@ import pandas as pd
 from besslib.io import figgener
 from besslib.soh.capacity import estimate_capacity, fade_rate
 from besslib.soh.config import CapacityConfig, config_hash
-from besslib.soh.rests import classify_rests, rest_chain, rest_pairs
+from besslib.soh.rests import classify_rests, levels_from, rest_chain, rest_pairs
 
 from build_reference import fetch
 from reduce_events import RAW, reduce_system, rest_file
@@ -89,15 +89,17 @@ def run_system(system_id: int, tests: pd.DataFrame, config: CapacityConfig) -> N
     mine = tests[tests["system_id"] == system_id]
     mask = masks_for(tests, system_id)
     if len(mine):
-        per_test, pairs = estimate_at_tests(candidates, system_id, tests, config)
+        per_test, pairs, ready = estimate_at_tests(candidates, system_id, tests, config)
         per_test.insert(1, "set", which)
         per_test["config_hash"] = digest
         per_test.to_csv(OUT / f"system_{system_id:02d}_tests.csv", index=False, float_format="%.5f")
     else:
         cands = candidates[candidates["duration_min"] >= config.min_duration_min]
-        pairs = rest_pairs(rest_chain(classify_rests(cands, spec, config), spec, config), config)
+        rests = classify_rests(cands, spec, config)
+        pairs = rest_pairs(rest_chain(rests, spec, config), config)
+        ready = levels_from(rests, config)
 
-    monthly = estimate_capacity(None, spec, config=config, pairs=pairs)
+    monthly = estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=ready)
     monthly["config_hash"] = digest
     monthly.to_csv(OUT / f"system_{system_id:02d}_monthly.csv", float_format="%.5f")
 

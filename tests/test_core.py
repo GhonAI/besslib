@@ -28,12 +28,17 @@ SPEC = PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.0, cells_in_seri
 EPOCH = pd.Timestamp("2000-01-01")
 
 
-def chain_pairs(seed=3, n=600, cap=100.0, beta=-1.2, sigma_soc=0.02, breaks=(150, 400)):
-    """Pairs from a random walk over full and empty rests, with shared-rest errors."""
+def chain_pairs(seed=3, n=600, cap=100.0, beta=-1.2, sigma_soc=0.02, breaks=(150, 400), sigma_empty=None):
+    """Pairs from a random walk over full and empty rests, with shared-rest errors.
+
+    ``sigma_empty`` (default ``sigma_soc``) is the error of an empty rest; the weights
+    always assume ``sigma_soc`` for both kinds.
+    """
     rng = np.random.default_rng(seed)
     t = 7000.0 + np.cumsum(rng.uniform(0.2, 1.5, n + 1))
     full = rng.integers(0, 2, n + 1)
-    soc_err = rng.normal(0.0, sigma_soc, n + 1)  # error of each rest, shared by two pairs
+    sig = np.where(full == 1, sigma_soc, sigma_soc if sigma_empty is None else sigma_empty)
+    soc_err = rng.normal(0.0, 1.0, n + 1) * sig  # error of each rest, shared by two pairs
     counter = cap * (full + soc_err) + beta * (t - t[0])
     linked = np.ones(n, dtype=int)
     linked[0] = 0
@@ -92,6 +97,22 @@ def test_band_holds_the_truth_about_90_percent():
     assert 0.84 <= held / runs <= 0.96
 
 
+def test_band_follows_the_real_scatter_of_each_kind():
+    # Full rests scatter 2 % as the weights assume, empty rests only 0.2 %. The band must
+    # come from the residuals: not held at the assumed size (it would hold the truth
+    # nearly always) and not scaled by one common factor, which the precise
+    # empty-to-empty pairs would pull down.
+    held = 0
+    runs = 200
+    for seed in range(runs):
+        pairs = chain_pairs(seed=seed, n=150, breaks=(70,), sigma_soc=0.02, sigma_empty=0.002)
+        pairs["sigma_x"] = np.sqrt(2.0) * 0.02
+        est = feed(pairs, _core.capacity_state(100.0, 0.0), end_day(pairs), gain=0.0)
+        held += est.low <= 100.0 <= est.high
+        assert est.birge < 1.0
+    assert 0.84 <= held / runs <= 0.96
+
+
 def test_batch_path_equals_core():
     pairs = chain_pairs()
     config = CapacityConfig(tau_days=60.0)
@@ -145,6 +166,14 @@ def test_status_codes():
     stale = feed(pairs, _core.capacity_state(100.0, 30.0), end_day(pairs) + 31.0)
     assert stale.status == _core.STALE  # pairs in memory, but none in the last 30 days
     assert "not possible from this data" in _core.STATUS_TEXT[stale.status]
+    # The fade fit needs its full-to-empty pairs to span min_span_years (1 year here);
+    # these pairs span about two months.
+    short = feed(pairs, _core.fade_state(100.0, end_day(pairs) - 100.0), end_day(pairs))
+    assert short.status == _core.SHORT_SPAN
+    assert 0.0 < short.span_years < 1.0
+    # Every code has its own text; the caller sets NO_LEVELS (the core never sees rests).
+    assert len(set(_core.STATUS_TEXT.values())) == len(_core.STATUS_TEXT)
+    assert all(text.startswith("not possible from this data") for code, text in _core.STATUS_TEXT.items() if code != _core.OK)
 
 
 @pytest.mark.parametrize("nu, expected", [(5, 2.0150), (10, 1.8125), (30, 1.6973), (120, 1.6577)])

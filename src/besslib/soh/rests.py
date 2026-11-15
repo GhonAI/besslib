@@ -260,6 +260,12 @@ def classify_rests(candidates: pd.DataFrame, spec: PackSpec, config: CapacityCon
     ``candidates`` is the output of ``detect_rests`` for a whole record, in time order.
     Adds ``accepted``, ``direction`` (``charge`` or ``discharge``: what came before the
     rest), ``level_full_v``, ``level_empty_v`` and ``kind``.
+
+    The levels are the system's end-of-charge and end-of-discharge edge voltages: high
+    and low quantiles of the edge voltages of accepted rests in the trailing
+    ``config.level_window_days`` (one operating year by default, so that both a summer
+    and a winter are in it). Before ``config.level_warmup_days`` have passed since the
+    first accepted rest of the record, the levels are NaN and every rest is ``other``.
     """
     config = config or CapacityConfig()
     rests = candidates.sort_values("start").reset_index(drop=True).copy()
@@ -289,6 +295,13 @@ def classify_rests(candidates: pd.DataFrame, spec: PackSpec, config: CapacityCon
         level = level.groupby(level.index).last()
         rests[column] = level.reindex(rests["start"], method="ffill").to_numpy()
 
+    # No level before the warm-up has passed: until then the window has not seen every
+    # season, and its quantiles need not be the system's limits.
+    ready = levels_from(rests, config)
+    if pd.notna(ready):
+        early = (rests["start"] < ready).to_numpy()
+        rests.loc[early, ["level_full_v", "level_empty_v"]] = np.nan
+
     span = rests["level_full_v"] - rests["level_empty_v"]
     tol = config.edge_tolerance * span
     full = (
@@ -305,13 +318,26 @@ def classify_rests(candidates: pd.DataFrame, spec: PackSpec, config: CapacityCon
     return rests
 
 
+def levels_from(rests: pd.DataFrame, config: CapacityConfig | None = None) -> pd.Timestamp:
+    """The first time at which the full and empty levels exist: ``config.level_warmup_days``
+    after the first accepted rest of ``rests`` (a table with an ``accepted`` column, as
+    ``classify_rests`` writes it). ``NaT`` when no rest is accepted."""
+    config = config or CapacityConfig()
+    first = rests.loc[rests["accepted"].to_numpy(dtype=bool), "start"].min() if len(rests) else pd.NaT
+    if pd.isna(first):
+        return pd.NaT
+    return pd.Timestamp(first) + pd.Timedelta(days=config.level_warmup_days)
+
+
 def find_rests(frame: pd.DataFrame, spec: PackSpec, config: CapacityConfig | None = None) -> pd.DataFrame:
     """All rests in ``frame``, labelled ``full``, ``empty`` or ``other``.
 
     Returns one row per rest: ``start`` (the anchor), ``end``, ``duration_min``,
     ``edge_v`` (the voltage just before the rest), ``ocv_v`` and ``ocv_sigma_v`` (from the
     relaxation fit), ``temp_pack_c``, running ``charge_ah`` and ``throughput_ah`` at the
-    anchor, ``accepted`` (throughput filter), ``direction`` and ``kind``.
+    anchor, ``accepted`` (throughput filter), ``direction``, ``level_full_v``,
+    ``level_empty_v`` and ``kind``. In the first ``config.level_warmup_days`` of the
+    record (one year by default) no level exists yet and every rest is ``other``.
     """
     return classify_rests(detect_rests(frame, spec, config), spec, config)
 

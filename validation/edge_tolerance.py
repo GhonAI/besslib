@@ -10,7 +10,9 @@ and back are grouped by how far their full rest (and, separately, their empty re
 from its level, in bins up to 3, 6, 10 and 15 % of the span. The tolerance is the widest
 bin edge up to which every bin has at least 10 pairs and a median charge within 2 % of
 the innermost bin (up to 3 %). The narrowest over the seven development systems and both
-edges is used. Rests are found with C/100 and 20 minutes; the test windows are masked.
+edges is used. Rests are found with the default current threshold and minimum duration,
+and the full and empty levels are the default ones (``CapacityConfig``); the test windows
+are masked.
 
 Writes ``validation/results/edge_tolerance.csv`` (one row per system, edge and bin).
 
@@ -29,8 +31,9 @@ from besslib.io import figgener
 from besslib.soh.config import CapacityConfig
 from besslib.soh.rests import classify_rests, rest_chain
 
+from level_window import development_test_times
 from reduce_events import rest_file
-from tune_capacity import DEVELOPMENT, masks_for, reference_tests
+from tune_capacity import DEVELOPMENT, masks_for
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "validation" / "results"
@@ -67,7 +70,7 @@ def pair_distances(system_id: int, config: CapacityConfig, tests: pd.DataFrame) 
 
 def main() -> None:
     config = CapacityConfig(edge_tolerance=max(EDGES))
-    tests = reference_tests("development")
+    tests = development_test_times()  # start and end times only: no test value is read
     rows, chosen = [], []
     for sid in DEVELOPMENT:
         d = pair_distances(sid, config, tests)

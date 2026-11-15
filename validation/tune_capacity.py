@@ -34,7 +34,7 @@ import pandas as pd
 from besslib.io import figgener
 from besslib.soh.capacity import estimate_capacity
 from besslib.soh.config import CapacityConfig, config_hash
-from besslib.soh.rests import classify_rests, rest_chain, rest_pairs
+from besslib.soh.rests import classify_rests, levels_from, rest_chain, rest_pairs
 
 from reduce_events import CURRENT_GRID, DURATION_GRID, rest_file
 
@@ -65,7 +65,8 @@ def masks_for(tests: pd.DataFrame, system_id: int) -> list[tuple[pd.Timestamp, p
 
 
 def estimate_at_tests(candidates: pd.DataFrame, system_id: int, tests: pd.DataFrame, config: CapacityConfig):
-    """Estimates at every test of one system, from masked operating data only; also the pairs."""
+    """Estimates at every test of one system, from masked operating data only; also the pairs
+    and the time from which the full and empty levels exist."""
     spec = figgener.pack_spec(system_id)
     mask = masks_for(tests, system_id)
     cands = candidates[candidates["duration_min"] >= config.min_duration_min]
@@ -76,7 +77,8 @@ def estimate_at_tests(candidates: pd.DataFrame, system_id: int, tests: pd.DataFr
     pairs = rest_pairs(rest_chain(rests, spec, config, mask=mask), config)
     rows = tests[tests["system_id"] == system_id]
     at = [m[0] for m in mask]  # the estimate as of the start of each masked window
-    est = estimate_capacity(None, spec, config=config, at=at, pairs=pairs)
+    ready = levels_from(rests, config)
+    est = estimate_capacity(None, spec, config=config, at=at, pairs=pairs, levels_from=ready)
     out = rows[["test_id", "system_id", "chemistry", "capacity_ah", "test_c_rate", "status"]].rename(
         columns={"capacity_ah": "test_capacity_ah", "status": "test_status"}
     )
@@ -88,7 +90,7 @@ def estimate_at_tests(candidates: pd.DataFrame, system_id: int, tests: pd.DataFr
     out["error_points"] = (out["capacity_ah"] - out["test_capacity_ah"]) / nominal * 100.0
     out["band_points"] = (out["capacity_ah_high"] - out["capacity_ah_low"]) / nominal * 100.0
     out["held"] = (out["capacity_ah_low"] <= out["test_capacity_ah"]) & (out["test_capacity_ah"] <= out["capacity_ah_high"])
-    return out, pairs
+    return out, pairs, ready
 
 
 def summarise(per_test: pd.DataFrame) -> dict:
