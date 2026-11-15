@@ -1,0 +1,3 @@
+test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
+04/1,development,4,LMO/NMC,13.28820,0.84360,ok,2018-03-05 15:54:10,12.19637,11.81484,12.57789,-0.01555,69.06148,38.53877,30.52271,6.29840,-0.50000,estimated,-7.27888,5.08701,False,8de3104858ec
+04/2,development,4,LMO/NMC,12.44090,0.84230,ok,2019-05-06 09:56:19,12.53148,12.22776,12.83519,-0.01856,27.94856,14.09248,13.85609,1.46308,-0.34245,estimated,0.60384,4.04950,True,8de3104858ec

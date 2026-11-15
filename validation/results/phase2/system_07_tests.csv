@@ -1,0 +1,7 @@
+test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
+07/1,development,7,NMC,158.07380,0.33420,ok,2017-06-13 18:26:02,150.98533,146.37058,155.60009,-0.06760,59.30464,9.80406,49.50058,1.57143,-0.41974,estimated,-3.93804,5.12751,False,8de3104858ec
+07/2,development,7,NMC,149.40890,0.33550,ok,2018-02-22 18:09:32,147.30141,138.86019,155.74263,-0.07681,32.85635,9.31252,23.54382,5.29196,-0.50000,estimated,-1.17083,9.37913,True,8de3104858ec
+07/3,development,7,NMC,148.04230,0.33480,ok,2019-08-14 19:23:43,144.58591,138.12782,151.04401,-0.05515,58.99662,3.05767,55.93895,1.00000,-0.49332,estimated,-1.92021,7.17566,True,8de3104858ec
+07/4,development,7,NMC,143.78820,0.33310,ok,2020-04-28 14:56:56,139.66132,130.52832,148.79433,-0.10951,54.55270,8.50113,46.05157,6.05771,-0.48642,estimated,-2.29271,10.14778,True,8de3104858ec
+07/5,development,7,NMC,135.93040,0.32860,ok,2021-10-08 19:11:06,,,,,8.88089,1.82560,7.05529,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,8de3104858ec
+07/6,development,7,NMC,132.88680,0.32820,ok,2022-04-10 19:56:55,,,,,34.27576,2.89134,31.38442,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,8de3104858ec
