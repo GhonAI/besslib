@@ -12,8 +12,9 @@ EU Battery Regulation (2023/1542, Annex VII).
 | Reader | Reads the open field dataset of Figgener et al. (2024) straight from its archives | `besslib.io.read_figgener` |
 | Reference | Measures a field capacity test that is recorded inside the operating data | `besslib.soh.measure_capacity_test` |
 | Phase 1 result | The dataset's 60 field capacity tests, measured again | [`docs/01_reference.md`](docs/01_reference.md) |
+| Capacity | Usable capacity with a confidence band and its fade rate, from rests at full and empty in operating data; checked against the field tests on systems it was not tuned on | `besslib.soh.estimate_capacity`, `besslib.soh.fade_rate`; result: [`docs/02_capacity_validation.md`](docs/02_capacity_validation.md) |
 
-The state-of-health estimators (capacity, resistance, efficiency, the Annex VII record) are phases 2 and 3.
+The other state-of-health estimators (resistance, efficiency, the Annex VII record) are phase 3.
 
 ## Rebuild the phase 1 result
 

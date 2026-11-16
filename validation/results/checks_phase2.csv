@@ -1,16 +1,16 @@
 check,scope,value,pass_if,result,config_hash
-V2,held-out LMO/NMC and NMC,no held-out results yet (0 tests),<= 3 points,not run,109e9eb1efa5
-V2 info,"same, without 03/3 and 08/1",no held-out results yet (0 tests),information,,109e9eb1efa5
-V3,held-out LFP,no held-out results yet (0 tests),"<= 5 points, bias shown",not run,109e9eb1efa5
-V4,held-out LMO/NMC and NMC,no held-out results yet (0 tests),>= 80 %,not run,109e9eb1efa5
-V4 info,held-out LFP,no held-out results yet (0 tests),information,,109e9eb1efa5
-V4 info,"same as V4, without 03/3 and 08/1",no held-out results yet (0 tests),information,,109e9eb1efa5
-V5,held-out LMO/NMC (0 systems),no held-out results yet (0 systems),within +-0.5,not run,109e9eb1efa5
-V5 info,all LMO/NMC (2 systems),mean fade -1.80 points/year,information,,109e9eb1efa5
-V5,held-out NMC (0 systems),no held-out results yet (0 systems),within +-0.5,not run,109e9eb1efa5
-V5 info,all NMC (2 systems),mean fade -1.40 points/year,information,,109e9eb1efa5
-V5,held-out LFP (0 systems),no held-out results yet (0 systems),within +-0.5,not run,109e9eb1efa5
-V5 info,all LFP (3 systems),mean fade +0.20 points/year,information,,109e9eb1efa5
+V2,held-out LMO/NMC and NMC,median |error| 2.62 points (22/28 estimated),<= 3 points,pass,109e9eb1efa5
+V2 info,"same, without 03/3 and 08/1",median |error| 2.62 points (26 tests),information,,109e9eb1efa5
+V3,held-out LFP,median |error| inf points; median error +4.80 (5/10 estimated),"<= 5 points, bias shown",fail,109e9eb1efa5
+V4,held-out LMO/NMC and NMC,band held the test in 43% of 28,>= 80 %,fail,109e9eb1efa5
+V4 info,held-out LFP,band held the test in 10% of 10,information,,109e9eb1efa5
+V4 info,"same as V4, without 03/3 and 08/1",band held the test in 42% of 26,information,,109e9eb1efa5
+V5,held-out LMO/NMC (4 systems),mean fade -3.14 points/year; paper -3.1,within +-0.5,pass,109e9eb1efa5
+V5 info,all LMO/NMC (6 systems),mean fade -2.69 points/year,information,,109e9eb1efa5
+V5,held-out NMC (5 systems),mean fade -4.58 points/year; paper -1.9,within +-0.5,fail,109e9eb1efa5
+V5 info,all NMC (7 systems),mean fade -3.67 points/year,information,,109e9eb1efa5
+V5,held-out LFP (5 systems),mean fade -1.39 points/year; paper -2.0,within +-0.5,fail,109e9eb1efa5
+V5 info,all LFP (8 systems),mean fade -0.80 points/year,information,,109e9eb1efa5
 V6,200 synthetic packs,band held the true usable fade (-1.88) in 89.5%,85-95 %,pass,109e9eb1efa5
 V7,"core against batch path, 90 daily estimates (months of tests 01/1, 07/1, 17/2)",max relative difference 2.0e-15,<= 1e-6,pass,109e9eb1efa5
-V8,21 systems,one command per system: python validation/run_capacity.py <id>,all 21 rebuilt with one hash,not run,109e9eb1efa5
+V8,21 systems,one command per system: python validation/run_capacity.py <id>,all 21 rebuilt with one hash,pass,109e9eb1efa5

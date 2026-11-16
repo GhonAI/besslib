@@ -1,0 +1,6 @@
+test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
+06/1,held-out,6,LMO/NMC,13.48030,0.83840,ok,2017-06-12 13:53:48,,,,,0.00000,0.00000,0.00000,,,not possible from this data: not enough history yet to set the full and empty levels,,,False,109e9eb1efa5
+06/2,held-out,6,LMO/NMC,12.83070,0.83760,ok,2018-04-18 13:34:44,12.99326,12.83731,13.14922,-0.00349,89.13517,57.85111,31.28405,0.65384,-0.52157,estimated,1.08376,2.07935,False,109e9eb1efa5
+06/3,held-out,6,LMO/NMC,12.84790,0.83900,ok,2019-06-05 14:05:30,12.69461,12.30811,13.08111,-0.00245,71.62490,49.76820,21.85670,8.73535,-0.01928,estimated,-1.02195,5.15330,True,109e9eb1efa5
+06/4,held-out,6,LMO/NMC,12.70700,0.83890,ok,2020-05-19 13:59:15,12.35588,12.19296,12.51880,-0.00309,116.68239,79.29918,37.38321,1.82021,-0.09234,estimated,-2.34078,2.17228,False,109e9eb1efa5
+06/5,held-out,6,LMO/NMC,10.81960,0.83890,ok,2022-10-26 13:39:20,11.21946,11.10986,11.32906,-0.00517,252.14341,198.20812,53.93529,0.51594,-0.52869,estimated,2.66575,1.46131,False,109e9eb1efa5

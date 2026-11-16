@@ -1,0 +1,23 @@
+time,capacity_ah,capacity_ah_low,capacity_ah_high,soh_capacity,soh_capacity_low,soh_capacity_high,reference_capacity_ah,offset_current_a,offset_current_sigma_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,config_hash
+2017-09-30,,,,,,,158.00000,,,2.72776,0.90216,1.82560,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2017-10-31,,,,,,,158.00000,,,3.21525,0.75943,2.45582,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2017-11-30,,,,,,,158.00000,,,3.57545,0.64284,2.93261,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2017-12-31,,,,,,,158.00000,,,3.00979,0.54114,2.46864,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-01-31,,,,,,,158.00000,,,6.42054,0.45553,5.96502,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-02-28,132.48193,115.57206,149.39180,0.83849,0.73147,0.94552,158.00000,-0.24704,0.05229,15.59219,4.09912,11.49308,2.82645,-0.35030,estimated,109e9eb1efa5
+2018-03-31,130.09265,114.21485,145.97045,0.82337,0.72288,0.92386,158.00000,-0.22782,0.07037,14.95206,4.29493,10.65713,3.02064,-0.24766,estimated,109e9eb1efa5
+2018-04-30,137.09807,117.01779,157.17835,0.86771,0.74062,0.99480,158.00000,-0.04380,0.21252,18.83596,4.51284,14.32312,17.29115,-0.02525,estimated,109e9eb1efa5
+2018-05-31,137.09807,114.69054,159.50559,0.86771,0.72589,1.00953,158.00000,-0.04380,0.23426,15.85596,3.79887,12.05709,17.68602,-0.02525,estimated,109e9eb1efa5
+2018-06-30,137.09807,112.04334,162.15279,0.86771,0.70914,1.02628,158.00000,-0.04380,0.25802,13.42178,3.21568,10.20610,18.16144,-0.02525,estimated,109e9eb1efa5
+2018-07-31,,,,,,,158.00000,,,11.29835,2.70693,8.59142,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-08-31,,,,,,,158.00000,,,9.51086,2.27867,7.23219,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-09-30,,,,,,,158.00000,,,8.05077,1.92886,6.12191,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-10-31,,,,,,,158.00000,,,6.77707,1.62369,5.15338,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-11-30,,,,,,,158.00000,,,5.73667,1.37443,4.36224,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2018-12-31,,,,,,,158.00000,,,4.82908,1.15698,3.67210,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2019-01-31,,,,,,,158.00000,,,4.06508,0.97394,3.09114,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2019-02-28,,,,,,,158.00000,,,3.47947,0.83363,2.64583,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2019-03-31,,,,,,,158.00000,,,2.92899,0.70175,2.22724,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2019-04-30,,,,,,,158.00000,,,2.47933,0.59401,1.88532,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2019-05-31,,,,,,,158.00000,,,5.03262,2.45434,2.57828,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5
+2019-06-30,,,,,,,158.00000,,,6.81951,2.07755,4.74196,,,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5

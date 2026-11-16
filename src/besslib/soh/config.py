@@ -57,7 +57,7 @@ class CapacityConfig:
     pre_window_s: float = 60.0
     break_gap_s: float = 60.0
     edge_quantile: float = 0.9
-    edge_tolerance: float = 0.03  # validation/edge_tolerance.py (D12)
+    edge_tolerance: float = 0.03  # validation/edge_tolerance.py
     level_window_days: float = 365.0  # one operating year: every season once
     level_warmup_days: float = 365.0  # no level before one year of history
     min_level_rests: int = 10

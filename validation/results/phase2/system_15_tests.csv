@@ -1,0 +1,5 @@
+test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
+15/1,held-out,15,LFP,168.10460,0.18160,ok,2017-06-04 18:00:24,,,,,0.00000,0.00000,0.00000,,,not possible from this data: not enough history yet to set the full and empty levels,,,False,109e9eb1efa5
+15/2,held-out,15,LFP,174.82170,0.39450,ok,2018-03-04 14:19:27,,,,,18.38022,1.87310,16.50711,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,109e9eb1efa5
+15/3,held-out,15,LFP,168.81810,0.43010,ok,2019-10-11 12:12:01,,,,,7.68066,1.18452,6.49614,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,109e9eb1efa5
+15/4,held-out,15,LFP,157.12270,0.43090,ok,2022-11-12 09:23:14,166.49142,164.01611,168.96674,-0.58610,73.20039,20.16760,53.03279,0.96737,0.41870,estimated,4.80447,2.53878,False,109e9eb1efa5

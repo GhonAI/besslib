@@ -6,10 +6,10 @@ offset current are fitted together over many pairs (``besslib.soh._core``), so e
 estimate carries a band and a count of the pairs it rests on.
 
 The estimate at a time uses only pairs that end before it (causal, as in a BMS). With
-memory time ``tau_days`` it lags a steady fade by about ``tau_days`` (90 days at 3
-points per year: about 0.7 points). It measures the capacity between the system's own
-end of charge and end of discharge under its normal load. A field capacity test at full
-power may read lower; besslib does not correct for that.
+memory time ``tau_days`` it lags a steady fade by about ``tau_days``. It measures the
+capacity between the system's own end of charge and end of discharge under its normal
+load. A field capacity test at full power may read lower; besslib does not correct for
+that.
 
 Two paths give the same numbers: ``run_core`` feeds the core one pair at a time (the
 form a BMS or the C port uses); ``capacity_state_at`` builds the same state from sums
