@@ -78,7 +78,8 @@ _METHODS = {
     "A2": f"ratio of the resistance on the first day to the resistance at the date, from {_RESISTANCE}; no power test",
     "A3": (
         "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); "
-        "band: lag-1 sandwich (Newey and West, Econometrica 55, 703 (1987), doi:10.2307/1913610)"
+        "band: the ratio over these loops had each closed exactly, from the error of the state of charge at their "
+        "end rests, estimated from the lag-1 products of the loop scores"
     ),
     "A4": f"minus the offset current of the capacity fit ({_FIGGENER}); band with the current sensor's gain error",
     "A5": _RESISTANCE,
@@ -298,13 +299,17 @@ def _efficiency_field(reduced, spec, at, mask, level, config, capacity_config) -
             "coulombic_part": float(full["coulombic_efficiency"]),
             "voltage_part": float(full["voltage_efficiency"]),
             "rho": float(full["rho"]),
+            "dof": float(full["dof"]),
+            "rest_error_wh": float(full["rest_error_wh"]),
             "empty_loops": {
                 "value": ev, "low": el, "high": eh, "n_loops": float(empty["n_loops"]), "status": empty["status"],
             },
             "limits": (
                 "DC at the battery terminals, not the AC efficiency of the plant; depends on the use "
-                "(Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the energy "
-                "in also restores the charge the meter does not see; the band holds no zero offset of the current "
+                "(Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band "
+                "holds the ratio over these loops, not the efficiency under other use; a slow change of the loops' "
+                "own efficiency that neighbouring loops share (season) makes the band too narrow; the energy in "
+                "also restores the charge the meter does not see; the band holds no zero offset of the current "
                 "sensor"
             ),
         },

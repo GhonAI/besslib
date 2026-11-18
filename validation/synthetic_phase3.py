@@ -6,33 +6,45 @@ events. Their resistance grows by 5 % of its start value per year and falls with
 pack temperature, which follows the season; a few intervals of a fixed high or low
 temperature and a few deep discharges are planted at random days.
 
-Each seed is simulated three times with the same operation:
+Each seed is simulated with the same operation several times:
 
 * pack A, measured: current gain error within 0.5 %, voltage gain error within 0.25 %
-  (the stated sensor accuracies). Checks W2 (resistance and its growth), W5 (round-trip
-  efficiency) and W7 (apparent charge loss) use it.
-* pack B, measured: current gain error only, at most 0.5 %. Check W8 (throughput,
-  cycles, planted events) uses it, as its rule says.
+  (the stated sensor accuracies), current and voltage noise. Checks W2 (resistance and
+  its growth), W5 (round-trip efficiency) and W7 (apparent charge loss) use it.
+* pack B, measured: the current gain error only (at most 0.5 %; no noise, no voltage
+  gain error), as the rule of W8 says. Check W8 (throughput, cycles, planted events)
+  uses it.
+* pack B with the noise of pack A (current 0.05 A, voltage 5 mV): the same W8 count,
+  written as information (``w8noise_*``): the noise moves currents near the idle
+  threshold across it, so hours of charging inside the planted intervals change.
 * the pack's own signals, without gain error and noise: the truth.
 
-The three records are reduced to the daily, step and rest tables
-(``besslib.soh.reduce``); the checks read those tables. Each check lives in its own
-module with one function ``check(run) -> dict``:
+The records are reduced to the daily, step and rest tables (``besslib.soh.reduce``); the
+checks read those tables. Each part is one check (``PARTS``), with its own column prefix:
 
-    synthetic_usage.py        W8
-    synthetic_resistance.py   W2
-    synthetic_efficiency.py   W5, W7
+    w2        synthetic_resistance.check       W2
+    w5        synthetic_efficiency.check_w5    W5
+    w7        synthetic_efficiency.check_w7    W7
+    w8        synthetic_usage.check            W8 (pack B)
+    w8noise   synthetic_usage.check            W8, information (pack B with noise)
 
 Pass: the 90 % band holds the truth in 85-95 % of the packs (W2 for the value and for
 the growth, W5, W7); Ah, kWh and cycles within 0.6 % of the truth and the planted
 events counted exactly on every pack (W8). A pack without a band counts as not held.
+W2's growth is judged against the simulator's known growth at the fit's origin
+(``w2_growth_held_param``); this reading was chosen after the first results. Its
+same-days truth (``w2_growth_held``) and the value's three truths are information.
 
-Writes ``validation/results/synthetic_phase3.csv`` (one row per pack).
+Writes ``validation/results/synthetic_phase3.csv`` (one row per pack). A run of some
+parts replaces only their columns in the file on disk and keeps the others: the file
+must hold the same seeds and come from the same settings (both configuration hashes),
+else the run stops and all parts must be run.
 
 Usage:
-    python validation/synthetic_phase3.py                          # 200 packs, 3 processes
-    python validation/synthetic_phase3.py --seeds 1 2 3            # some packs, one process
-    python validation/synthetic_phase3.py --seeds 1 2 --only resistance
+    python validation/synthetic_phase3.py                          # all parts, 200 packs, 3 processes
+    python validation/synthetic_phase3.py --only w5 w8 w8noise     # some parts, merged into the file
+    python validation/synthetic_phase3.py --processes 2 --only w8  # fewer processes
+    python validation/synthetic_phase3.py --seeds 1 2 3 --only w5  # some packs, one process, printed only
 """
 
 from __future__ import annotations
@@ -40,7 +52,7 @@ from __future__ import annotations
 import importlib
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from multiprocessing import Pool
 from pathlib import Path
 
@@ -56,17 +68,40 @@ from besslib.frames import PackSpec  # noqa: E402
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash  # noqa: E402
 
 RESULTS = ROOT / "validation" / "results"
+OUT = RESULTS / "synthetic_phase3.csv"
 MONTHS = 36  # one year of level warm-up, then two years of estimates
 STEP_S = 10
 N_PACKS = 200
 PASS_RANGE = (0.85, 0.95)
-PARTS = {"usage": "synthetic_usage", "resistance": "synthetic_resistance", "efficiency": "synthetic_efficiency"}
+HASH_COLUMNS = ("capacity_config_hash", "record_config_hash")
+
+
+@dataclass(frozen=True)
+class Part:
+    module: str
+    function: str
+    prefix: str
+    signals: tuple  # which reduced records the check reads: measured (A), plain (B), noisy (B with noise), true
+
+
+#: The parts, in the order of the file's columns. No prefix is the start of another.
+PARTS = {
+    "w2": Part("synthetic_resistance", "check", "w2_", ("measured", "true")),
+    "w5": Part("synthetic_efficiency", "check_w5", "w5_", ("measured", "true")),
+    "w7": Part("synthetic_efficiency", "check_w7", "w7_", ("measured",)),
+    "w8": Part("synthetic_usage", "check", "w8_", ("plain", "true")),
+    "w8noise": Part("synthetic_usage", "check", "w8noise_", ("noisy", "true")),
+}
 
 HOT_C, COLD_C = 47.0, -3.0  # planted pack temperatures, outside the seasonal range
 
 
-def packs_for(seed: int) -> tuple[SynthPack, SynthPack]:
-    """Pack A and pack B of one seed: the same operation and planted events; B has no voltage gain error."""
+def packs_for(seed: int) -> tuple[SynthPack, SynthPack, SynthPack]:
+    """Packs A, B and B with noise of one seed: the same operation, planted events and current gain error.
+
+    A has a voltage gain error and noise; B has the current gain error only; the third is
+    B with the noise of A (the pack B of the first 200-pack run).
+    """
     rng = np.random.default_rng(1_000_000 + seed)
     days = MONTHS * 30
     chosen = rng.choice(np.arange(30, days), size=int(rng.integers(3, 9)) + int(rng.integers(3, 9)), replace=False)
@@ -87,12 +122,15 @@ def packs_for(seed: int) -> tuple[SynthPack, SynthPack]:
         planted_temps=tuple(planted),
         planted_deep_days=deep,
     )
-    return SynthPack(voltage_gain_error_max=0.0025, **common), SynthPack(**common)
+    noisy = SynthPack(**common)
+    # A noise of zero still draws its random numbers, so B keeps the operation and gain of the others.
+    plain = replace(noisy, current_noise_a=0.0, voltage_noise_v=0.0)
+    return SynthPack(voltage_gain_error_max=0.0025, **common), plain, noisy
 
 
 @dataclass
 class Run:
-    """One simulated seed, as the check functions see it."""
+    """One simulated seed, as the check functions see it (a record not needed by the parts run is None)."""
 
     seed: int
     months: int
@@ -100,20 +138,29 @@ class Run:
     spec: PackSpec
     pack: SynthPack  # pack A
     pack_plain: SynthPack  # pack B
+    pack_noisy: SynthPack  # pack B with noise
     reduced: object  # pack A, measured signals
     reduced_plain: object  # pack B, measured signals
+    reduced_noisy: object  # pack B with noise, measured signals
     reduced_true: object  # the pack's own signals
     stops: pd.DataFrame
     segments: pd.DataFrame
 
 
-def simulate(seed: int, need_plain: bool = True) -> Run:
+def simulate(seed: int, need_plain: bool = True, parts=None) -> Run:
+    """Simulate and reduce one seed: the records the given parts read (default: all parts; without
+    ``need_plain`` those of pack A only)."""
     from besslib.soh.reduce import reduce_parts
 
-    pack, plain = packs_for(seed)
+    if parts is None:
+        parts = list(PARTS) if need_plain else ["w2", "w5", "w7"]
+    signals = {s for p in parts for s in PARTS[p].signals}
+    pack, plain, noisy = packs_for(seed)
     spec = pack.spec()
 
-    def reduce(p: SynthPack, true_signals: bool = False):
+    def reduce(p: SynthPack, wanted: str, true_signals: bool = False):
+        if wanted not in signals:
+            return None
         return reduce_parts(frames(p, MONTHS, step_s=STEP_S, seed=seed, true_signals=true_signals), spec)
 
     return Run(
@@ -123,25 +170,77 @@ def simulate(seed: int, need_plain: bool = True) -> Run:
         spec=spec,
         pack=pack,
         pack_plain=plain,
-        reduced=reduce(pack),
-        reduced_plain=reduce(plain) if need_plain else None,
-        reduced_true=reduce(pack, true_signals=True),
+        pack_noisy=noisy,
+        reduced=reduce(pack, "measured"),
+        reduced_plain=reduce(plain, "plain"),
+        reduced_noisy=reduce(noisy, "noisy"),
+        reduced_true=reduce(pack, "true", true_signals=True),
         stops=true_stops(pack, MONTHS, seed),
         segments=true_segments(pack, MONTHS, seed),
     )
 
 
+def run_part(name: str, run: Run) -> dict:
+    """The columns of one part for one simulated seed."""
+    part = PARTS[name]
+    function = getattr(importlib.import_module(part.module), part.function)
+    if name == "w8noise":
+        out = function(replace(run, pack_plain=run.pack_noisy, reduced_plain=run.reduced_noisy))
+        return {part.prefix + key[len("w8_"):]: value for key, value in out.items()}
+    if part.function in ("check_w5", "check_w7"):
+        return function(run, RecordConfig(), CapacityConfig())
+    return function(run)
+
+
 def one_pack(args) -> dict:
     seed, parts = args
     started = time.time()
-    run = simulate(seed, need_plain="usage" in parts)
+    run = simulate(seed, parts=parts)
     row = {"seed": seed}
-    for part in parts:
-        row.update(importlib.import_module(PARTS[part]).check(run))
+    for name in parts:
+        out = run_part(name, run)
+        bad = [key for key in out if not key.startswith(PARTS[name].prefix)]
+        if bad:
+            raise ValueError(f"part {name} wrote columns outside its prefix: {bad}")
+        row.update(out)
+    seconds = round(time.time() - started, 1)
+    for name in parts:
+        row[f"{PARTS[name].prefix}seconds"] = seconds  # the whole run that wrote this part's columns
     row["capacity_config_hash"] = config_hash(CapacityConfig())
     row["record_config_hash"] = config_hash(RecordConfig())
-    row["seconds"] = round(time.time() - started, 1)
     return row
+
+
+def merged(new: pd.DataFrame, parts: list[str], path: Path = OUT) -> pd.DataFrame:
+    """The file on disk with the columns of ``parts`` replaced by ``new``; all parts when nothing is on disk."""
+    if set(parts) == set(PARTS):
+        return ordered(new)
+    if not path.exists():
+        raise SystemExit(f"{path.name} does not exist: run all parts first")
+    old = pd.read_csv(path)
+    for column in HASH_COLUMNS:
+        found, now = set(old[column].astype(str)), set(new[column].astype(str))
+        if found != now:
+            raise SystemExit(f"{path.name} comes from {column} {sorted(found)}, this run from {sorted(now)}: run all parts")
+    if sorted(old["seed"]) != sorted(new["seed"]):
+        raise SystemExit(f"{path.name} holds other seeds than this run: run all parts")
+    prefixes = tuple(PARTS[p].prefix for p in parts)
+    legacy = [c for c in ("seconds",) if c in old]  # one timing for the whole row: no longer true after a merge
+    keep = [c for c in old if not c.startswith(prefixes) and c not in HASH_COLUMNS and c not in legacy]
+    add = ["seed"] + [c for c in new if c.startswith(prefixes)]
+    table = old[keep].merge(new[add], on="seed", how="left", validate="one_to_one")
+    table = table.assign(**{column: new[column].iloc[0] for column in HASH_COLUMNS})
+    return ordered(table)
+
+
+def ordered(table: pd.DataFrame) -> pd.DataFrame:
+    """Columns in the order: seed, the parts in ``PARTS`` order, anything else, the hashes."""
+    columns = ["seed"]
+    for part in PARTS.values():
+        columns += [c for c in table if c.startswith(part.prefix)]
+    columns += [c for c in table if c not in columns and c not in HASH_COLUMNS]
+    columns += [c for c in HASH_COLUMNS if c in table]
+    return table[columns].sort_values("seed").reset_index(drop=True)
 
 
 def coverage(table: pd.DataFrame, column: str) -> tuple[int, int, float, str]:
@@ -150,47 +249,101 @@ def coverage(table: pd.DataFrame, column: str) -> tuple[int, int, float, str]:
     return int(held.sum()), len(held), share, "pass" if PASS_RANGE[0] <= share <= PASS_RANGE[1] else "fail"
 
 
+def w2_value_reason(table: pd.DataFrame) -> str:
+    """Why the W2 value fails, from the columns: one clause per truth."""
+    n = len(table)
+    value = table["w2_value"]
+    held = table["w2_value_held"].fillna(False).astype(bool)
+    error = (table["w2_value"] - table["w2_value_truth"]).abs()
+    systematic = int((error <= table["w2_value_sys_half"]).sum())
+    stat = float((table["w2_value_stat_half"] / value).median())
+    sys_rel = float((table["w2_value_sys_half"] / value).median())
+    worst = float(table["w2_value_error_rel"].abs().max())
+    date = table["w2_value_held_at_date"].fillna(False).astype(bool)
+    lag = float(((table["w2_value_truth_at_date"] - value) / value).median())
+    warm = table["w2_value_held_25c"].fillna(False).astype(bool)
+    temp = float(((value - table["w2_value_truth_25c"]) / table["w2_value_truth_25c"]).median())
+    return (
+        f"same-days truth {int(held.sum())} of {n}: too wide, because that truth shares every day with the estimate, "
+        f"so the day-to-day scatter the statistical half-width stands for (median {stat:.2%} of the value) is not in "
+        f"the difference; the largest difference is {worst:.2%}, and the systematic half-width alone "
+        f"(median {sys_rel:.2%}) holds {systematic} of {n}. "
+        f"At the date {int(date.sum())} of {n}: the estimate lags the growing resistance (the value at the date is a "
+        f"median {lag:.1%} above it). "
+        f"At 25 degrees C {int(warm.sum())} of {n}: the days in the band read a median {temp:+.1%} against 25 degrees C, "
+        f"and the estimator has no temperature model"
+    )
+
+
 def summary(table: pd.DataFrame) -> list[str]:
     """One line per check, from the columns the check modules wrote."""
     lines = []
-    for check, column, what in (
-        ("W2", "w2_value_held", "resistance"),
-        ("W2", "w2_growth_held", "resistance growth"),
-        ("W5", "w5_held", "round-trip efficiency"),
-        ("W7", "w7_held", "apparent charge loss"),
-    ):
+    if "w2_value_held" in table:
+        n, total, share, verdict = coverage(table, "w2_value_held")
+        lines.append(f"W2 resistance: {verdict} under every truth. {w2_value_reason(table)}")
+    if "w2_growth_held_param" in table:
+        n, total, share, verdict = coverage(table, "w2_growth_held_param")
+        known = float(table["w2_growth_truth_param"].median())
+        same = table["w2_growth_held"].fillna(False).astype(bool)
+        lines.append(
+            f"W2 resistance growth against the simulator's known growth (median {known:.2f} % per year at the fit's "
+            f"origin): the band held it in {n} of {total} packs ({share:.1%}): {verdict}; same-days truth "
+            f"(information): {int(same.sum())} of {len(same)} ({same.mean():.1%})"
+        )
+    for check, column, what in (("W5", "w5_held", "round-trip efficiency"), ("W7", "w7_held", "apparent charge loss")):
         if column in table:
             n, total, share, verdict = coverage(table, column)
             lines.append(f"{check} {what}: the band held the truth in {n} of {total} packs ({share:.1%}): {verdict}")
-    if "w8_pass" in table:
-        ok = table["w8_pass"].fillna(False).astype(bool)
-        worst = table[[c for c in table if c.startswith("w8_") and c.endswith("_rel_error")]].abs().max().max()
-        lines.append(
-            f"W8 throughput and planted events: {int(ok.sum())} of {len(ok)} packs within the rule; "
-            f"largest relative error {worst:.4%}: {'pass' if ok.all() else 'fail'}"
-        )
+    for prefix, label in (("w8_", "W8"), ("w8noise_", "W8 information, pack B with current and voltage noise")):
+        if f"{prefix}pass" in table:
+            ok = table[f"{prefix}pass"].fillna(False).astype(bool)
+            exact = table[f"{prefix}events_exact"].fillna(False).astype(bool)
+            worst = table[[c for c in table if c.startswith(prefix) and c.endswith("_rel_error")]].abs().max().max()
+            verdict = ("pass" if ok.all() else "fail") if prefix == "w8_" else "information"
+            lines.append(
+                f"{label} throughput and planted events: {int(ok.sum())} of {len(ok)} packs within the rule; events "
+                f"exact on {int(exact.sum())}; largest relative error {worst:.4%}: {verdict}"
+            )
     return lines
 
 
 def main(argv: list[str]) -> None:
     parts = list(PARTS)
+    processes = 3
+    if "--processes" in argv:
+        k = argv.index("--processes")
+        processes = int(argv[k + 1])
+        argv = argv[:k] + argv[k + 2 :]
+    seeds = None
+    if "--seeds" in argv:
+        k = argv.index("--seeds")
+        rest = argv[k + 1 :]
+        n_seeds = next((i for i, a in enumerate(rest) if a.startswith("--")), len(rest))
+        seeds = [int(a) for a in rest[:n_seeds]]
+        argv = argv[:k] + rest[n_seeds:]
     if "--only" in argv:
         k = argv.index("--only")
-        parts = [argv[k + 1]]
-        argv = argv[:k] + argv[k + 2 :]
-    if "--seeds" in argv:
-        seeds = [int(a) for a in argv[argv.index("--seeds") + 1 :]]
+        rest = argv[k + 1 :]
+        n_parts = next((i for i, a in enumerate(rest) if a.startswith("--")), len(rest))
+        parts = rest[:n_parts]
+        argv = argv[:k] + rest[n_parts:]
+        unknown = [p for p in parts if p not in PARTS]
+        if unknown or not parts:
+            raise SystemExit(f"unknown parts {unknown}; the parts are {list(PARTS)}")
+        parts = [p for p in PARTS if p in parts]
+    if seeds is not None:
         rows = [one_pack((seed, parts)) for seed in seeds]
         table = pd.DataFrame(rows)
         with pd.option_context("display.width", 200, "display.max_columns", None, "display.max_rows", None):
             print(table.T)
     else:
         n = int(argv[0]) if argv else N_PACKS
-        with Pool(3) as pool:
+        with Pool(processes) as pool:
             rows = pool.map(one_pack, [(seed, parts) for seed in range(1, n + 1)], chunksize=1)
-        table = pd.DataFrame(rows)
+        table = merged(pd.DataFrame(rows), parts)
         RESULTS.mkdir(parents=True, exist_ok=True)
-        table.to_csv(RESULTS / "synthetic_phase3.csv", index=False, float_format="%.6g")
+        table.to_csv(OUT, index=False, float_format="%.6g")
+        print(f"parts run: {parts}; written: {OUT.relative_to(ROOT)} ({len(table)} packs, {table.shape[1]} columns)")
     for line in summary(table):
         print(line)
     print(f"configuration: capacity {config_hash(CapacityConfig())}, record {config_hash(RecordConfig())}")

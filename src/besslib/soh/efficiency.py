@@ -10,10 +10,19 @@ in and out are the differences of the running energy counters at the two rests. 
 estimate is ``eta = sum(lambda * energy out) / sum(lambda * energy in)`` over the loops in
 memory, with ``lambda = exp(-age / tau_days)``.
 
-Band: the lag-1 sandwich of the through-origin ratio fit (``besslib.soh._core``, Newey and
-West, Econometrica 55, 703 (1987), doi:10.2307/1913610): two consecutive loops share a
-rest, and the error of the state of charge at that rest enters both with opposite signs.
-No systematic sensor term is added: a gain error of the current or the voltage sensor
+Band: the loop band of ``besslib.soh._core.loop_solve``. A loop does not close exactly:
+the energy stored at a full rest differs a little from one rest to the next, because a
+voltage stop does not land at exactly the same state of charge. That error of rest ``j``
+enters the loop that ends there with one sign and the linked loop that starts there with
+the other. The band holds the ratio over the loops in memory had each of them closed
+exactly (the loops' own variation from one to the next is part of that value, not of its
+error), and its width comes from the rests' errors only: ``sigma = sqrt(s2 C2) / A``,
+where ``A`` is the weighted energy in, ``C2`` the sum of the rests' squared weights in
+the estimate (the first and the last rest of each linked run without forgetting; the
+latest rest, mostly, with forgetting), and ``s2`` the variance of a rest's error,
+estimated as minus the mean product of the scores ``energy out - eta * energy in`` of
+two linked loops. Its degrees of freedom are those of that mean (``_core``). No
+systematic sensor term is added: a gain error of the current or the voltage sensor
 scales energy in and energy out by the same factor and cancels in their ratio. A zero
 offset of the current sensor does not cancel; it is not in the band.
 
@@ -25,11 +34,17 @@ with other loops of the same record.
 Limits. It is the DC efficiency at the battery terminals, not the AC efficiency of the
 plant with its inverter. It depends on the use (current, depth and time at rest;
 Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129), so it
-describes this battery under its own operation, not a rated value. The energy in also
-restores the charge the meter does not see (BMS supply, balancing, self-discharge), which
-lowers the value. Two rests at the same edge are close to, not exactly at, the same state
-of charge; the difference is part of the scatter the band is taken from. No full or
-empty rest exists before the levels are set (``CapacityConfig.level_warmup_days``), so
+describes this battery under its own operation over the loops in memory, not a rated
+value and not the efficiency under other use. The energy in also restores the charge the
+meter does not see (BMS supply, balancing, self-discharge), which lowers the value. The
+band takes the rests' errors as independent and of one size; they are not quite, since
+the state of charge at a voltage stop depends on the current before it. A slow change of
+the loops' own efficiency that neighbouring loops share (season, temperature) makes the
+products of linked scores less negative, so the rest error and the band come out too
+small. The degrees of freedom assume normal scores. With forgetting the latest rest
+carries most of the band, so the band rests on the error of one rest whose size is
+learnt from the others. A zero offset of the current sensor is not in the band. No full
+or empty rest exists before the levels are set (``CapacityConfig.level_warmup_days``), so
 the first year of a record has no value.
 """
 
@@ -52,13 +67,21 @@ LOOP_COLUMNS = ["t_start", "t_end", "energy_in_wh", "energy_out_wh", "ah_in", "a
 #: Columns of the estimate table.
 EFFICIENCY_COLUMNS = [
     "round_trip_efficiency", "round_trip_efficiency_low", "round_trip_efficiency_high", "round_trip_efficiency_sigma",
-    "coulombic_efficiency", "voltage_efficiency", "n_loops", "dof", "rho", "status",
+    "coulombic_efficiency", "voltage_efficiency", "n_loops", "dof", "rho", "rest_error_wh", "status",
 ]
 
 TOO_FEW_LOOPS = "not possible from this data: too few closed loops"
 OUT_EXCEEDS_IN = "not possible from this data: energy out exceeds energy in over closed loops"
 NO_ENERGY_OUT = "not possible from this data: no energy out over closed loops"
 NO_ENERGY_IN = "not possible from this data: no energy in over closed loops"
+NO_SHARED_REST = (
+    "not possible from this data: no two loops in memory share a rest, so the state-of-charge error at the rests "
+    "cannot be measured"
+)
+NO_REST_ERROR = (
+    "not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 "
+    "products are not negative)"
+)
 
 
 def efficiency_loops(rests: pd.DataFrame, chain: pd.DataFrame, kind: str = "full") -> pd.DataFrame:
@@ -155,8 +178,9 @@ def estimate_efficiency(
     DataFrame indexed by time: ``round_trip_efficiency`` with ``_low``, ``_high`` and
     ``_sigma`` (its standard error), ``coulombic_efficiency``, ``voltage_efficiency``,
     ``n_loops`` (loops in memory, decayed), ``dof``, ``rho`` (lag-1 correlation of the
-    scores, a diagnostic), ``status``. A value is given only when the status is
-    ``estimated``; it is never above 1 or at or below 0. ``attrs`` hold the loops and
+    scores, a diagnostic), ``rest_error_wh`` (the standard deviation of the energy
+    stored at a rest, from which the band is formed), ``status``. A value is given only
+    when the status is ``estimated``; it is never above 1 or at or below 0. ``attrs`` hold the loops and
     both configuration hashes.
     """
     config = config or RecordConfig()
@@ -189,14 +213,14 @@ def estimate_efficiency(
     # The loops the core accepts (energy in > 0, both sums finite); the coulombic part and
     # the reason of a refused estimate use the same ones.
     kept = (a > 0.0) & np.isfinite(a) & np.isfinite(b)
-    est = _ratio.estimate_ratio(
+    est = _ratio.estimate_loops(
         t, a, b, loops["linked"].to_numpy(int), at_days, config.tau_days, level,
         config.efficiency_min_loops, 0.0, 1.0,
     )
     rows = []
     for k, tq in enumerate(at_days):
         e = est.iloc[k]
-        row = dict.fromkeys(EFFICIENCY_COLUMNS[:6], math.nan)
+        row = dict.fromkeys(EFFICIENCY_COLUMNS[:6] + ["rest_error_wh"], math.nan)
         row.update(n_loops=float(e["n_events"]), dof=float(e["dof"]), rho=float(e["rho"]))
         code = int(e["status"])
         if tq < ready_days:
@@ -209,6 +233,7 @@ def estimate_efficiency(
                 round_trip_efficiency_low=float(e["low"]),
                 round_trip_efficiency_high=float(e["high"]),
                 round_trip_efficiency_sigma=float(e["sigma"]),
+                rest_error_wh=float(e["rest_error"]),
                 coulombic_efficiency=coulombic,
                 voltage_efficiency=eta / coulombic,
                 status=_core.STATUS_TEXT[_core.OK],
@@ -220,6 +245,10 @@ def estimate_efficiency(
             row["status"] = OUT_EXCEEDS_IN if ratio > 1.0 else NO_ENERGY_OUT
         elif code == _core.SINGULAR:
             row["status"] = NO_ENERGY_IN
+        elif code == _core.NO_LINKS:
+            row["status"] = NO_SHARED_REST
+        elif code == _core.NO_BAND:
+            row["status"] = NO_REST_ERROR
         else:
             row["status"] = _core.STATUS_TEXT.get(code, f"not possible from this data: status {code}")
         rows.append(row)

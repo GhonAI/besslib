@@ -52,23 +52,25 @@
    "code": "A3",
    "details": {
     "coulombic_part": 0.91763415,
+    "dof": 9.49203,
     "empty_loops": {
-     "high": 0.94071426,
-     "low": 0.93165437,
+     "high": null,
+     "low": null,
      "n_loops": 85.221116,
-     "status": "estimated",
-     "value": 0.93618431
+     "status": "not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative)",
+     "value": null
     },
-    "limits": "DC at the battery terminals, not the AC efficiency of the plant; depends on the use (Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the energy in also restores the charge the meter does not see; the band holds no zero offset of the current sensor",
+    "limits": "DC at the battery terminals, not the AC efficiency of the plant; depends on the use (Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band holds the ratio over these loops, not the efficiency under other use; a slow change of the loops' own efficiency that neighbouring loops share (season) makes the band too narrow; the energy in also restores the charge the meter does not see; the band holds no zero offset of the current sensor",
+    "rest_error_wh": 159.9601,
     "rho": -0.26594329,
     "voltage_part": 1.0313654
    },
    "events": 45.159513,
    "field": "where possible, the remaining round trip efficiency",
-   "high": 0.9492224,
+   "high": 0.94681168,
    "label": "round-trip efficiency (DC, at the battery terminals) over full-to-full loops",
-   "low": 0.94360981,
-   "method": "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); band: lag-1 sandwich (Newey and West, Econometrica 55, 703 (1987), doi:10.2307/1913610)",
+   "low": 0.94602053,
+   "method": "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); band: the ratio over these loops had each closed exactly, from the error of the state of charge at their end rests, estimated from the lag-1 products of the loop scores",
    "status": "estimated",
    "unit": "share",
    "value": 0.9464161

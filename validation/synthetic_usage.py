@@ -1,8 +1,10 @@
 """Check W8 on one synthetic pack: throughput, cycles and planted events.
 
 Called by ``synthetic_phase3.py`` with one simulated seed (``check(run) -> dict``). It
-reads pack B (``run.reduced_plain``: the measured signals, current gain error within
-0.5 %, no voltage gain error) and counts with ``usage.count_usage``.
+reads pack B (``run.reduced_plain``: the measured signals with the current gain error
+only, within 0.5 %: no noise, no voltage gain error) and counts with
+``usage.count_usage``. The driver also calls it on pack B with the noise of pack A, as
+information (columns ``w8noise_*``).
 
 Truth. Charge in and out: the sums of ``max(+-I, 0) x duration`` over the simulator's own
 current program (``run.segments``), in Ah. Energy in and out: the sums of the running

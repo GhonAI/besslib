@@ -12,6 +12,8 @@ from besslib.soh import _core
 from besslib.soh.config import CapacityConfig, RecordConfig
 from besslib.soh.efficiency import (
     NO_ENERGY_OUT,
+    NO_REST_ERROR,
+    NO_SHARED_REST,
     OUT_EXCEEDS_IN,
     TOO_FEW_LOOPS,
     efficiency_loops,
@@ -117,6 +119,30 @@ def test_statuses_on_hand_made_loops():
     # With the default one-year warm-up no level exists yet: the warm-up reason.
     warm = estimate_efficiency(None, SPEC, rests=rests, at=at[1:])
     assert warm["status"].iloc[0] == _core.STATUS_TEXT[_core.NO_LEVELS]
+    # Loops that close exactly: no rest error, a band of zero width.
+    assert last["rest_error_wh"] == pytest.approx(0.0, abs=1e-6)
+    assert last["round_trip_efficiency_high"] - last["round_trip_efficiency_low"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_band_statuses_on_hand_made_loops():
+    short = CapacityConfig(level_warmup_days=0.0)
+    kinds = ["full", "empty"] * 12 + ["full"]
+    at = [labelled(kinds)["start"].iloc[-1]]
+    # Breaks between the loops (a gap before each empty rest): every loop closes, none
+    # shares its start rest with the loop before it.
+    rests = labelled(kinds, gaps=tuple(range(1, len(kinds), 4)))
+    loops = efficiency_loops(rests, rest_chain(rests, SPEC, short))
+    assert len(loops) >= 5 and loops["linked"].sum() == 0
+    est = estimate_efficiency(None, SPEC, rests=rests, capacity_config=short, at=at).iloc[0]
+    assert est["status"] == NO_SHARED_REST and math.isnan(est["round_trip_efficiency"])
+    # Linked loops whose own efficiency drifts slowly, with no rest error: the lag-1
+    # products of the scores are positive, so no rest error is seen and there is no band.
+    drift = labelled(kinds)
+    out = drift["energy_out_wh"].to_numpy(float)
+    gain = 1.0 + 0.02 * np.sin(np.arange(len(drift)) / 4.0)
+    drift["energy_out_wh"] = np.r_[0.0, np.cumsum(np.diff(out) * gain[1:])]
+    est = estimate_efficiency(None, SPEC, rests=drift, capacity_config=short, at=at).iloc[0]
+    assert est["status"] == NO_REST_ERROR and est["rho"] > 0.0
 
 
 @pytest.fixture(scope="module")
@@ -147,7 +173,7 @@ def test_synthetic_pack(candidates):
         ratio = (lam * loops["energy_out_wh"][sel]).sum() / (lam * loops["energy_in_wh"][sel]).sum()
         assert ok["round_trip_efficiency"].iloc[-1] == pytest.approx(ratio, rel=1e-12)
         # The step-by-step core gives the same.
-        core = _ratio.run_ratio_core(t_end, loops["energy_in_wh"], loops["energy_out_wh"], loops["linked"],
+        core = _ratio.run_loop_core(t_end, loops["energy_in_wh"], loops["energy_out_wh"], loops["linked"],
                                      days(ok.index), config.tau_days, 0.90, config.efficiency_min_loops, 0.0, 1.0)
         np.testing.assert_allclose(core["value"], ok["round_trip_efficiency"], rtol=1e-9)
         np.testing.assert_allclose(core["high"], ok["round_trip_efficiency_high"], rtol=1e-9)

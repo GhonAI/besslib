@@ -28,6 +28,13 @@ measured signals, only the simulator's stops and its own current and voltage. Th
 drain is in neither signal, but it is in both values the same way: the energy in of a
 loop also restores the charge the drain took.
 
+The band is the loop band (``besslib.soh._core.loop_solve``): it holds the ratio over
+the estimate's own loops had each closed exactly, with its width from the error of the
+energy stored at their end rests, estimated from the lag-1 products of the loop scores.
+The truth runs over the simulator's loops, which are close to but not the same loops.
+Reported with it: the band's degrees of freedom (``w5_dof``) and the rest error
+(``w5_rest_error_wh``, one standard deviation).
+
 Check W7, apparent charge loss. The truth is the pack's hidden drain
 (``pack.hidden_current_a``, -0.05 A, so 50 mA of loss). The estimate is
 ``charge_loss.charge_loss`` at the last month end of the record with status
@@ -100,7 +107,9 @@ def check_w5(run, config: RecordConfig, capacity_config: CapacityConfig) -> dict
                 f"{prefix}high": est["round_trip_efficiency_high"],
                 f"{prefix}sigma": est["round_trip_efficiency_sigma"],
                 f"{prefix}n_loops": est["n_loops"],
+                f"{prefix}dof": est["dof"],
                 f"{prefix}rho": est["rho"],
+                f"{prefix}rest_error_wh": est["rest_error_wh"],
                 f"{prefix}status": est["status"],
             }
         )

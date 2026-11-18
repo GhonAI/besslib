@@ -108,6 +108,48 @@ hold the residuals' size, not the size of ``b``, so a 32-bit port loses about tw
 fewer digits to cancellation. No other scaling is needed: the largest sum is of order
 ``m a^2``, far below the 32-bit limit for any plausible event.
 
+The *loop band* (``loop_solve``) is a second band on the same state, for closed loops
+between rests: an event is a loop from one rest to the next rest of the same kind, ``a``
+its energy in and ``b`` its energy out. The energy stored at rest ``j`` differs from the
+reference by an error ``e_j``: the state of charge at a voltage stop is not exactly the
+same each time. A loop from rest ``j - 1`` to rest ``j`` gives ``b_k = eta_k a_k +
+e_(j-1) - e_j``, where ``eta_k a_k`` is what the loop would deliver had it closed
+exactly. The target is ``T = sum lambda eta a / sum lambda a``, the ratio over the loops
+in memory had each of them closed; the loops' own variation (``eta_k``) is part of the
+target, not of the error. The estimate is the same ``R = sum lambda b / sum lambda a``,
+and ``R - T = sum_j c_j e_j / A`` with ``A = sum lambda a`` and ``c_j`` the coefficient
+of rest ``j``: ``+lambda_k`` as the start of loop ``k``, ``-lambda_k`` as its end,
+``lambda_k - lambda_(k-1)`` for a rest that ends loop ``k - 1`` and starts the linked
+loop ``k``. With independent rest errors of one variance ``s2``, ``Var(R) = s2 C2 /
+A^2`` with ``C2 = sum_j c_j^2``. Without forgetting ``C2`` is 2 per linked run of loops
+(its first and last rest); with forgetting the latest rest, at weight 1, dominates it.
+``C2`` is kept recursively: on each accepted event, after decaying the state to its
+time, a linked event adds ``2 - 2 g`` (the old end rest ``-g`` becomes the shared rest
+``1 - g``, and a new end rest ``-1`` comes in), an unlinked one adds 2, with ``g`` the
+previous event's weight now; decay multiplies ``C2`` by ``f^2``. ``s2`` is estimated
+from the lag-1 products of the scores ``g_k = b_k - R a_k`` only: the shared rest enters
+loop ``k - 1`` and loop ``k`` with opposite signs, so ``E[g_k g_(k-1)] = -s2``, while the
+squares also carry the loops' own variation. Hence ``s2 = -sum w g_k g_(k-1) / sum w``
+over links, ``w = lambda_k lambda_(k-1)``. A negative ``s2`` beyond ``ROUNDING`` gives
+``NO_BAND``; no link in memory gives ``NO_LINKS``. Its degrees of freedom: for normal
+scores of variance ``v``, lag-1 covariance ``-s2`` and no longer correlation, the fourth
+moments of normal variables give ``Var(g_k g_(k-1)) = v^2 + s2^2`` and a covariance
+``s2^2`` between products of consecutive links, none further apart; so ``Var(s2_hat) =
+((v^2 + s2^2) W4 + 2 s2^2 W4L) / W^2`` with ``W = sum w``, ``W4 = sum w^2`` and ``W4L``
+the sum of ``w_l w_(l-1)`` over consecutive links. A chi-square variable with the same
+mean and variance has ``2 W^2 / ((1 + 1 / rho^2) W4 + 2 W4L)`` degrees of freedom, with
+``rho = -s2 / v`` the reported lag-1 correlation (pure rest errors: ``rho = -1/2`` and
+``2 N / 7`` for a chain of ``N`` equal links). The band is ``R +- t sqrt(s2 C2) / A``
+with the Student-t quantile at these degrees of freedom; nothing else multiplies it. Its
+limits: it holds the ratio over these loops, not the efficiency under other use; the
+rest errors are taken as independent and of one size, which they are not quite (the
+state of charge at a voltage stop depends on the current before it); a slow variation of
+the loops' own efficiency that neighbouring loops share (season, temperature) makes the
+lag-1 products less negative and the band too narrow; the degrees of freedom assume
+normal scores; the latest rest dominates ``C2``, so the band rests on the error of one
+rest whose size is learnt from the others; a zero offset of the current sensor does not
+cancel and is not in the band (a gain error cancels in the ratio).
+
 Portability rule: plain float arithmetic, a fixed-size state (arrays of length 3, 9 and
 144; for the ratio fit 2, 3, 4 and 36), no numpy, no pandas, no growing containers, no
 recursion, no exceptions for control flow. Each class maps to a C struct, each function
@@ -129,6 +171,7 @@ NO_LEVELS = 6  # set by the caller: the core sees pairs, not the rests that set 
 SHORT_SPAN = 7
 TOO_FEW_EVENTS = 8
 OUT_OF_RANGE = 9
+NO_LINKS = 10
 
 STATUS_TEXT = {
     OK: "estimated",
@@ -141,6 +184,7 @@ STATUS_TEXT = {
     SHORT_SPAN: "not possible from this data: the full-to-empty and empty-to-full pairs span too short a time",
     TOO_FEW_EVENTS: "not possible from this data: too few events in memory",
     OUT_OF_RANGE: "not possible from this data: the estimate lies outside the physically possible range",
+    NO_LINKS: "not possible from this data: no two events in memory share an end point",
 }
 
 #: Relative rounding tolerance of the band's sums, for 64-bit arithmetic. A 32-bit port
@@ -524,12 +568,16 @@ class Ratio:
     capacity fit); ``m2`` = sum lambda^2 and ``m2_lag`` = sum lambda_k lambda_(k-1) are the
     same counts with the weights of the band's sums, and ``m2_ll`` the same over links
     whose previous event is linked too; they set ``rho`` and the degrees of freedom.
+    The loop band (``loop_solve``) adds ``c2`` = sum over rests of their squared
+    coefficients, ``w4`` = sum (lambda_k lambda_(k-1))^2 over links, ``w4l`` = sum of
+    the products of consecutive link weights, and ``prev_lw``, the weight of the link
+    that ended at the previous event now (0 when that event was not linked).
     """
 
     __slots__ = (
         "p", "tau_days", "t0_days", "t_last", "k_ref", "has_ref", "a", "h", "s4", "s4l",
         "m", "m_lag", "m2", "m2_lag", "m2_ll", "n", "n_skipped", "y_min", "y_max",
-        "prev_ok", "prev_linked", "prev_t", "prev_u", "prev_z",
+        "prev_ok", "prev_linked", "prev_t", "prev_u", "prev_z", "c2", "w4", "w4l", "prev_lw",
     )
 
     def __init__(self, p: int, tau_days: float, t0_days: float = 0.0) -> None:
@@ -557,6 +605,10 @@ class Ratio:
         self.prev_t = _NEVER
         self.prev_u = [0.0] * 2
         self.prev_z = [0.0] * _NR
+        self.c2 = 0.0  # sum of the rests' squared coefficients (loop band)
+        self.w4 = 0.0  # sum of (lambda_k lambda_(k-1))^2 over links
+        self.w4l = 0.0  # sum of w_l w_(l-1) over consecutive links
+        self.prev_lw = 0.0  # weight of the link that ended at the previous event, now
 
 
 def ratio_state(tau_days: float) -> Ratio:
@@ -595,6 +647,11 @@ def _ratio_decay(state: Ratio, t_days: float) -> None:
     state.m2 *= f2
     state.m2_lag *= f2
     state.m2_ll *= f2
+    f4 = f2 * f2
+    state.c2 *= f2
+    state.w4 *= f4
+    state.w4l *= f4
+    state.prev_lw *= f2
 
 
 def ratio_update(state: Ratio, t_days: float, a: float, b: float, linked: int) -> None:
@@ -608,6 +665,7 @@ def ratio_update(state: Ratio, t_days: float, a: float, b: float, linked: int) -
         state.n_skipped += 1
         state.prev_ok = 0
         state.prev_linked = 0
+        state.prev_lw = 0.0
         return
     _ratio_decay(state, t_days)
     if state.has_ref == 0:
@@ -645,6 +703,15 @@ def ratio_update(state: Ratio, t_days: float, a: float, b: float, linked: int) -
         state.m2_lag += g
         if state.prev_linked != 0:
             state.m2_ll += g
+        # The loop band: the previous end rest (-g) becomes the shared rest (1 - g), and a
+        # new end rest (-1) comes in.
+        state.c2 += 2.0 - 2.0 * g
+        state.w4 += g * g
+        state.w4l += g * state.prev_lw
+        state.prev_lw = g
+    else:
+        state.c2 += 2.0  # a new start rest (+1) and a new end rest (-1)
+        state.prev_lw = 0.0
     state.prev_linked = link
     state.prev_ok = 1
     state.prev_t = t_days
@@ -669,11 +736,14 @@ class RatioEstimate:
     and ``high`` are the statistical band of k, or of k1 for the growth fit. ``theta``
     is also filled when the status is ``OUT_OF_RANGE``, so the caller can say what came
     out; it is not an estimate then. ``dof`` is the band's degrees of freedom (``m - p``
-    times the share lost to the lag-1 term, module docstring); callers that form a band
-    from ``cov`` use the same.
+    times the share lost to the lag-1 term; for ``loop_solve`` those of the rest error's
+    variance; module docstring); callers that form a band from ``cov`` use the same.
+    ``rest_error`` is filled by ``loop_solve`` only.
     """
 
-    __slots__ = ("status", "theta", "sigma", "cov", "low", "high", "dof", "m", "m_lag", "rho", "span_years")
+    __slots__ = (
+        "status", "theta", "sigma", "cov", "low", "high", "dof", "m", "m_lag", "rho", "span_years", "rest_error",
+    )
 
     def __init__(self) -> None:
         self.status = SINGULAR
@@ -687,6 +757,7 @@ class RatioEstimate:
         self.m_lag = 0.0
         self.rho = math.nan
         self.span_years = 0.0
+        self.rest_error = math.nan  # loop band only: sqrt(s2), the rest error in the units of b
 
 
 def ratio_solve(
@@ -817,5 +888,83 @@ def ratio_solve(
     half = t_quantile(z, out.dof) * out.sigma[main]
     out.low = th[main] - half
     out.high = th[main] + half
+    out.status = OK
+    return out
+
+
+def loop_solve(
+    state: Ratio,
+    t_days: float,
+    z: float,
+    min_events: float,
+    lower: float,
+    upper: float,
+) -> RatioEstimate:
+    """The loop band at ``t_days`` (the state is decayed to it first; ``p = 1`` only).
+
+    The value is ``k = sum lambda b / sum lambda a``, as ``ratio_solve`` gives it; the band
+    is ``k +- t sqrt(s2 C2) / A`` from the rest error ``s2`` estimated from the lag-1
+    products of the scores (module docstring). Status, in this order: ``TOO_FEW_EVENTS``;
+    ``SINGULAR`` (also for a growth state); ``OUT_OF_RANGE`` (as ``ratio_solve``, theta
+    filled); ``NO_LINKS`` when no link is in memory; ``NO_BAND`` when the lag-1 products
+    are positive beyond rounding (rho filled); else ``OK``. ``rest_error`` is ``sqrt(s2)``.
+    """
+    _ratio_decay(state, t_days)
+    out = RatioEstimate()
+    out.m = state.m
+    out.m_lag = state.m_lag
+    if state.n > 0:
+        out.span_years = state.y_max - state.y_min
+    if state.m < min_events:
+        out.status = TOO_FEW_EVENTS
+        return out
+    if state.p != 1 or not (state.a[0] > 0.0):
+        out.status = SINGULAR
+        return out
+    inv = 1.0 / state.a[0]
+    k = state.h[0] * inv + state.k_ref
+    if k <= lower or k > upper:
+        out.theta[0] = k
+        out.status = OUT_OF_RANGE
+        return out
+    if not (state.m2_lag > 0.0):
+        out.status = NO_LINKS
+        return out
+    # phi contracts the sums: phi' z = b - k a, the score.
+    phi = [state.k_ref - k, 1.0]
+    e2 = 0.0
+    lag2 = 0.0
+    mag = 0.0  # the lag-1 sum in absolute values: the scale of its rounding error
+    for i in range(2):
+        for j in range(2):
+            e2 += phi[i] * state.s4[i * 3 + j] * phi[j]
+            lag2 += phi[i] * state.s4l[i * 3 + j] * phi[j]
+            mag += abs(phi[i] * phi[j]) * abs(state.s4l[i * 3 + j])
+    lag = 0.5 * lag2 / state.m2_lag  # the weighted mean of g_k g_(k-1) over links
+    rho = 0.0
+    if e2 > 0.0:
+        rho = lag / (e2 / state.m2)
+    out.rho = rho
+    if lag2 > 0.0:
+        # Positive lag-1 products: within rounding of the sum they are zero, beyond it the
+        # rest error's variance is negative and there is no band.
+        if lag2 > ROUNDING * mag:
+            out.status = NO_BAND
+            return out
+        lag = 0.0
+    s2 = -lag
+    # Degrees of freedom of s2 (module docstring), written to stay finite at rho = 0.
+    den = (rho * rho + 1.0) * state.w4 + 2.0 * rho * rho * state.w4l
+    out.dof = 0.0
+    if den > 0.0:
+        out.dof = 2.0 * state.m2_lag * state.m2_lag * rho * rho / den
+    var = s2 * state.c2 * inv * inv
+    out.theta[0] = k
+    out.cov[0] = var
+    out.sigma[0] = math.sqrt(var)
+    out.rest_error = math.sqrt(s2)
+    half = t_quantile(z, out.dof) * out.sigma[0]
+    out.low = k - half
+    out.high = k + half
     out.status = OK
     return out

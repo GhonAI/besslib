@@ -615,3 +615,253 @@ def test_saved_ratio_vectors():
 if __name__ == "__main__" and "--write-vectors" in sys.argv:
     write_ratio_vectors()
     print(f"wrote the ratio vectors to {VECTORS}")
+
+
+# --- the loop band: the ratio over the loops in memory, from the rest error -------------------
+
+
+def loop_chain(seed, years=3.0, s_rest=0.1, s_eta=0.01, p_break=0.02, season=0.0):
+    """Closed loops every 1-4 days, ``b = eta a + e_start - e_end``.
+
+    ``e``: the error of the energy stored at a rest (standard deviation ``s_rest``); a
+    linked loop starts at the rest where the loop before it ended. ``eta``: the loop's
+    own efficiency, 0.9 plus an independent part (``s_eta``) and a seasonal swing of
+    amplitude ``season``. A share ``p_break`` of the loops starts a new run (a break of
+    the chain, a fresh start rest). Returns ``t, a, b, linked, eta``.
+    """
+    rng = np.random.default_rng(seed)
+    n = int(365.25 * years / 2.5)
+    t = 7000.0 + np.cumsum(rng.uniform(1.0, 4.0, n))
+    a = rng.uniform(5.0, 15.0, n)
+    eta = 0.9 + s_eta * rng.standard_normal(n) + season * np.sin(2.0 * np.pi * t / 365.25)
+    linked = (rng.uniform(size=n) >= p_break).astype(int)
+    linked[0] = 0
+    end = rng.normal(0.0, s_rest, n)
+    fresh = rng.normal(0.0, s_rest, n)
+    start = np.where(linked == 1, np.r_[0.0, end[:-1]], fresh)
+    return t, a, eta * a + start - end, linked, eta
+
+
+def direct_loop_band(t, a, b, linked, at, tau):
+    """The loop band from the loops in two passes (plain numpy), with ``C2`` summed over
+    the rests themselves: each loop gets a start and an end rest, and a linked loop's
+    start rest is the end rest of the loop before it."""
+    keep = (a > 0) & np.isfinite(a) & np.isfinite(b)
+    eff = (linked != 0) & keep & np.r_[False, keep[:-1]]
+    t, a, b, eff = t[keep], a[keep], b[keep], eff[keep]
+    sel = t <= at
+    t, a, b, eff = t[sel], a[sel], b[sel], eff[sel]
+    lam = np.exp(-(at - t) / tau) if tau > 0 else np.ones_like(t)
+    coef = {}
+    rest = 0
+    for k in range(len(t)):
+        if not eff[k]:
+            rest += 1
+            coef[rest] = coef.get(rest, 0.0) + lam[k]  # start rest
+        else:
+            coef[rest] += lam[k]  # the shared rest: the previous loop's end
+        rest += 1
+        coef[rest] = -lam[k]  # end rest
+    c2 = sum(c * c for c in coef.values())
+    big_a = np.sum(lam * a)
+    value = np.sum(lam * b) / big_a
+    g = b - value * a
+    cur = np.flatnonzero(eff)
+    w = lam[cur] * lam[cur - 1]
+    s2 = -np.sum(w * g[cur] * g[cur - 1]) / w.sum()
+    rho = -s2 / (np.sum(lam**2 * g**2) / np.sum(lam**2))
+    consecutive = eff[cur - 1]
+    w4l = np.sum((w[1:] * w[:-1])[consecutive[1:]])
+    dof = 2.0 * w.sum() ** 2 / ((1.0 + 1.0 / rho**2) * np.sum(w * w) + 2.0 * w4l)
+    sigma = math.sqrt(s2 * c2) / big_a
+    half = _core.t_quantile(Z90, dof) * sigma
+    return dict(value=value, c2=c2, s2=s2, sigma=sigma, dof=dof, rho=rho, low=value - half, high=value + half,
+                w4=np.sum(w * w), w4l=w4l)
+
+
+LOOP_ARGS = dict(level=0.90, min_events=5.0, lower=0.0, upper=1.0)
+
+
+def test_loop_batch_equals_core():
+    t, a, b, linked, _ = loop_chain(seed=2)
+    a[[0, 17, 120]] = 0.0  # refused events
+    b[[18, 300]] = np.nan
+    at = np.r_[t[0] - 1.0, t[[3, 50, 51, 160, 299, 301]] + 0.25, t[-1], t[-1] + 40.0]
+    for tau in (0.0, 30.0, 180.0, 400.0):
+        batch = _ratio.estimate_loops(t, a, b, linked, at, tau, **LOOP_ARGS)
+        core = _ratio.run_loop_core(t, a, b, linked, at, tau, **LOOP_ARGS)
+        assert (batch["status"] == core["status"]).all()
+        assert (batch["status"].iloc[2:-1] == _core.OK).all()
+        for col in ("value", "sigma", "low", "high", "n_events", "n_links", "dof", "rho", "rest_error"):
+            np.testing.assert_allclose(batch[col], core[col], rtol=1e-9, atol=1e-15, equal_nan=True)
+        # The value is the ratio fit's value.
+        ratio = _ratio.estimate_ratio(t, a, b, linked, at, tau, 0.90, 5.0, 0.0, 1.0)
+        np.testing.assert_allclose(batch["value"], ratio["value"], rtol=1e-12, equal_nan=True)
+
+
+def test_loop_band_equals_direct_computation():
+    t, a, b, linked, _ = loop_chain(seed=4)
+    a[[30, 31]] = 0.0
+    for tau, at in ((0.0, t[-1]), (180.0, t[-1]), (60.0, t[200] + 0.5)):
+        state = feed_ratio(_core.ratio_state(tau), t[t <= at], a[t <= at], b[t <= at], linked[t <= at])
+        est = _core.loop_solve(state, at, Z90, 5.0, 0.0, 1.0)
+        want = direct_loop_band(t, a, b, linked, at, tau)
+        assert est.status == _core.OK
+        assert state.c2 == pytest.approx(want["c2"], rel=1e-10)  # the recursion equals the sum over rests
+        assert state.w4 == pytest.approx(want["w4"], rel=1e-10)
+        assert state.w4l == pytest.approx(want["w4l"], rel=1e-10)
+        assert est.theta[0] == pytest.approx(want["value"], rel=1e-12)
+        assert est.rest_error ** 2 == pytest.approx(want["s2"], rel=1e-9)
+        assert est.sigma[0] == pytest.approx(want["sigma"], rel=1e-9)
+        assert est.dof == pytest.approx(want["dof"], rel=1e-9)
+        assert est.rho == pytest.approx(want["rho"], rel=1e-9)
+        assert est.low == pytest.approx(want["low"], rel=1e-12)
+        assert est.high == pytest.approx(want["high"], rel=1e-12)
+    # Without forgetting C2 is 2 per linked run: the first and the last rest of each.
+    keep = a > 0  # a refused event breaks the chain
+    runs = int(np.sum(keep & ~((linked != 0) & np.r_[False, keep[:-1]])))
+    state = feed_ratio(_core.ratio_state(0.0), t, a, b, linked)
+    assert state.c2 == pytest.approx(2.0 * runs, rel=1e-12)
+    # A uniform chain of pure rest errors: rho near -1/2 and about 2 N / 7 degrees of freedom.
+    n = 400
+    pt = np.random.default_rng(1).normal(0.0, 0.1, n + 1)
+    chain = np.r_[0, np.ones(n - 1, dtype=int)]
+    est = _core.loop_solve(feed_ratio(_core.ratio_state(0.0), 7000.0 + np.arange(n), np.full(n, 10.0),
+                                      9.0 + pt[:-1] - pt[1:], chain), 7000.0 + n, Z90, 5.0, 0.0, 1.0)
+    assert est.rho == pytest.approx(-0.5, abs=0.05)
+    assert est.dof == pytest.approx(2.0 * (n - 1) / 7.0, rel=0.1)
+    assert est.rest_error == pytest.approx(0.1, rel=0.15)
+
+
+def test_loop_status_codes():
+    t, a, b, linked, _ = loop_chain(seed=1, years=0.5)
+    args = (Z90, 5.0, 0.0, 1.0)
+    few = _core.loop_solve(feed_ratio(_core.ratio_state(0.0), t[:4], a[:4], b[:4], linked[:4]), t[3], *args)
+    assert few.status == _core.TOO_FEW_EVENTS and few.m == 4.0
+    growth = _core.loop_solve(feed_ratio(_core.growth_state(t[0]), t, a, b, linked), t[-1], *args)
+    assert growth.status == _core.SINGULAR
+    over = _core.loop_solve(feed_ratio(_core.ratio_state(0.0), t, a, 1.2 * b, linked), t[-1], *args)
+    assert over.status == _core.OUT_OF_RANGE and over.theta[0] > 1.0 and math.isnan(over.low)
+    free = _core.loop_solve(feed_ratio(_core.ratio_state(0.0), t, a, b, 0 * linked), t[-1], *args)
+    assert free.status == _core.NO_LINKS and math.isnan(free.low)
+    # The loops' own efficiency drifts and no rest error is seen: the lag-1 products are
+    # positive, the rest error's variance negative, and no floor replaces it.
+    drift = 0.9 + 0.02 * np.sin(2.0 * np.pi * (t - t[0]) / 60.0)
+    up = _core.loop_solve(feed_ratio(_core.ratio_state(0.0), t, a, drift * a, linked), t[-1], *args)
+    assert up.status == _core.NO_BAND and up.rho > 0.5 and math.isnan(up.low)
+    # Loops that close exactly: the variance is zero within rounding, a band of zero width.
+    exact = _core.loop_solve(feed_ratio(_core.ratio_state(0.0), t, a, 0.9 * a, linked), t[-1], *args)
+    assert exact.status == _core.OK
+    assert exact.theta[0] == pytest.approx(0.9, rel=1e-13)
+    assert exact.high - exact.low == pytest.approx(0.0, abs=1e-12)
+    for code in (_core.NO_LINKS, _core.NO_BAND):
+        assert _core.STATUS_TEXT[code].startswith("not possible from this data")
+    assert len(set(_core.STATUS_TEXT.values())) == len(_core.STATUS_TEXT)
+
+
+def test_loop_float32_state():
+    t, a, b, linked, _ = loop_chain(seed=5)
+    a = a * 1.0e3  # Wh
+    b = b * 1.0e3
+    td = t[-1] + 0.1
+    e64 = _core.loop_solve(feed_ratio(_core.ratio_state(180.0), t, a, b, linked), td, Z90, 5.0, 0.0, 1.0)
+    e32 = _core.loop_solve(feed_ratio(_core.ratio_state(180.0), t, a, b, linked, rounder=_to_f32), td, Z90, 5.0, 0.0, 1.0)
+    assert e64.status == e32.status == _core.OK
+    agree = (abs(e32.theta[0] / e64.theta[0] - 1.0), abs((e32.high - e32.low) / (e64.high - e64.low) - 1.0))
+    print(f"loop band, float32 relative differences (value, band width): {agree}")
+    assert agree[0] < 1e-5
+    assert agree[1] < 1e-3
+
+
+def test_loop_band_holds_the_closed_loop_ratio_about_90_percent():
+    # Linked loops every 1-4 days over 3 years with occasional breaks: rest errors (0.1)
+    # and the loops' own efficiency varying independently (0.01 of about 10 per loop).
+    # The target is the ratio over the loops in memory had each closed, with the same
+    # weights. A chain without a band counts as not held.
+    runs = 300
+    shares = {}
+    cases = (
+        ("180 days", 180.0, {}),
+        ("no forgetting", 0.0, {}),
+        ("180 days, seasonal swing of the loops' own efficiency", 180.0, dict(season=0.01)),
+    )
+    for name, tau, kw in cases:
+        held = no_band = 0
+        errors, sigmas = [], []
+        for seed in range(runs):
+            t, a, b, linked, eta = loop_chain(seed, **kw)
+            lam = np.exp(-(t[-1] - t) / tau) if tau > 0 else np.ones_like(t)
+            target = np.sum(lam * eta * a) / np.sum(lam * a)
+            est = _ratio.estimate_loops(t, a, b, linked, [t[-1]], tau, **LOOP_ARGS).iloc[0]
+            if est["status"] != _core.OK:
+                no_band += 1
+                continue
+            held += est["low"] <= target <= est["high"]
+            errors.append(est["value"] - target)
+            sigmas.append(est["sigma"])
+        shares[name] = (held / runs, no_band / runs, float(np.median(sigmas) / np.std(errors)))
+    print(f"loop band coverage (held, no band, median sigma / scatter of R - T): {shares}")
+    for name in ("180 days", "no forgetting"):
+        held, no_band, ratio = shares[name]
+        assert 0.85 <= held <= 0.95
+    # The stated limit: a slow swing that neighbouring loops share makes their lag-1
+    # products less negative, so the rest error and the band come out too small.
+    assert shares["180 days, seasonal swing of the loops' own efficiency"][2] < shares["180 days"][2]
+
+
+# --- saved vectors of the loop band -----------------------------------------------------------
+
+_LOOP_OUT = ("status", "theta0", "sigma0", "cov0", "low", "high", "dof", "m", "m_lag", "rho", "rest_error")
+
+
+def _loop_vector_inputs():
+    t, a, b, linked, _ = loop_chain(seed=11, years=2.0)
+    a[[7, 150]] = 0.0
+    events = pd.DataFrame({"t_days": t, "a": a * 1.0e3, "b": b * 1.0e3, "linked": linked})
+    at = t[[2, 40, 89, 90, 150, 250, len(t) - 1]] + 0.25
+    queries = pd.DataFrame([(tau, q) for tau in (0.0, 30.0, 180.0) for q in at], columns=["tau_days", "t_days"])
+    queries["z"] = Z90
+    queries["min_events"] = 5.0
+    queries["lower"] = 0.0
+    queries["upper"] = 1.0
+    return events, queries
+
+
+def _loop_vector_outputs(events: pd.DataFrame, queries: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for tau, group in queries.groupby("tau_days", sort=False):
+        state = _core.ratio_state(float(tau))
+        k = 0
+        for q in group.itertuples():
+            while k < len(events) and events["t_days"].iloc[k] <= q.t_days:
+                r = events.iloc[k]
+                _core.ratio_update(state, float(r["t_days"]), float(r["a"]), float(r["b"]), int(r["linked"]))
+                k += 1
+            e = _core.loop_solve(state, float(q.t_days), q.z, q.min_events, q.lower, q.upper)
+            rows.append({"tau_days": tau, "t_days": q.t_days, "z": q.z, "min_events": q.min_events, "lower": q.lower,
+                         "upper": q.upper, "status": e.status, "theta0": e.theta[0], "sigma0": e.sigma[0],
+                         "cov0": e.cov[0], "low": e.low, "high": e.high, "dof": e.dof, "m": e.m, "m_lag": e.m_lag,
+                         "rho": e.rho, "rest_error": e.rest_error})
+    return pd.DataFrame(rows)
+
+
+def write_loop_vectors() -> None:
+    events, queries = _loop_vector_inputs()
+    VECTORS.mkdir(exist_ok=True)
+    events.to_csv(VECTORS / "loop_core_events.csv", index=False, float_format="%.17g")
+    _loop_vector_outputs(events, queries).to_csv(VECTORS / "loop_core_expected.csv", index=False, float_format="%.17g")
+
+
+def test_saved_loop_vectors():
+    events = pd.read_csv(VECTORS / "loop_core_events.csv")
+    expected = pd.read_csv(VECTORS / "loop_core_expected.csv")
+    got = _loop_vector_outputs(events, expected[["tau_days", "t_days", "z", "min_events", "lower", "upper"]])
+    assert (got["status"].to_numpy() == expected["status"].to_numpy()).all()
+    assert set(expected["status"]) >= {_core.OK, _core.TOO_FEW_EVENTS}
+    for col in _LOOP_OUT[1:]:
+        np.testing.assert_allclose(got[col].to_numpy(float), expected[col].to_numpy(float), rtol=1e-12, atol=1e-15, equal_nan=True)
+
+
+if __name__ == "__main__" and "--write-vectors" in sys.argv:
+    write_loop_vectors()
+    print(f"wrote the loop vectors to {VECTORS}")

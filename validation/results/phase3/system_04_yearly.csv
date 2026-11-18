@@ -27,10 +27,10 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2017-12-31 00:00:00,A1,capacity_share_of_reference,0.7417785,0.7184169,0.7651401,share of 15 Ah,109.0702,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A2,power_capability_share,0.7997061,0.6219726,0.9774396,share of the first day,14,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A2,power_capability_w,,,,W,14,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,efficiency_full_loops,0.9295794,0.9192967,0.9398621,share,27.26624,estimated,109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,efficiency_empty_loops,0.9336553,0.9291502,0.9381604,share,65.76189,estimated,109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,coulombic_part_full_loops,0.9460298,,,share,27.26624,estimated,109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,voltage_part_full_loops,0.9826111,,,share,27.26624,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,efficiency_full_loops,,,,share,27.26624,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,65.76189,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,27.26624,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,27.26624,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A4,charge_loss_ma,16.192,10.80599,21.57802,mA,109.0702,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A4,charge_loss_percent_per_month,78.85506,52.62516,105.085,% of 15 Ah per month,109.0702,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,1,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
@@ -51,8 +51,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2018-12-31 00:00:00,A1,capacity_share_of_reference,0.8213197,0.8046759,0.8379635,share of 15 Ah,146.3144,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A2,power_capability_share,0.9737974,0.6903196,1.257275,share of the first day,61,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A2,power_capability_w,,,,W,61,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2018-12-31 00:00:00,A3,efficiency_full_loops,0.9288904,0.9260662,0.9317146,share,65.48137,estimated,109e9eb1efa5,c2f7f545cebb
-2018-12-31 00:00:00,A3,efficiency_empty_loops,0.9292067,0.9260404,0.932373,share,78.37936,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,efficiency_full_loops,0.9288904,0.9283473,0.9294335,share,65.48137,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,78.37936,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A3,coulombic_part_full_loops,0.9496828,,,share,65.48137,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A3,voltage_part_full_loops,0.9781059,,,share,65.48137,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A4,charge_loss_ma,21.47082,17.26419,25.67746,mA,146.3144,estimated,109e9eb1efa5,c2f7f545cebb
@@ -75,8 +75,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2019-12-31 00:00:00,A1,capacity_share_of_reference,0.8122372,0.8018474,0.822627,share of 15 Ah,134.5342,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A2,power_capability_share,0.9464111,0.5688911,1.323931,share of the first day,66,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A2,power_capability_w,,,,W,66,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2019-12-31 00:00:00,A3,efficiency_full_loops,0.9305567,0.9265844,0.9345291,share,60.72128,estimated,109e9eb1efa5,c2f7f545cebb
-2019-12-31 00:00:00,A3,efficiency_empty_loops,0.9286864,0.9260239,0.9313489,share,72.7838,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,efficiency_full_loops,0.9305567,0.9299102,0.9312032,share,60.72128,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,72.7838,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A3,coulombic_part_full_loops,0.9543178,,,share,60.72128,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A3,voltage_part_full_loops,0.9751015,,,share,60.72128,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A4,charge_loss_ma,19.33526,15.25554,23.41498,mA,134.5342,estimated,109e9eb1efa5,c2f7f545cebb
@@ -99,8 +99,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2020-12-31 00:00:00,A1,capacity_share_of_reference,0.7928622,0.7814013,0.8043231,share of 15 Ah,102.8576,estimated,109e9eb1efa5,c2f7f545cebb
 2020-12-31 00:00:00,A2,power_capability_share,0.4714463,0.3481193,0.5947732,share of the first day,218,estimated,109e9eb1efa5,c2f7f545cebb
 2020-12-31 00:00:00,A2,power_capability_w,,,,W,218,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2020-12-31 00:00:00,A3,efficiency_full_loops,0.9245096,0.9223346,0.9266846,share,56.7559,estimated,109e9eb1efa5,c2f7f545cebb
-2020-12-31 00:00:00,A3,efficiency_empty_loops,0.9249355,0.9232641,0.926607,share,44.91369,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A3,efficiency_full_loops,0.9245096,0.9240323,0.9249869,share,56.7559,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,44.91369,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2020-12-31 00:00:00,A3,coulombic_part_full_loops,0.9499328,,,share,56.7559,estimated,109e9eb1efa5,c2f7f545cebb
 2020-12-31 00:00:00,A3,voltage_part_full_loops,0.9732368,,,share,56.7559,estimated,109e9eb1efa5,c2f7f545cebb
 2020-12-31 00:00:00,A4,charge_loss_ma,23.02909,19.54499,26.5132,mA,102.8576,estimated,109e9eb1efa5,c2f7f545cebb
@@ -123,8 +123,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2021-12-31 00:00:00,A1,capacity_share_of_reference,0.7416638,0.7262027,0.7571249,share of 15 Ah,89.92387,estimated,109e9eb1efa5,c2f7f545cebb
 2021-12-31 00:00:00,A2,power_capability_share,0.4044275,0.2935197,0.5153353,share of the first day,286,estimated,109e9eb1efa5,c2f7f545cebb
 2021-12-31 00:00:00,A2,power_capability_w,,,,W,286,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2021-12-31 00:00:00,A3,efficiency_full_loops,0.9131315,0.9074323,0.9188308,share,30.89402,estimated,109e9eb1efa5,c2f7f545cebb
-2021-12-31 00:00:00,A3,efficiency_empty_loops,0.911456,0.9070504,0.9158616,share,58.34117,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A3,efficiency_full_loops,0.9131315,0.911857,0.9144061,share,30.89402,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,58.34117,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2021-12-31 00:00:00,A3,coulombic_part_full_loops,0.9432512,,,share,30.89402,estimated,109e9eb1efa5,c2f7f545cebb
 2021-12-31 00:00:00,A3,voltage_part_full_loops,0.9680682,,,share,30.89402,estimated,109e9eb1efa5,c2f7f545cebb
 2021-12-31 00:00:00,A4,charge_loss_ma,18.35546,13.66603,23.04488,mA,89.92387,estimated,109e9eb1efa5,c2f7f545cebb
@@ -147,8 +147,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2022-12-31 00:00:00,A1,capacity_share_of_reference,0.7070982,0.6988001,0.7153963,share of 15 Ah,213.3846,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 00:00:00,A2,power_capability_share,0.3304168,0.2467898,0.4140437,share of the first day,514,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 00:00:00,A2,power_capability_w,,,,W,514,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2022-12-31 00:00:00,A3,efficiency_full_loops,0.9076501,0.9050533,0.910247,share,86.61301,estimated,109e9eb1efa5,c2f7f545cebb
-2022-12-31 00:00:00,A3,efficiency_empty_loops,0.9068522,0.9045934,0.909111,share,126.4443,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A3,efficiency_full_loops,0.9076501,0.9072519,0.9080483,share,86.61301,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,126.4443,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2022-12-31 00:00:00,A3,coulombic_part_full_loops,0.9390759,,,share,86.61301,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 00:00:00,A3,voltage_part_full_loops,0.9665354,,,share,86.61301,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 00:00:00,A4,charge_loss_ma,19.26327,10.92099,27.60554,mA,213.3846,estimated,109e9eb1efa5,c2f7f545cebb
@@ -171,8 +171,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2022-12-31 23:59:59,A1,capacity_share_of_reference,0.7073363,0.6990279,0.7156447,share of 15 Ah,213.2004,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 23:59:59,A2,power_capability_share,0.3303227,0.2467079,0.4139376,share of the first day,514,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 23:59:59,A2,power_capability_w,,,,W,514,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2022-12-31 23:59:59,A3,efficiency_full_loops,0.9066639,0.9038957,0.909432,share,87.13116,estimated,109e9eb1efa5,c2f7f545cebb
-2022-12-31 23:59:59,A3,efficiency_empty_loops,0.9068522,0.9045931,0.9091112,share,125.7438,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A3,efficiency_full_loops,0.9066639,0.9062855,0.9070422,share,87.13116,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A3,efficiency_empty_loops,,,,share,125.7438,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
 2022-12-31 23:59:59,A3,coulombic_part_full_loops,0.938065,,,share,87.13116,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 23:59:59,A3,voltage_part_full_loops,0.9665256,,,share,87.13116,estimated,109e9eb1efa5,c2f7f545cebb
 2022-12-31 23:59:59,A4,charge_loss_ma,19.40907,11.04242,27.77572,mA,213.2004,estimated,109e9eb1efa5,c2f7f545cebb

@@ -11,6 +11,11 @@ doi:10.2307/1913610); see ``_core`` for the conventions, and for where they depa
 from the capacity fit. Events
 with ``a <= 0`` or a non-finite sum are refused by both paths in the same way.
 
+``estimate_loops`` and ``run_loop_core`` are the same two paths for the loop band
+(``_core.loop_solve``): the same value, with the band of the ratio over the loops in
+memory from the error of the state of charge at their end rests, estimated from the
+lag-1 products of the loop scores (see ``_core``).
+
 Time axis: days since 2000-01-01 (``besslib.soh.capacity.days``). An event counts at a
 query time if its ``t_days`` is at or before it. Events must be in time order.
 """
@@ -171,3 +176,75 @@ def growth_dict(est: _core.RatioEstimate) -> dict:
         "rho": est.rho,
         "status": int(est.status),
     }
+
+
+# --- the loop band ---------------------------------------------------------------------
+
+
+def _loop_state_at(tau_days: float, events, at: float) -> _core.Ratio:
+    """The core state at ``at`` with the loop band's sums, built in one step (the batch path)."""
+    state = _state_at(1, tau_days, 0.0, events, at)
+    t, a, b, eff = events
+    sel = t <= at
+    t, eff = t[sel], eff[sel]
+    if len(t) == 0:
+        return state
+    lam = np.exp(-(at - t) / tau_days) if tau_days > 0 else np.ones_like(t)
+    # Each rest's coefficient: an end rest -lambda_k, plus lambda_(k+1) when the next loop
+    # starts there; the start rest of an unlinked loop +lambda_k.
+    nxt = np.r_[lam[1:] * eff[1:], 0.0]
+    c2 = np.sum((nxt - lam) ** 2) + np.sum(lam[~eff] ** 2)
+    cur = np.flatnonzero(eff)
+    w = lam[cur] * lam[cur - 1]
+    follows = eff[cur - 1] if len(cur) else np.zeros(0, dtype=bool)
+    w_before = lam[cur - 1] * lam[np.maximum(cur - 2, 0)]
+    state.c2 = float(c2)
+    state.w4 = float(np.sum(w * w))
+    state.w4l = float(np.sum((w * w_before)[follows]))
+    state.prev_lw = float(lam[-1] * lam[-2]) if eff[-1] else 0.0
+    return state
+
+
+def _loop_row(est: _core.RatioEstimate) -> dict:
+    row = _row(est)
+    row["rest_error"] = est.rest_error if est.status == _core.OK else np.nan
+    return row
+
+
+def estimate_loops(t_days, a, b, linked, at_days, tau_days, level, min_events, lower, upper) -> pd.DataFrame:
+    """``k = sum lambda b / sum lambda a`` with the loop band at each time in ``at_days``.
+
+    The band holds the ratio over the loops in memory had each closed exactly, from the
+    error of the stored energy at their end rests (``_core.loop_solve``). One row per
+    query, in the order given, with the columns of ``estimate_ratio`` and ``rest_error``
+    (the standard deviation of that error, in the units of ``b``); ``value``, ``sigma``
+    and ``rest_error`` are NaN unless the status is OK.
+    """
+    events = _events(t_days, a, b, linked)
+    z = _z(level)
+    rows = []
+    for at in np.asarray(at_days, dtype=float):
+        state = _loop_state_at(tau_days, events, float(at))
+        rows.append(_loop_row(_core.loop_solve(state, float(at), z, min_events, lower, upper)))
+    return pd.DataFrame(rows)
+
+
+def run_loop_core(t_days, a, b, linked, at_days, tau_days, level, min_events, lower, upper) -> pd.DataFrame:
+    """The same as ``estimate_loops``, by one ``_core.ratio_update`` per event, then ``_core.loop_solve``."""
+    t = np.asarray(t_days, dtype=float)
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    linked = np.asarray(linked, dtype=int)
+    _events(t, a, b, linked)  # the same input checks as the batch path
+    at = np.asarray(at_days, dtype=float)
+    z = _z(level)
+    state = _core.ratio_state(tau_days)
+    rows = [None] * len(at)
+    k = 0
+    for j in np.argsort(at, kind="stable"):
+        tq = float(at[j])
+        while k < len(t) and t[k] <= tq:
+            _core.ratio_update(state, float(t[k]), float(a[k]), float(b[k]), int(linked[k]))
+            k += 1
+        rows[j] = _loop_row(_core.loop_solve(state, tq, z, min_events, lower, upper))
+    return pd.DataFrame(rows)
