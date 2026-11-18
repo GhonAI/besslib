@@ -228,7 +228,7 @@ def merged(new: pd.DataFrame, parts: list[str], path: Path = OUT) -> pd.DataFram
     legacy = [c for c in ("seconds",) if c in old]  # one timing for the whole row: no longer true after a merge
     keep = [c for c in old if not c.startswith(prefixes) and c not in HASH_COLUMNS and c not in legacy]
     add = ["seed"] + [c for c in new if c.startswith(prefixes)]
-    table = old[keep].merge(new[add], on="seed", how="left", validate="one_to_one")
+    table = old[keep].merge(new[add], on="seed", how="left", validate="one_to_one").copy()
     table = table.assign(**{column: new[column].iloc[0] for column in HASH_COLUMNS})
     return ordered(table)
 

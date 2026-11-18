@@ -11,6 +11,7 @@ import pytest
 from besslib.soh import _core
 from besslib.soh.capacity import estimate_capacity
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
+from besslib.soh.efficiency import NO_REST_ERROR, NO_SHARED_REST, REST_ERROR_UNKNOWN
 from besslib.soh.record import FRAME_COLUMNS, NO_LIMITS, NOT_IN_DATASET, annex_vii
 from besslib.soh.reduce import reduce_parts
 from besslib.soh.rests import levels_from, operating_rests, rest_chain, rest_pairs
@@ -64,16 +65,20 @@ def test_ten_fields_in_order_with_the_legal_names(record, reduced):
             assert math.isfinite(f.value) and f.low <= f.value <= f.high and f.events > 0
         elif f.code != "B1":
             assert f.status.startswith("not possible from this data: ") and math.isnan(f.value)
-    # What three months of this pack allow: capacity, charge loss, efficiency, the resistance
-    # at 25 degrees C and the counts; not the growth of the resistance (it needs a year).
+    # What three months of this pack allow: capacity, charge loss, the resistance at 25
+    # degrees C and the counts; not the growth of the resistance (it needs a year). The
+    # efficiency's band needs the rest error, which three months of this pack's loops may
+    # not show (lag-1 minus lag-2 products near zero): a band, or one of its reasons.
     status = dict(zip(table["code"], table["status"]))
-    for code in ("A1", "A3", "A4", "A5", "B2", "B3", "B4", "B5"):
+    for code in ("A1", "A4", "A5", "B2", "B3", "B4", "B5"):
         assert status[code] == OK, code
     assert status["A2"].startswith("not possible from this data: ")
     assert status["B1"] == NOT_IN_DATASET
+    assert status["A3"] in (OK, NO_SHARED_REST, NO_REST_ERROR, REST_ERROR_UNKNOWN)
     eta = record.field("A3")
-    assert 0.0 < eta.value < 1.0
-    assert eta.details["voltage_part"] * eta.details["coulombic_part"] == pytest.approx(eta.value)
+    if status["A3"] == OK:
+        assert 0.0 < eta.value < 1.0
+        assert eta.details["voltage_part"] * eta.details["coulombic_part"] == pytest.approx(eta.value)
 
 
 def test_capacity_is_the_capacity_estimator(record, reduced):

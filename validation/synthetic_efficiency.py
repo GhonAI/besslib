@@ -30,8 +30,11 @@ loop also restores the charge the drain took.
 
 The band is the loop band (``besslib.soh._core.loop_solve``): it holds the ratio over
 the estimate's own loops had each closed exactly, with its width from the error of the
-energy stored at their end rests, estimated from the lag-1 products of the loop scores.
-The truth runs over the simulator's loops, which are close to but not the same loops.
+energy stored at their end rests, estimated as the mean lag-2 product of the loop scores
+minus the mean lag-1 product (a slow drift of the loops' own efficiency cancels in the
+difference; one that changes within two loops does not). Below one degree of freedom
+there is no band. The truth runs over the simulator's loops, which are close to but not
+the same loops.
 Reported with it: the band's degrees of freedom (``w5_dof``) and the rest error
 (``w5_rest_error_wh``, one standard deviation).
 

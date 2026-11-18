@@ -52,25 +52,25 @@
    "code": "A3",
    "details": {
     "coulombic_part": 0.91763415,
-    "dof": 9.49203,
+    "dof": 5.2047889,
     "empty_loops": {
      "high": null,
      "low": null,
      "n_loops": 85.221116,
-     "status": "not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative)",
+     "status": "not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products)",
      "value": null
     },
-    "limits": "DC at the battery terminals, not the AC efficiency of the plant; depends on the use (Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band holds the ratio over these loops, not the efficiency under other use; a slow change of the loops' own efficiency that neighbouring loops share (season) makes the band too narrow; the energy in also restores the charge the meter does not see; the band holds no zero offset of the current sensor",
-    "rest_error_wh": 159.9601,
+    "limits": "DC at the battery terminals, not the AC efficiency of the plant; depends on the use (Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band holds the ratio over these loops, not the efficiency under other use; a change of the loops' own efficiency within two loops makes the band too narrow; below one degree of freedom there is no band; the energy in also restores the charge the meter does not see; the band holds no zero offset of the current sensor",
+    "rest_error_wh": 182.90411,
     "rho": -0.26594329,
     "voltage_part": 1.0313654
    },
    "events": 45.159513,
    "field": "where possible, the remaining round trip efficiency",
-   "high": 0.94681168,
+   "high": 0.94691178,
    "label": "round-trip efficiency (DC, at the battery terminals) over full-to-full loops",
-   "low": 0.94602053,
-   "method": "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); band: the ratio over these loops had each closed exactly, from the error of the state of charge at their end rests, estimated from the lag-1 products of the loop scores",
+   "low": 0.94592043,
+   "method": "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); band: the ratio over these loops had each closed exactly, from the error of the state of charge at their end rests, estimated as the mean lag-2 product of the loop scores minus the mean lag-1 product",
    "status": "estimated",
    "unit": "share",
    "value": 0.9464161

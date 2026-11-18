@@ -19,9 +19,12 @@ exactly (the loops' own variation from one to the next is part of that value, no
 error), and its width comes from the rests' errors only: ``sigma = sqrt(s2 C2) / A``,
 where ``A`` is the weighted energy in, ``C2`` the sum of the rests' squared weights in
 the estimate (the first and the last rest of each linked run without forgetting; the
-latest rest, mostly, with forgetting), and ``s2`` the variance of a rest's error,
-estimated as minus the mean product of the scores ``energy out - eta * energy in`` of
-two linked loops. Its degrees of freedom are those of that mean (``_core``). No
+latest rest, mostly, with forgetting), and ``s2`` the variance of a rest's error. With
+the scores ``energy out - eta * energy in``, ``s2`` is the mean product of the scores of
+two loops with one loop between them (loops ``k`` and ``k - 2`` of three in a row, which share no rest)
+minus the mean product of two linked loops (which share one): a slow drift of the loops'
+own efficiency adds to both and cancels in the difference. Its degrees of freedom are
+those of that difference (``_core``); below one there is no band. No
 systematic sensor term is added: a gain error of the current or the voltage sensor
 scales energy in and energy out by the same factor and cancels in their ratio. A zero
 offset of the current sensor does not cancel; it is not in the band.
@@ -38,10 +41,13 @@ describes this battery under its own operation over the loops in memory, not a r
 value and not the efficiency under other use. The energy in also restores the charge the
 meter does not see (BMS supply, balancing, self-discharge), which lowers the value. The
 band takes the rests' errors as independent and of one size; they are not quite, since
-the state of charge at a voltage stop depends on the current before it. A slow change of
-the loops' own efficiency that neighbouring loops share (season, temperature) makes the
-products of linked scores less negative, so the rest error and the band come out too
-small. The degrees of freedom assume normal scores. With forgetting the latest rest
+the state of charge at a voltage stop depends on the current before it. A change of the
+loops' own efficiency that is fast against two loops is not cancelled: when it makes
+neighbouring loops more alike than loops two apart, the rest error and the band come out
+too small. The difference of two means is noisier than one mean, so the band rests on
+fewer degrees of freedom than the number of loops suggests, and more records have none.
+The degrees of freedom assume normal scores and no correlation of the scores beyond two
+loops. With forgetting the latest rest
 carries most of the band, so the band rests on the error of one rest whose size is
 learnt from the others. A zero offset of the current sensor is not in the band. No full
 or empty rest exists before the levels are set (``CapacityConfig.level_warmup_days``), so
@@ -75,13 +81,14 @@ OUT_EXCEEDS_IN = "not possible from this data: energy out exceeds energy in over
 NO_ENERGY_OUT = "not possible from this data: no energy out over closed loops"
 NO_ENERGY_IN = "not possible from this data: no energy in over closed loops"
 NO_SHARED_REST = (
-    "not possible from this data: no two loops in memory share a rest, so the state-of-charge error at the rests "
-    "cannot be measured"
+    "not possible from this data: no three loops in a row share their rests, so the rest error cannot be told from "
+    "a slow drift"
 )
 NO_REST_ERROR = (
     "not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 "
-    "products are not negative)"
+    "products are not below their lag-2 products)"
 )
+REST_ERROR_UNKNOWN = "not possible from this data: the rest error is not known well enough"
 
 
 def efficiency_loops(rests: pd.DataFrame, chain: pd.DataFrame, kind: str = "full") -> pd.DataFrame:
@@ -249,6 +256,8 @@ def estimate_efficiency(
             row["status"] = NO_SHARED_REST
         elif code == _core.NO_BAND:
             row["status"] = NO_REST_ERROR
+        elif code == _core.LOW_DOF:
+            row["status"] = REST_ERROR_UNKNOWN
         else:
             row["status"] = _core.STATUS_TEXT.get(code, f"not possible from this data: status {code}")
         rows.append(row)

@@ -79,7 +79,7 @@ _METHODS = {
     "A3": (
         "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); "
         "band: the ratio over these loops had each closed exactly, from the error of the state of charge at their "
-        "end rests, estimated from the lag-1 products of the loop scores"
+        "end rests, estimated as the mean lag-2 product of the loop scores minus the mean lag-1 product"
     ),
     "A4": f"minus the offset current of the capacity fit ({_FIGGENER}); band with the current sensor's gain error",
     "A5": _RESISTANCE,
@@ -307,8 +307,9 @@ def _efficiency_field(reduced, spec, at, mask, level, config, capacity_config) -
             "limits": (
                 "DC at the battery terminals, not the AC efficiency of the plant; depends on the use "
                 "(Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band "
-                "holds the ratio over these loops, not the efficiency under other use; a slow change of the loops' "
-                "own efficiency that neighbouring loops share (season) makes the band too narrow; the energy in "
+                "holds the ratio over these loops, not the efficiency under other use; a change of the loops' own "
+                "efficiency within two loops makes the band too narrow; below one degree of freedom there is no "
+                "band; the energy in "
                 "also restores the charge the meter does not see; the band holds no zero offset of the current "
                 "sensor"
             ),

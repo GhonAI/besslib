@@ -27,10 +27,10 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2016-12-31 00:00:00,A1,capacity_share_of_reference,,,,share of 158 Ah,19.0185,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
 2016-12-31 00:00:00,A2,power_capability_share,0.8330114,0.7075944,0.9584284,share of the first day,264,estimated,109e9eb1efa5,c2f7f545cebb
 2016-12-31 00:00:00,A2,power_capability_w,,,,W,264,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2016-12-31 00:00:00,A3,efficiency_full_loops,,,,share,13.70311,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,efficiency_full_loops,,,,share,13.70311,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
 2016-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,3.751852,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
-2016-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,13.70311,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2016-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,13.70311,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,13.70311,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,13.70311,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
 2016-12-31 00:00:00,A4,charge_loss_ma,,,,mA,19.0185,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
 2016-12-31 00:00:00,A4,charge_loss_percent_per_month,,,,% of 158 Ah per month,19.0185,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
 2016-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,0,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
@@ -51,10 +51,10 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2017-12-31 00:00:00,A1,capacity_share_of_reference,0.927939,0.9155007,0.9403773,share of 158 Ah,59.91288,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A2,power_capability_share,0.893256,0.788599,0.997913,share of the first day,445,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A2,power_capability_w,,,,W,445,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,efficiency_full_loops,,,,share,32.33132,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,26.15831,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,32.33132,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2017-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,32.33132,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,efficiency_full_loops,,,,share,32.33132,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,efficiency_empty_loops,0.8809142,0.8747743,0.8870541,share,26.15831,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,32.33132,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,32.33132,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A4,charge_loss_ma,251.0365,242.3795,259.6935,mA,59.91288,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A4,charge_loss_percent_per_month,116.0647,112.0622,120.0671,% of 158 Ah per month,59.91288,estimated,109e9eb1efa5,c2f7f545cebb
 2017-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,1,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
@@ -75,10 +75,10 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2018-12-31 00:00:00,A1,capacity_share_of_reference,0.8955992,0.8785367,0.9126617,share of 158 Ah,49.80349,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A2,power_capability_share,0.8825789,0.7947249,0.9704329,share of the first day,612,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A2,power_capability_w,,,,W,612,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2018-12-31 00:00:00,A3,efficiency_full_loops,,,,share,13.54886,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2018-12-31 00:00:00,A3,efficiency_empty_loops,0.8636096,0.8616993,0.86552,share,34.0895,estimated,109e9eb1efa5,c2f7f545cebb
-2018-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,13.54886,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2018-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,13.54886,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,efficiency_full_loops,,,,share,13.54886,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,efficiency_empty_loops,0.8636096,0.8596342,0.8675851,share,34.0895,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,13.54886,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,13.54886,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A4,charge_loss_ma,236.8785,154.9042,318.8528,mA,49.80349,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A4,charge_loss_percent_per_month,109.5188,71.61867,147.419,% of 158 Ah per month,49.80349,estimated,109e9eb1efa5,c2f7f545cebb
 2018-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,2,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
@@ -99,10 +99,10 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2019-12-31 00:00:00,A1,capacity_share_of_reference,0.9081012,0.8946452,0.9215571,share of 158 Ah,42.18994,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A2,power_capability_share,0.8224975,0.740248,0.904747,share of the first day,698,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A2,power_capability_w,,,,W,698,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2019-12-31 00:00:00,A3,efficiency_full_loops,,,,share,16.34927,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2019-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,23.44669,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2019-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,16.34927,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
-2019-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,16.34927,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,efficiency_full_loops,,,,share,16.34927,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,23.44669,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,16.34927,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,16.34927,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A4,charge_loss_ma,287.8073,234.8891,340.7255,mA,42.18994,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A4,charge_loss_percent_per_month,133.0653,108.599,157.5316,% of 158 Ah per month,42.18994,estimated,109e9eb1efa5,c2f7f545cebb
 2019-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,15.43617,-38.28625,69.15859,mA per year,3,estimated,109e9eb1efa5,c2f7f545cebb
@@ -123,8 +123,8 @@ date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,recor
 2020-09-20 23:59:59,A1,capacity_share_of_reference,0.9034995,0.8929261,0.9140728,share of 158 Ah,55.8198,estimated,109e9eb1efa5,c2f7f545cebb
 2020-09-20 23:59:59,A2,power_capability_share,0.8782224,0.8016646,0.9547801,share of the first day,863,estimated,109e9eb1efa5,c2f7f545cebb
 2020-09-20 23:59:59,A2,power_capability_w,,,,W,863,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
-2020-09-20 23:59:59,A3,efficiency_full_loops,0.8898325,0.8896935,0.8899715,share,31.2471,estimated,109e9eb1efa5,c2f7f545cebb
-2020-09-20 23:59:59,A3,efficiency_empty_loops,,,,share,22.5563,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not negative),109e9eb1efa5,c2f7f545cebb
+2020-09-20 23:59:59,A3,efficiency_full_loops,0.8898325,0.8881335,0.8915315,share,31.2471,estimated,109e9eb1efa5,c2f7f545cebb
+2020-09-20 23:59:59,A3,efficiency_empty_loops,,,,share,22.5563,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
 2020-09-20 23:59:59,A3,coulombic_part_full_loops,0.935216,,,share,31.2471,estimated,109e9eb1efa5,c2f7f545cebb
 2020-09-20 23:59:59,A3,voltage_part_full_loops,0.9514727,,,share,31.2471,estimated,109e9eb1efa5,c2f7f545cebb
 2020-09-20 23:59:59,A4,charge_loss_ma,273.777,251.6161,295.9378,mA,55.8198,estimated,109e9eb1efa5,c2f7f545cebb

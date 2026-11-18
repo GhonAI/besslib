@@ -13,8 +13,8 @@ with ``a <= 0`` or a non-finite sum are refused by both paths in the same way.
 
 ``estimate_loops`` and ``run_loop_core`` are the same two paths for the loop band
 (``_core.loop_solve``): the same value, with the band of the ratio over the loops in
-memory from the error of the state of charge at their end rests, estimated from the
-lag-1 products of the loop scores (see ``_core``).
+memory from the error of the state of charge at their end rests, estimated as the mean
+lag-2 product of the loop scores minus the mean lag-1 product (see ``_core``).
 
 Time axis: days since 2000-01-01 (``besslib.soh.capacity.days``). An event counts at a
 query time if its ``t_days`` is at or before it. Events must be in time order.
@@ -186,22 +186,49 @@ def _loop_state_at(tau_days: float, events, at: float) -> _core.Ratio:
     state = _state_at(1, tau_days, 0.0, events, at)
     t, a, b, eff = events
     sel = t <= at
-    t, eff = t[sel], eff[sel]
-    if len(t) == 0:
+    t, a, b, eff = t[sel], a[sel], b[sel], eff[sel]
+    n = len(t)
+    if n == 0:
         return state
     lam = np.exp(-(at - t) / tau_days) if tau_days > 0 else np.ones_like(t)
     # Each rest's coefficient: an end rest -lambda_k, plus lambda_(k+1) when the next loop
     # starts there; the start rest of an unlinked loop +lambda_k.
     nxt = np.r_[lam[1:] * eff[1:], 0.0]
     c2 = np.sum((nxt - lam) ** 2) + np.sum(lam[~eff] ** 2)
-    cur = np.flatnonzero(eff)
-    w = lam[cur] * lam[cur - 1]
-    follows = eff[cur - 1] if len(cur) else np.zeros(0, dtype=bool)
-    w_before = lam[cur - 1] * lam[np.maximum(cur - 2, 0)]
+    # Per event: the weight of its link (w1) and of its 2-link (w2), 0 where there is none.
+    two = np.r_[False, eff[1:] & eff[:-1]]
+    w1 = np.zeros(n)
+    w2 = np.zeros(n)
+    w1[1:] = np.where(eff[1:], lam[1:] * lam[:-1], 0.0)
+    w2[2:] = np.where(two[2:], lam[2:] * lam[:-2], 0.0)
+
+    def back(x, d):  # x[k - d], 0 before the first event
+        return np.r_[np.zeros(min(d, n)), x[: max(n - d, 0)]]
+
+    z = np.column_stack([a, b - state.k_ref * a])
+    k2 = np.flatnonzero(two)
+    s4l2 = np.einsum("n,ni,nj->ij", w2[k2], z[k2], z[k2 - 2])
     state.c2 = float(c2)
-    state.w4 = float(np.sum(w * w))
-    state.w4l = float(np.sum((w * w_before)[follows]))
-    state.prev_lw = float(lam[-1] * lam[-2]) if eff[-1] else 0.0
+    state.w4 = float(np.sum(w1 * w1))
+    state.w4l = float(np.sum(w1 * back(w1, 1)))
+    state.s11_2 = float(np.sum((w1 * back(w1, 2))[two]))  # links k and k - 2 with k - 1 linked between them
+    state.m2_l2 = float(np.sum(w2))
+    state.s22_0 = float(np.sum(w2 * w2))
+    state.s22_1 = float(np.sum(w2 * back(w2, 1)))
+    state.s22_2 = float(np.sum(w2 * back(w2, 2)))
+    state.x0 = float(np.sum(w1 * w2))
+    state.xm1 = float(np.sum(back(w1, 1) * w2))
+    state.xp1 = float(np.sum(w1 * back(w2, 1)))
+    state.xm2 = float(np.sum(back(w1, 2) * w2))
+    for i in range(2):
+        for j in range(2):
+            state.s4l2[i * 3 + j] = float(s4l2[i, j])
+    # The history the next event would use (0 across a break), as the step-by-step path keeps it.
+    run = eff[-1]
+    state.prev_lw = float(w1[-1])
+    state.prev_lw2 = float(w1[-2]) if run and n > 1 else 0.0
+    state.prev_w2 = float(w2[-1])
+    state.prev_w2b = float(w2[-2]) if run and n > 1 else 0.0
     return state
 
 
