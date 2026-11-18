@@ -10,9 +10,9 @@ W8 info,200 synthetic packs: the same on pack B with current and voltage noise,l
 W3 info,development capacity tests,"median |difference| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry {'LFP': 64.1, 'LMO/NMC': -8.2, 'NMC': -11.5}",information,,109e9eb1efa5,c2f7f545cebb
 W3,held-out capacity tests,not run in this mode,<= 20 %,not run,109e9eb1efa5,c2f7f545cebb
 W4 info,development: neighbouring 5-degree bands: the colder reads higher,59 of 68 (87%),>= 80%,,109e9eb1efa5,c2f7f545cebb
-W6 info,development: full-to-full against empty-to-empty loops within 1 point,no pairs,>= 80%,,109e9eb1efa5,c2f7f545cebb
+W6 info,development: full-to-full against empty-to-empty loop ratios within 1 point (no band needed),24 of 36 (67%),>= 80%,,109e9eb1efa5,c2f7f545cebb
 W4,held-out: neighbouring 5-degree bands: the colder reads higher,not run in this mode,>= 80%,not run,109e9eb1efa5,c2f7f545cebb
-W6,held-out: full-to-full against empty-to-empty loops within 1 point,not run in this mode,>= 80%,not run,109e9eb1efa5,c2f7f545cebb
+W6,held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed),not run in this mode,>= 80%,not run,109e9eb1efa5,c2f7f545cebb
 W9,"core against batch, resistance: 240 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06))","max relative difference 3.6e-14 (64-bit); 2.6e-06 (32-bit, information)",<= 1e-6,pass,109e9eb1efa5,c2f7f545cebb
 W9,"core against batch, efficiency: 10 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06))","max relative difference 0.0e+00 (64-bit); 1.3e-06 (32-bit, information)",<= 1e-6,pass,109e9eb1efa5,c2f7f545cebb
 W9,"daily counters against rest counters: 53822 rests, systems [1, 4, 7, 11, 14, 17, 19]","max relative difference 7.1e-13 (energy out, system 19)",<= 1e-6,pass,109e9eb1efa5,c2f7f545cebb

@@ -26,9 +26,15 @@ Rules fixed before any result:
 * W4: at every year end, every two neighbouring temperature bands that both have an
   estimate form a pair; the colder band must read the higher resistance in at least
   80 % of the pairs.
-* W6: at every year end with an estimate from full-to-full loops and one from
-  empty-to-empty loops, the two must agree within 1 point in at least 80 % of
-  system-years.
+* W6: at every year end (the dates of the yearly table) where both loop kinds have a
+  ratio, the full-to-full and the empty-to-empty ratio must agree within 1 point in at
+  least 80 % of system-years. The ratio is energy out ÷ energy in over the loops in
+  memory with the estimator's weights, from the reduced tables with the record's mask;
+  it exists once the levels are set and at least ``efficiency_min_loops`` loops are in
+  memory, with or without a band (W6 checks that the two loop definitions agree, not
+  the band; the ratio was chosen after the band was found to be rare on field data).
+  At every estimated date the ratio must equal the estimator's value. The pairs are
+  written to ``validation/results/w6_loop_ratios.csv``.
 * W9 has two parts. (a) The step-by-step core against the batch path, for resistance
   and for efficiency, at every day of three development test months: for systems 01, 07
   and 17, the month of test 01/1, 07/1 and 17/2. (b) The daily counters against the
@@ -262,19 +268,70 @@ def w4_pairs(table: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["system_id", "date", "cold_c", "warm_c", "cold_ohm", "warm_ohm", "colder_higher"])
 
 
-def w6_years(table: pd.DataFrame) -> pd.DataFrame:
-    """Full-to-full against empty-to-empty efficiency, same system and date, both estimated."""
-    cols = ["system_id", "date", "full", "empty", "difference_points", "within_1_point"]
-    if table.empty:
-        return pd.DataFrame(columns=cols)
-    e = table[table["quantity"].isin(["efficiency_full_loops", "efficiency_empty_loops"]) & (table["status"] == "estimated")]
-    wide = e.pivot_table(index=["system_id", "date"], columns="quantity", values="value").dropna().reset_index()
-    if wide.empty:
-        return pd.DataFrame(columns=cols)
-    wide = wide.rename(columns={"efficiency_full_loops": "full", "efficiency_empty_loops": "empty"})
-    wide["difference_points"] = 100.0 * (wide["full"] - wide["empty"])
-    wide["within_1_point"] = wide["difference_points"].abs() <= 1.0
-    return wide[cols]
+W6_COLUMNS = ["system_id", "date", "full", "empty", "n_full", "n_empty", "difference_points", "within_1_point"]
+
+
+def loop_ratios(system_id: int) -> pd.DataFrame:
+    """Full-to-full and empty-to-empty loop ratios of one system at the yearly table's dates.
+
+    The ratio is ``sum lambda * energy out / sum lambda * energy in`` over the loops the
+    estimator keeps, with its weights; NaN before the levels are set, with fewer than
+    ``efficiency_min_loops`` loops in memory, or without energy in. Where the estimator
+    gives a value, the ratio must equal it.
+    """
+    from besslib.soh.capacity import days
+    from besslib.soh.efficiency import NO_ENERGY_IN, TOO_FEW_LOOPS, estimate_efficiency
+    from besslib.soh.reduce import read_reduced
+    from run_annex_vii import year_ends
+    from run_capacity import all_tests
+    from tune_capacity import masks_for
+
+    config = RecordConfig()
+    reduced = read_reduced(REDUCED, f"ID_{system_id:02d}")
+    spec = figgener.pack_spec(system_id)
+    mask = masks_for(all_tests(), system_id)
+    at = pd.DatetimeIndex(year_ends(reduced))
+    out = {"system_id": system_id, "date": at}
+    no_ratio = {TOO_FEW_LOOPS, NO_ENERGY_IN, _core_text("NO_LEVELS")}
+    for kind in ("full", "empty"):
+        est = estimate_efficiency(None, spec, reduced=reduced, at=at, mask=mask, kind=kind, config=config)
+        loops = est.attrs["loops"]
+        t = days(loops["t_end"])
+        a = loops["energy_in_wh"].to_numpy(float)
+        b = loops["energy_out_wh"].to_numpy(float)
+        kept = (a > 0.0) & np.isfinite(a) & np.isfinite(b)
+        ratio = np.full(len(at), np.nan)
+        for k, tq in enumerate(days(at)):
+            if est["status"].iloc[k] in no_ratio:
+                continue
+            use = kept & (t <= tq)
+            lam = np.exp(-(tq - t[use]) / config.tau_days)
+            ratio[k] = float((lam * b[use]).sum() / (lam * a[use]).sum())
+        value = est["round_trip_efficiency"].to_numpy(float)
+        both = np.isfinite(value)
+        if both.any() and not np.allclose(ratio[both], value[both], rtol=1e-12, atol=0.0):
+            raise SystemExit(f"system {system_id:02d}, {kind} loops: the loop ratio differs from the estimate")
+        out[kind] = ratio
+        out[f"n_{kind}"] = est["n_loops"].to_numpy(float)
+    table = pd.DataFrame(out)
+    table["difference_points"] = 100.0 * (table["full"] - table["empty"])
+    table["within_1_point"] = table["difference_points"].abs() <= 1.0
+    return table[W6_COLUMNS]
+
+
+def _core_text(name: str) -> str:
+    from besslib.soh import _core
+
+    return _core.STATUS_TEXT[getattr(_core, name)]
+
+
+def w6_pairs(system_ids) -> pd.DataFrame:
+    """The year ends of some systems where both loop kinds have a ratio."""
+    found = [loop_ratios(sid) for sid in system_ids if (REDUCED / f"ID_{sid:02d}_rests.parquet").exists()]
+    if not found:
+        return pd.DataFrame(columns=W6_COLUMNS)
+    table = pd.concat(found, ignore_index=True)
+    return table.dropna(subset=["full", "empty"]).reset_index(drop=True)
 
 
 # --- W9 (a): the step-by-step core against the batch path -------------------------------
@@ -504,13 +561,17 @@ def main(argv: list[str]) -> None:
                 else ("W3", "held-out capacity tests", "not run in this mode", "<= 20 %", NOT_RUN))
 
     # W4, W6
+    w6_detail = []
     for label, ids in scopes + ([("held-out", ())] if development_only else []):
         table = yearly(ids, record_hash) if ids else pd.DataFrame()
-        pairs, years = w4_pairs(table), w6_years(table)
+        pairs, years = w4_pairs(table), w6_pairs(ids)
+        if len(years):
+            w6_detail.append(years.assign(set=label))
         is_held = label == "held-out"
         for check, frame, column, what, need in (
             ("W4", pairs, "colder_higher", "neighbouring 5-degree bands: the colder reads higher", 0.80),
-            ("W6", years, "within_1_point", "full-to-full against empty-to-empty loops within 1 point", 0.80),
+            ("W6", years, "within_1_point",
+             "full-to-full against empty-to-empty loop ratios within 1 point (no band needed)", 0.80),
         ):
             name = check if is_held else f"{check} info"
             if len(frame) == 0:
@@ -520,6 +581,12 @@ def main(argv: list[str]) -> None:
             share = float(frame[column].mean())
             rows.append((name, f"{label}: {what}", f"{int(frame[column].sum())} of {len(frame)} ({share:.0%})",
                          f">= {need:.0%}", bool(share >= need) if is_held else None))
+
+    if w6_detail:
+        detail = pd.concat(w6_detail, ignore_index=True)
+        detail["capacity_config_hash"] = CAPACITY_HASH
+        detail["record_config_hash"] = record_hash
+        detail.to_csv(RESULTS / "w6_loop_ratios.csv", index=False, float_format="%.7g")
 
     # W9
     core = w9_core()
