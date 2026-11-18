@@ -56,7 +56,7 @@ def test_parts_give_the_same_rests_as_one_frame(months):
 def test_counters_count_a_gap_as_missing(months):
     frame = pd.concat(months[:1])
     cut = frame.drop(frame.index[1000:1090])  # 90 samples of 10 s = 900 s
-    _, _, _, missing, _ = counters_at(cut, cut.index[-1])
+    _, _, _, missing, *_ = counters_at(cut, cut.index[-1])
     assert missing == pytest.approx(900.0)
 
 

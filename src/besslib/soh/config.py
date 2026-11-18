@@ -1,14 +1,17 @@
-"""The settings of the capacity estimator, in one frozen record with a printable hash.
+"""The settings of the estimators, in frozen records with a printable hash.
 
-The defaults are the values frozen after tuning on the development systems. Every
-result besslib writes carries ``config_hash(config)``, so a number can always be traced
-to the exact settings that made it.
+``CapacityConfig`` holds the settings of the capacity estimator, ``RecordConfig`` those
+of the other fields of the Annex VII record. The defaults are the values frozen after
+tuning on the development systems. Every result besslib writes carries
+``config_hash(config)``, so a number can always be traced to the exact settings that
+made it.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass, replace
 
 
@@ -78,7 +81,73 @@ class CapacityConfig:
         return replace(self, **changes)
 
 
-def config_hash(config: CapacityConfig) -> str:
+@dataclass(frozen=True)
+class RecordConfig:
+    """Settings for resistance, round-trip efficiency and the Annex VII record.
+
+    They are kept apart from ``CapacityConfig``, so the capacity estimator's settings
+    and hash do not change when these do.
+
+    Resistance: a *current step* is a change of at least ``min_step_c_rate`` x C between
+    two consecutive samples, after ``steady_s`` seconds in which the current stayed
+    within ``steady_tolerance`` x the step of its value before the step. Steps are
+    grouped by day and by pack-temperature band of ``temp_band_c`` degrees. A day in a
+    band is left out when more than ``unrefreshed_max_share`` of its steps show no voltage
+    change at all: the voltage was then not refreshed together with the current (a
+    current step moves the voltage of a pack by far more than the voltage sensor's
+    resolution, so a synchronous logger shows almost no exact zeros). An estimate
+    needs ``resistance_min_days`` days in memory in its band (decayed count); the growth
+    per year needs ``growth_min_span_years`` between its first and last day.
+
+    Round-trip efficiency: an estimate needs ``efficiency_min_loops`` closed loops in
+    memory (decayed count).
+
+    Shared: memory time ``tau_days`` (the frozen value of the capacity estimator, not
+    tuned again); band level ``level``. ``current_accuracy`` and ``voltage_accuracy``
+    are the sensors' stated accuracies (0.5 % and 0.25 %, Figgener et al. 2024,
+    Supplementary Table 2). Each accuracy is read as the half-width ``a`` of a
+    rectangular distribution, so its standard uncertainty is ``a / sqrt(3)`` (JCGM
+    100:2008, "Guide to the expression of uncertainty in measurement", 4.3.7, Eq. 7).
+    A gain error moves every reading of a sensor the same way, so averaging does not
+    reduce it: it enters a band as a systematic term. The trend of the apparent charge
+    loss needs ``charge_loss_min_years`` year-end values.
+    """
+
+    min_step_c_rate: float = 0.05  # frozen after validation/tune_resistance.py (development systems only)
+    steady_s: float = 2.0  # frozen after validation/tune_resistance.py (development systems only)
+    steady_tolerance: float = 0.2
+    unrefreshed_max_share: float = 0.01
+    temp_band_c: float = 5.0
+    resistance_min_days: float = 10.0
+    growth_min_span_years: float = 1.0
+    efficiency_min_loops: float = 5.0
+    tau_days: float = 180.0
+    level: float = 0.90
+    current_accuracy: float = 0.005
+    voltage_accuracy: float = 0.0025
+    charge_loss_min_years: int = 3
+
+    def with_(self, **changes) -> "RecordConfig":
+        """A copy with some settings changed."""
+        return replace(self, **changes)
+
+    @property
+    def charge_sigma(self) -> float:
+        """Relative standard uncertainty of a charge (Ah) from the current sensor's gain."""
+        return self.current_accuracy / math.sqrt(3.0)
+
+    @property
+    def energy_sigma(self) -> float:
+        """Relative standard uncertainty of an energy (Wh): current and voltage gain combined."""
+        return math.hypot(self.current_accuracy, self.voltage_accuracy) / math.sqrt(3.0)
+
+    @property
+    def resistance_sigma(self) -> float:
+        """Relative standard uncertainty of a voltage step divided by a current step."""
+        return math.hypot(self.current_accuracy, self.voltage_accuracy) / math.sqrt(3.0)
+
+
+def config_hash(config: CapacityConfig | RecordConfig) -> str:
     """The first 12 hex digits of the SHA-256 of the settings, as sorted JSON."""
     text = json.dumps(asdict(config), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode()).hexdigest()[:12]

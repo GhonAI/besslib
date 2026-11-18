@@ -42,6 +42,12 @@ _COLUMNS = ["voltage_v", "current_a", "power_w", "temp_pack_c", "temp_ambient_c"
 _MONTH_FILE = re.compile(r"(\d{4})_(\d{2})_System_ID_(\d{2})\.csv$")
 _TIME_FORMAT = "%d-%b-%Y %H:%M:%S"
 
+#: The credit line of the dataset (CC BY 4.0); it travels with every pack read from it.
+CREDIT = (
+    "Data: Figgener, J. et al., Data for: Multi-year field measurements of home storage systems and their use "
+    "in capacity estimation, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0."
+)
+
 
 def _meta(name: str) -> pd.DataFrame:
     with resources.files("besslib.io").joinpath("figgener_meta", name).open() as f:
@@ -79,6 +85,7 @@ def pack_spec(system_id: int) -> PackSpec:
             "energy_usable_datasheet_kwh": float(row["Energy_usable_datasheet_in_kWh"]),
             "inverter_nominal_power_kw": float(row["Inverter_nominal_power"]),
             "measurement_start": date.fromisoformat(row["Date_measurement_system_installation"]),
+            "data_credit": CREDIT,
         },
     )
 

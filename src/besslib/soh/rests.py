@@ -28,6 +28,7 @@ from besslib.soh.config import CapacityConfig
 REST_COLUMNS = [
     "start", "end", "duration_min", "truncated", "edge_v", "edge_current_a", "v_end", "ocv_v", "ocv_sigma_v",
     "temp_pack_c", "charge_ah", "throughput_ah", "throughput_end_ah", "missing_s", "interpolated_s",
+    "energy_in_wh", "energy_out_wh",
 ]
 
 _TAU_FAST_S = (20.0, 60.0, 180.0)
@@ -46,12 +47,19 @@ def _arrays(frame: pd.DataFrame):
     return t, i, v, temp, interp
 
 
-def _counters(t, i, interp, break_gap_s):
-    """Running charge (Ah), throughput (Ah), missing and interpolated seconds at each sample.
+def _power(frame: pd.DataFrame) -> np.ndarray:
+    return frame["power_w"].to_numpy(dtype=float)
+
+
+def _counters(t, i, interp, break_gap_s, p):
+    """Running charge (Ah), throughput (Ah), missing and interpolated seconds, energy in and
+    energy out (Wh) at each sample.
 
     Steps longer than ``break_gap_s`` are not bridged: they add no charge. Any step longer
     than 1.5 times the usual step (the median) counts as missing time beyond that step. A
     step with a missing (NaN) current at either end adds no charge and counts as missing.
+    Energy in and out are the trapezoids of ``max(P, 0)`` and ``max(-P, 0)`` over the steps
+    that are not longer than ``break_gap_s`` and have a finite power at both ends.
     """
     dt = np.diff(t).astype(float)
     step = float(np.median(dt)) if len(dt) else 1.0
@@ -63,12 +71,19 @@ def _counters(t, i, interp, break_gap_s):
     step_a = np.where(bridged, 0.5 * (np.abs(ii[1:]) + np.abs(ii[:-1])) * dt, 0.0) / 3600.0
     step_m = np.where(valid, np.where(dt > 1.5 * step, dt - step, 0.0), dt)
     step_i = np.where(interp[1:], np.minimum(dt, break_gap_s), 0.0)
+    pfinite = np.isfinite(p)
+    pbridged = (dt <= break_gap_s) & pfinite[1:] & pfinite[:-1]
+    pp = np.where(pfinite, p, 0.0)
+    step_ein = np.where(pbridged, 0.5 * (np.maximum(pp[1:], 0.0) + np.maximum(pp[:-1], 0.0)) * dt, 0.0) / 3600.0
+    step_eout = np.where(pbridged, 0.5 * (np.maximum(-pp[1:], 0.0) + np.maximum(-pp[:-1], 0.0)) * dt, 0.0) / 3600.0
     zero = np.zeros(1)
     return (
         np.concatenate([zero, np.cumsum(step_q)]),
         np.concatenate([zero, np.cumsum(step_a)]),
         np.concatenate([zero, np.cumsum(step_m)]),
         np.concatenate([zero, np.cumsum(step_i)]),
+        np.concatenate([zero, np.cumsum(step_ein)]),
+        np.concatenate([zero, np.cumsum(step_eout)]),
     )
 
 
@@ -116,11 +131,12 @@ def detect_rests(
     t, i, v, temp, interp = _arrays(frame)
     if len(t) < 2:
         return pd.DataFrame(columns=REST_COLUMNS)
-    q, qa, miss, ins = _counters(t, i, interp, config.break_gap_s)
+    q, qa, miss, ins, ein, eout = _counters(t, i, interp, config.break_gap_s, _power(frame))
     if origin is not None:
         k = int(np.searchsorted(t, pd.Timestamp(origin).value // 1_000_000_000))
         k = min(max(k, 0), len(t) - 1)
         q, qa, miss, ins = q - q[k], qa - qa[k], miss - miss[k], ins - ins[k]
+        ein, eout = ein - ein[k], eout - eout[k]
 
     idle = np.abs(i) < config.current_c_rate * spec.nominal_capacity_ah
     # Peak filter: short excursions are tolerated, longer ones end the rest.
@@ -163,7 +179,7 @@ def detect_rests(
                     t[a2], t[b2 - 1], duration / 60.0, bool(b2 == len(t)),
                     float(np.nanmedian(v[pre_idx])), float(np.nanmedian(i[pre_idx])),
                     float(np.nanmean(v[max(b2 - 10, a2) : b2])), ocv, ocv_sigma,
-                    float(np.nanmean(temp[a2:b2])), q[a2], qa[a2], qa[b2 - 1], miss[a2], ins[a2],
+                    float(np.nanmean(temp[a2:b2])), q[a2], qa[a2], qa[b2 - 1], miss[a2], ins[a2], ein[a2], eout[a2],
                 )
             )
     out = pd.DataFrame(rows, columns=REST_COLUMNS)
@@ -177,24 +193,27 @@ def counters_at(
     at: pd.Timestamp,
     config: CapacityConfig | None = None,
     origin: pd.Timestamp | None = None,
-) -> tuple[pd.Timestamp, float, float, float, float]:
+) -> tuple[pd.Timestamp, float, float, float, float, float, float]:
     """The running counters of ``detect_rests`` at the first sample at or after ``at``.
 
-    Returns ``(time, charge_ah, throughput_ah, missing_s, interpolated_s)``. If no sample
+    Returns ``(time, charge_ah, throughput_ah, missing_s, interpolated_s, energy_in_wh, energy_out_wh)``. If no sample
     is at or after ``at``, the last sample is used and its time returned, so the caller
     can count the gap that follows as missing.
     """
     config = config or CapacityConfig()
     t, i, _, _, interp = _arrays(frame)
-    q, qa, miss, ins = _counters(t, i, interp, config.break_gap_s)
+    q, qa, miss, ins, ein, eout = _counters(t, i, interp, config.break_gap_s, _power(frame))
     k0 = 0
     if origin is not None:
         k0 = min(int(np.searchsorted(t, pd.Timestamp(origin).value // 1_000_000_000)), len(t) - 1)
     k = min(int(np.searchsorted(t, pd.Timestamp(at).value // 1_000_000_000)), len(t) - 1)
-    return pd.Timestamp(int(t[k]), unit="s"), q[k] - q[k0], qa[k] - qa[k0], miss[k] - miss[k0], ins[k] - ins[k0]
+    return (
+        pd.Timestamp(int(t[k]), unit="s"), q[k] - q[k0], qa[k] - qa[k0], miss[k] - miss[k0], ins[k] - ins[k0],
+        ein[k] - ein[k0], eout[k] - eout[k0],
+    )
 
 
-def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", log=None):
+def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", log=None, each=None):
     """Rest candidates over a long record that comes in consecutive pieces (e.g. months).
 
     Each piece is searched with ``margin`` of its neighbours on both sides, so a rest
@@ -203,14 +222,19 @@ def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", lo
 
     ``configs`` is one ``CapacityConfig`` or a sequence of them (each piece is read once
     for all). Returns one table, or a list of tables in the order of ``configs``.
+
+    ``each``, if given, is called as ``each(prev, cur, tables)`` once per piece, after that
+    piece's rests are final: ``prev`` is the previous non-empty piece (or None), ``cur`` the
+    piece itself, ``tables`` the list of its rest tables in the order of ``configs``.
     """
     single = isinstance(configs, CapacityConfig)
     configs = [configs] if single else list(configs)
     margin = pd.Timedelta(margin)
     tables = [[] for _ in configs]
-    totals = [[0.0, 0.0, 0.0, 0.0] for _ in configs]
-    columns = ("charge_ah", "throughput_ah", "throughput_end_ah", "missing_s", "interpolated_s")
-    slots = (0, 1, 1, 2, 3)
+    totals = [[0.0] * 6 for _ in configs]
+    columns = ("charge_ah", "throughput_ah", "throughput_end_ah", "missing_s", "interpolated_s", "energy_in_wh",
+               "energy_out_wh")
+    slots = (0, 1, 1, 2, 3, 4, 5)
     prev = cur = None
     count = 0
 
@@ -225,6 +249,7 @@ def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", lo
             pieces.append(nxt.loc[: bound + margin])
         frame = pd.concat(pieces) if len(pieces) > 1 else cur
         frame = frame[~frame.index.duplicated(keep="first")]
+        mine = []
         for k, cfg in enumerate(configs):
             rests = detect_rests(frame, spec, cfg, origin=first)
             rests = rests[(rests["start"] >= first) & (rests["start"] < bound)].copy()
@@ -232,12 +257,17 @@ def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", lo
             for col, slot in zip(columns, slots):
                 rests[col] = rests[col] + off[slot]
             tables[k].append(rests)
+            mine.append(rests)
             if nxt is not None:
-                _, dq, da, dm, di = counters_at(frame, bound, cfg, origin=first)
+                _, dq, da, dm, di, dei, deo = counters_at(frame, bound, cfg, origin=first)
                 off[0] += dq
                 off[1] += da
                 off[2] += dm
                 off[3] += di
+                off[4] += dei
+                off[5] += deo
+        if each is not None:
+            each(prev, cur, mine)
 
     for part in parts:
         if part is None or len(part) == 0:
@@ -340,6 +370,27 @@ def find_rests(frame: pd.DataFrame, spec: PackSpec, config: CapacityConfig | Non
     record (one year by default) no level exists yet and every rest is ``other``.
     """
     return classify_rests(detect_rests(frame, spec, config), spec, config)
+
+
+def operating_rests(
+    candidates: pd.DataFrame,
+    spec: PackSpec,
+    config: CapacityConfig | None = None,
+    mask: list[tuple[pd.Timestamp, pd.Timestamp]] | None = None,
+) -> pd.DataFrame:
+    """The labelled rests of normal operation, from a table of rest candidates.
+
+    Keeps the candidates that last at least ``config.min_duration_min``, removes those
+    that start inside a ``mask`` interval (for example a capacity test), and labels the
+    others with ``classify_rests``. The masked rests are removed before the full and
+    empty levels are set, so they do not move the levels either.
+    """
+    config = config or CapacityConfig()
+    cands = candidates[candidates["duration_min"] >= config.min_duration_min]
+    inside = np.zeros(len(cands), dtype=bool)
+    for a, b in mask or []:
+        inside |= ((cands["start"] >= pd.Timestamp(a)) & (cands["start"] <= pd.Timestamp(b))).to_numpy()
+    return classify_rests(cands[~inside], spec, config)
 
 
 #: Columns of the rest chain.
