@@ -1,0 +1,226 @@
+date,field,quantity,value,low,high,unit,events,status,capacity_config_hash,record_config_hash
+2015-12-31 00:00:00,A1,capacity_ah,,,,Ah,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A1,capacity_share_of_reference,,,,share of 180 Ah,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A2,power_capability_share,,,,share of the first day,40,not possible from this data: the days with current steps near 25 °C span too short a time for a growth rate,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A2,power_capability_w,,,,W,40,not possible from this data: no growth fit,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A3,efficiency_full_loops,,,,share,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A4,charge_loss_ma,,,,mA,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A4,charge_loss_percent_per_month,,,,% of 180 Ah per month,0,not possible from this data: not enough history yet to set the full and empty levels,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,0,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,0,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A5,resistance_ohm@20.0,0.02104589,0.02004142,0.02205036,ohm,24.63448,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A5,resistance_ohm@25.0,0.01668289,0.01613422,0.01723155,ohm,27.49967,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A5,resistance_ohm@30.0,0.01542516,0.01500699,0.01584332,ohm,13.46071,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,0,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,A5,resistance_growth_percent_per_year,,,,% of the start value per year,40,not possible from this data: the days with current steps near 25 °C span too short a time for a growth rate,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B2,energy_throughput_kwh,503.9051,501.23,506.5802,kWh,53,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B3,capacity_throughput_ah,10178.67,10130.34,10227,Ah,53,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B5,full_equivalent_cycles,28.27408,28.13983,28.40833,cycles,53,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B4,n_empty_rests,0,0,0,events,0,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,0,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B4,voltage_max_v,52.079,,,V,0,estimated,109e9eb1efa5,c2f7f545cebb
+2015-12-31 00:00:00,B4,n_deep_discharge,,,,events,0,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A1,capacity_ah,147.5799,141.2793,153.8804,Ah,44.34524,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A1,capacity_share_of_reference,0.8198881,0.7848852,0.8548911,share of 180 Ah,44.34524,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A2,power_capability_share,0.8965489,0.8581911,0.9349067,share of the first day,323,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A2,power_capability_w,,,,W,323,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,efficiency_full_loops,,,,share,29.91391,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,efficiency_empty_loops,0.9433523,0.9274833,0.9592214,share,12.86338,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,29.91391,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,29.91391,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A4,charge_loss_ma,31.69976,-0.6627034,64.06223,mA,44.34524,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A4,charge_loss_percent_per_month,12.86482,-0.2689471,25.99859,% of 180 Ah per month,44.34524,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,1,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,5.715664,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A5,resistance_ohm@20.0,0.02162881,0.02106894,0.02218868,ohm,81.57114,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A5,resistance_ohm@25.0,0.01725353,0.01700117,0.0175059,ohm,124.4284,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A5,resistance_ohm@30.0,0.0159023,0.01559855,0.01620606,ohm,66.93471,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,1.515307,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,A5,resistance_growth_percent_per_year,7.833738,4.593973,11.0735,% of the start value per year,323,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B2,energy_throughput_kwh,4641.843,4617.201,4666.486,kWh,410,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B3,capacity_throughput_ah,93475.03,93031.19,93918.88,Ah,410,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B5,full_equivalent_cycles,259.6529,258.42,260.8858,cycles,410,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B4,n_empty_rests,20,20,20,events,20,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,20,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B4,voltage_max_v,52.1321,,,V,20,estimated,109e9eb1efa5,c2f7f545cebb
+2016-12-31 00:00:00,B4,n_deep_discharge,,,,events,20,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A1,capacity_ah,152.5196,148.4515,156.5878,Ah,60.52332,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A1,capacity_share_of_reference,0.8473314,0.8247304,0.8699324,share of 180 Ah,60.52332,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A2,power_capability_share,0.8803347,0.8514178,0.9092516,share of the first day,616,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A2,power_capability_w,,,,W,616,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,efficiency_full_loops,,,,share,42.35664,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,16.40872,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,42.35664,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,42.35664,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A4,charge_loss_ma,40.67922,16.20018,65.15827,mA,60.52332,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A4,charge_loss_percent_per_month,16.50898,6.574573,26.4434,% of 180 Ah per month,60.52332,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,,,,mA per year,2,not possible from this data: fewer than 3 year-end values,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,7.323127,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A5,resistance_ohm@20.0,0.02251274,0.02201267,0.02301282,ohm,73.03039,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A5,resistance_ohm@25.0,0.01791035,0.0176769,0.0181438,ohm,129.9351,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A5,resistance_ohm@30.0,0.01628062,0.01604624,0.01651499,ohm,80.88941,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,4.681559,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,A5,resistance_growth_percent_per_year,5.498231,3.988991,7.007471,% of the start value per year,616,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B2,energy_throughput_kwh,8783.762,8737.131,8830.393,kWh,775,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B3,capacity_throughput_ah,176981.5,176141.1,177821.8,Ah,775,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B5,full_equivalent_cycles,491.6152,489.2809,493.9495,cycles,775,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B4,n_empty_rests,62,62,62,events,62,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,62,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B4,voltage_max_v,52.1372,,,V,62,estimated,109e9eb1efa5,c2f7f545cebb
+2017-12-31 00:00:00,B4,n_deep_discharge,,,,events,62,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A1,capacity_ah,152.0618,149.5805,154.5431,Ah,74.90291,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A1,capacity_share_of_reference,0.8447877,0.8310026,0.8585728,share of 180 Ah,74.90291,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A2,power_capability_share,0.8816402,0.8486006,0.9146798,share of the first day,838,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A2,power_capability_w,,,,W,838,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,efficiency_full_loops,,,,share,56.85125,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,16.85773,not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products),109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,56.85125,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,56.85125,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A4,charge_loss_ma,46.60405,28.92873,64.27937,mA,74.90291,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A4,charge_loss_percent_per_month,18.91348,11.74024,26.08671,% of 180 Ah per month,74.90291,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,7.163406,2.3224,12.00441,mA per year,3,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,5.599564,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A5,resistance_ohm@20.0,0.02251439,0.02182751,0.02320128,ohm,80.77635,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A5,resistance_ohm@25.0,0.01866388,0.01825899,0.01906876,ohm,115.6569,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A5,resistance_ohm@30.0,0.0166113,0.01639798,0.01682462,ohm,90.35376,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,9.108055,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,A5,resistance_growth_percent_per_year,3.867085,2.642686,5.091484,% of the start value per year,838,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B2,energy_throughput_kwh,12466.19,12400.01,12532.37,kWh,1107,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B3,capacity_throughput_ah,251193.2,250000.5,252385.9,Ah,1107,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B5,full_equivalent_cycles,697.7589,694.4457,701.0721,cycles,1107,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B4,n_empty_rests,98,98,98,events,98,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,98,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B4,voltage_max_v,52.1642,,,V,98,estimated,109e9eb1efa5,c2f7f545cebb
+2018-12-31 00:00:00,B4,n_deep_discharge,,,,events,98,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A1,capacity_ah,,,,Ah,20.06206,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A1,capacity_share_of_reference,,,,share of 180 Ah,20.06206,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A2,power_capability_share,0.8495843,0.8241302,0.8750385,share of the first day,947,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A2,power_capability_w,,,,W,947,not possible from this data: voltage limits not given,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,efficiency_full_loops,0.9499665,0.9484431,0.9514899,share,13.49807,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,5.79356,not possible from this data: the rest error is not known well enough,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,coulombic_part_full_loops,0.9958137,,,share,13.49807,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A3,voltage_part_full_loops,0.95396,,,share,13.49807,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A4,charge_loss_ma,,,,mA,20.06206,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A4,charge_loss_percent_per_month,,,,% of 180 Ah per month,20.06206,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,2.373016,-9.964641,14.71067,mA per year,4,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,1.200159,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A5,resistance_ohm@20.0,0.02286842,0.02227643,0.02346041,ohm,28.33618,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A5,resistance_ohm@25.0,0.01888913,0.01859931,0.01917895,ohm,41.06751,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A5,resistance_ohm@30.0,0.01670134,0.01647995,0.01692273,ohm,28.2663,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,1.198872,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,A5,resistance_growth_percent_per_year,3.959958,3.17119,4.748726,% of the start value per year,947,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B2,energy_throughput_kwh,13982,13907.78,14056.23,kWh,1250,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B3,capacity_throughput_ah,281824.4,280486.2,283162.5,Ah,1250,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B5,full_equivalent_cycles,782.8454,779.1283,786.5626,cycles,1250,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B4,n_empty_rests,123,123,123,events,123,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,123,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B4,voltage_max_v,52.1642,,,V,123,estimated,109e9eb1efa5,c2f7f545cebb
+2019-12-31 00:00:00,B4,n_deep_discharge,,,,events,123,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A1,capacity_ah,,,,Ah,5.113383,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A1,capacity_share_of_reference,,,,share of 180 Ah,5.113383,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A2,power_capability_share,,,,share of the first day,1056,not possible from this data: the growth fit near 25 °C does not separate the resistance at the start or at the date from zero,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A2,power_capability_w,,,,W,1056,not possible from this data: no growth fit,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A3,efficiency_full_loops,,,,share,3.920809,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,0.7583682,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,3.920809,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,3.920809,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A4,charge_loss_ma,,,,mA,5.113383,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A4,charge_loss_percent_per_month,,,,% of 180 Ah per month,5.113383,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,2.301884,-5.961712,10.56548,mA per year,5,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,0.3178694,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A5,resistance_ohm@20.0,,,,ohm,9.20848,not possible from this data: too few current steps near 20 °C,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A5,resistance_ohm@25.0,,,,ohm,40.72393,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A5,resistance_ohm@30.0,,,,ohm,36.95336,not possible from this data: the current steps near 30 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,1.596467,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,A5,resistance_growth_percent_per_year,,,,% of the start value per year,1056,not possible from this data: the growth fit near 25 °C does not separate the resistance at the start or at the date from zero,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B2,energy_throughput_kwh,15773.8,15690.06,15857.54,kWh,1413,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B3,capacity_throughput_ah,317806.5,316297.4,319315.5,Ah,1413,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B5,full_equivalent_cycles,882.7957,878.604,886.9875,cycles,1413,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B4,n_empty_rests,124,124,124,events,124,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,124,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B4,voltage_max_v,52.1642,,,V,124,estimated,109e9eb1efa5,c2f7f545cebb
+2020-12-31 00:00:00,B4,n_deep_discharge,,,,events,124,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A1,capacity_ah,,,,Ah,0.6730629,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A1,capacity_share_of_reference,,,,share of 180 Ah,0.6730629,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A2,power_capability_share,,,,share of the first day,1056,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A2,power_capability_w,,,,W,1056,not possible from this data: no growth fit,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A3,efficiency_full_loops,,,,share,0.5160871,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,0.09982226,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,0.5160871,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,0.5160871,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A4,charge_loss_ma,,,,mA,0.6730629,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A4,charge_loss_percent_per_month,,,,% of 180 Ah per month,0.6730629,not possible from this data: too few full-to-empty or empty-to-full pairs,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,2.301884,-5.961712,10.56548,mA per year,5,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,0.04184042,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A5,resistance_ohm@20.0,,,,ohm,1.212091,not possible from this data: too few current steps near 20 °C,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A5,resistance_ohm@25.0,,,,ohm,5.360397,not possible from this data: too few current steps near 25 °C,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A5,resistance_ohm@30.0,,,,ohm,4.864085,not possible from this data: too few current steps near 30 °C,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,0.2101393,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,A5,resistance_growth_percent_per_year,,,,% of the start value per year,1056,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B2,energy_throughput_kwh,15773.81,15690.07,15857.55,kWh,1423,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B3,capacity_throughput_ah,317806.6,316297.5,319315.6,Ah,1423,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B5,full_equivalent_cycles,882.796,878.6042,886.9878,cycles,1423,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B4,n_empty_rests,124,124,124,events,124,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,124,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B4,voltage_max_v,52.1642,,,V,124,estimated,109e9eb1efa5,c2f7f545cebb
+2021-12-31 00:00:00,B4,n_deep_discharge,,,,events,124,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A1,capacity_ah,-35.25226,-88.26268,17.75816,Ah,10.5117,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A1,capacity_share_of_reference,-0.1958459,-0.4903482,0.09865643,share of 180 Ah,10.5117,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A2,power_capability_share,,,,share of the first day,1167,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A2,power_capability_w,,,,W,1167,not possible from this data: no growth fit,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A3,efficiency_full_loops,,,,share,3.287278,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A3,efficiency_empty_loops,,,,share,4.653719,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A3,coulombic_part_full_loops,,,,share,3.287278,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A3,voltage_part_full_loops,,,,share,3.287278,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A4,charge_loss_ma,-6.173931,-162.6229,150.275,mA,10.5117,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A4,charge_loss_percent_per_month,-2.505587,-65.99779,60.98662,% of 180 Ah per month,10.5117,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A4,charge_loss_trend_ma_per_year,0.3668958,-7.416629,8.15042,mA per year,6,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A5,resistance_ohm@15.0,,,,ohm,0.005507358,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A5,resistance_ohm@20.0,,,,ohm,19.34518,not possible from this data: the current steps near 20 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A5,resistance_ohm@25.0,,,,ohm,50.10912,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A5,resistance_ohm@30.0,,,,ohm,40.96124,not possible from this data: the current steps near 30 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A5,resistance_ohm@35.0,,,,ohm,0.02766015,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,A5,resistance_growth_percent_per_year,,,,% of the start value per year,1167,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B2,energy_throughput_kwh,18712.86,18613.52,18812.2,kWh,1701,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B3,capacity_throughput_ah,376714.2,374925.5,378502.9,Ah,1701,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B5,full_equivalent_cycles,1046.428,1041.46,1051.397,cycles,1701,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B4,n_empty_rests,138,138,138,events,138,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B4,voltage_min_v,38.5479,,,V,138,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B4,voltage_max_v,52.1642,,,V,138,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 00:00:00,B4,n_deep_discharge,,,,events,138,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A1,capacity_ah,-35.25226,-88.48928,17.98476,Ah,10.45346,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A1,capacity_share_of_reference,-0.1958459,-0.4916071,0.09991531,share of 180 Ah,10.45346,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A2,power_capability_share,,,,share of the first day,1167,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A2,power_capability_w,,,,W,1167,not possible from this data: no growth fit,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A3,efficiency_full_loops,,,,share,3.269066,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A3,efficiency_empty_loops,,,,share,4.627937,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A3,coulombic_part_full_loops,,,,share,3.269066,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A3,voltage_part_full_loops,,,,share,3.269066,not possible from this data: too few closed loops,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A4,charge_loss_ma,-6.173931,-163.2917,150.9438,mA,10.45346,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A4,charge_loss_percent_per_month,-2.505587,-66.2692,61.25803,% of 180 Ah per month,10.45346,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A4,charge_loss_trend_ma_per_year,0.3770533,-7.400525,8.154632,mA per year,6,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A5,resistance_ohm@15.0,,,,ohm,0.005476847,not possible from this data: too few current steps near 15 °C,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A5,resistance_ohm@20.0,,,,ohm,19.23801,not possible from this data: the current steps near 20 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A5,resistance_ohm@25.0,,,,ohm,49.83151,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A5,resistance_ohm@30.0,,,,ohm,40.73431,not possible from this data: the current steps near 30 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A5,resistance_ohm@35.0,,,,ohm,0.02750691,not possible from this data: too few current steps near 35 °C,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,A5,resistance_growth_percent_per_year,,,,% of the start value per year,1167,not possible from this data: the current steps near 25 °C give a resistance at or below zero,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B1,date_of_manufacture,,,,date,0,not possible from this data: not in the dataset,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B2,energy_throughput_kwh,18712.88,18613.54,18812.22,kWh,1702,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B3,capacity_throughput_ah,376714.8,374926.1,378503.6,Ah,1702,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B5,full_equivalent_cycles,1046.43,1041.461,1051.399,cycles,1702,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B4,n_empty_rests,138,138,138,events,138,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B4,voltage_min_v,38.5479,,,V,138,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B4,voltage_max_v,52.1642,,,V,138,estimated,109e9eb1efa5,c2f7f545cebb
+2022-12-31 23:59:59,B4,n_deep_discharge,,,,events,138,not possible from this data: no limits given,109e9eb1efa5,c2f7f545cebb

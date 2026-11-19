@@ -44,7 +44,8 @@ Rules fixed before any result:
   result file is identical to its committed version; rebuilding each system's record
   gives the bytes on disk.
 
-A check without results is written as ``not run``, never as ``fail``.
+A check without results is written as ``not run``, never as ``fail``. W3 with too few
+references is written as ``not possible``, as its rule says.
 
 Writes ``validation/results/checks_phase3.csv``.
 
@@ -75,6 +76,7 @@ REDUCED = ROOT / "data" / "reduced" / "phase3"
 HELD_OUT = tuple(i for i in figgener.SYSTEM_IDS if i not in DEVELOPMENT)
 CAPACITY_HASH = "109e9eb1efa5"
 NOT_RUN = "not run"
+NOT_POSSIBLE = "not possible"
 PASS_RANGE = (0.85, 0.95)
 W9_TESTS = ("01/1", "07/1", "17/2")  # the three development test months of check V7
 
@@ -523,7 +525,7 @@ def w3_rows(scope_ids, label: str, path: Path) -> tuple:
         return ("W3 info", f"{label} capacity tests", value, "information", None)
     if len(refs) < ONSET_MIN_REFERENCES:
         return ("W3", "held-out capacity tests", f"{len(refs)} of {len(t)} tests have a reference: not possible",
-                f">= {ONSET_MIN_REFERENCES} references, then <= 20 %", False)
+                f">= {ONSET_MIN_REFERENCES} references, then <= 20 %", NOT_POSSIBLE)
     return ("W3", "held-out capacity tests", value, "<= 20 %, bias shown", bool(median <= 20.0))
 
 
@@ -614,7 +616,7 @@ def main(argv: list[str]) -> None:
                  + (f": {again['different']}" if again["different"] else ""), "0 differences", not again["different"]))
 
     table = pd.DataFrame(rows, columns=["check", "scope", "value", "pass_if", "passed"])
-    table["result"] = table["passed"].map(lambda v: {True: "pass", False: "fail", None: "", NOT_RUN: "not run"}.get(v, str(v)))
+    table["result"] = table["passed"].map(lambda v: {True: "pass", False: "fail", None: "", NOT_RUN: "not run", NOT_POSSIBLE: "not possible"}.get(v, str(v)))
     table["capacity_config_hash"] = CAPACITY_HASH
     table["record_config_hash"] = record_hash
     table.drop(columns="passed").to_csv(RESULTS / "checks_phase3.csv", index=False)

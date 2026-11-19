@@ -13,8 +13,9 @@ EU Battery Regulation (2023/1542, Annex VII).
 | Reference | Measures a field capacity test that is recorded inside the operating data | `besslib.soh.measure_capacity_test` |
 | Phase 1 result | The dataset's 60 field capacity tests, measured again | [`docs/01_reference.md`](docs/01_reference.md) |
 | Capacity | Usable capacity with a confidence band and its fade rate, from rests at full and empty in operating data; checked against the field tests on systems it was not tuned on | `besslib.soh.estimate_capacity`, `besslib.soh.fade_rate`; result: [`docs/02_capacity_validation.md`](docs/02_capacity_validation.md) |
+| Annex VII record | The ten Annex VII fields from operating data — 1-second resistance, round-trip efficiency, apparent charge loss, throughput, cycles, observed harmful events — each with a band and an event count, or `not possible from this data` with the reason; checked on synthetic packs and on systems it was not tuned on | `besslib.soh.annex_vii`; result: [`docs/03_annex_vii.md`](docs/03_annex_vii.md) |
 
-The other state-of-health estimators (resistance, efficiency, the Annex VII record) are phase 3.
+It computes the Annex VII parameters; it is not a compliance certificate and not legal advice.
 
 ## Rebuild the phase 1 result
 

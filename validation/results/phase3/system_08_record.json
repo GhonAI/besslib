@@ -1,0 +1,482 @@
+{
+ "annex_vii_version": "Regulation (EU) 2023/1542, Annex VII, consolidated version of 31 July 2025",
+ "capacity_config_hash": "109e9eb1efa5",
+ "data_credit": "Data: Figgener, J. et al., Data for: Multi-year field measurements of home storage systems and their use in capacity estimation, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.",
+ "date": "2022-12-31T23:59:59",
+ "fields": [
+  {
+   "code": "A1",
+   "details": {
+    "band_level": 0.9,
+    "levels_from": "2016-10-29T01:55:27",
+    "n_full_empty_pairs": 19.440109,
+    "n_same_kind_pairs": 51.693029,
+    "reference_capacity_ah": 188.0,
+    "share_of_reference": 0.84660364,
+    "share_of_reference_high": 0.85552956,
+    "share_of_reference_low": 0.83767772
+   },
+   "events": 71.133138,
+   "field": "the remaining capacity",
+   "high": 160.83956,
+   "label": "remaining capacity between the system's own end of charge and end of discharge",
+   "low": 157.48341,
+   "method": "capacity between full and empty rests by coulomb counting, fitted with the offset current (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9)",
+   "status": "estimated",
+   "unit": "Ah",
+   "value": 159.16148
+  },
+  {
+   "code": "A2",
+   "details": {
+    "first_day": "2015-10-30T00:00:00",
+    "power_capability_w": null,
+    "power_capability_w_high": null,
+    "power_capability_w_low": null,
+    "power_capability_w_status": "not possible from this data: voltage limits not given",
+    "resistance_at_ohm": 0.014728133,
+    "resistance_start_ohm": 0.013276108,
+    "what_it_is": "the resistance on the first day divided by the resistance at the date: the share of the first day's power that the same voltage limits allow now, if the resistance alone limits the power"
+   },
+   "events": 219.0,
+   "field": "where possible, the remaining power capability",
+   "high": 1.0234268,
+   "label": "power capability share, derived from the 1-second resistance, not measured",
+   "low": 0.77939617,
+   "method": "ratio of the resistance on the first day to the resistance at the date, from dV/dI of current steps between consecutive samples (Barai et al., Sci. Rep. 8, 21 (2018), doi:10.1038/s41598-017-18424-5; Schweiger et al., Sensors 10, 5604 (2010), doi:10.3390/s100605604); no power test",
+   "status": "estimated",
+   "unit": "share of the first day",
+   "value": 0.90141146
+  },
+  {
+   "code": "A3",
+   "details": {
+    "coulombic_part": 0.99617865,
+    "dof": 3.1285637,
+    "empty_loops": {
+     "high": 0.95707436,
+     "low": 0.95485933,
+     "n_loops": 41.334054,
+     "status": "estimated",
+     "value": 0.95596684
+    },
+    "limits": "DC at the battery terminals, not the AC efficiency of the plant; depends on the use (Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band holds the ratio over these loops, not the efficiency under other use; a change of the loops' own efficiency within two loops makes the band too narrow; below one degree of freedom there is no band; the energy in also restores the charge the meter does not see; the band holds no zero offset of the current sensor",
+    "rest_error_wh": 91.698217,
+    "rho": -0.08464438,
+    "voltage_part": 0.96421612
+   },
+   "events": 29.552435,
+   "field": "where possible, the remaining round trip efficiency",
+   "high": 0.96079693,
+   "label": "round-trip efficiency (DC, at the battery terminals) over full-to-full loops",
+   "low": 0.96026611,
+   "method": "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); band: the ratio over these loops had each closed exactly, from the error of the state of charge at their end rests, estimated as the mean lag-2 product of the loop scores minus the mean lag-1 product",
+   "status": "estimated",
+   "unit": "share",
+   "value": 0.96053152
+  },
+  {
+   "code": "A4",
+   "details": {
+    "evolution": {
+     "config_hash": "c2f7f545cebb",
+     "dof": 3.0,
+     "intercept_ma": 38.569901,
+     "n_years": 5,
+     "slope_ma_per_year": 0.23133599,
+     "slope_ma_per_year_high": 8.604388,
+     "slope_ma_per_year_low": -8.141716,
+     "slope_sigma_ma_per_year": 3.5675787,
+     "span_years": 5.0020534,
+     "status": "estimated",
+     "t0": "2017-12-31T00:00:00"
+    },
+    "percent_of_reference_per_month": 16.581947,
+    "percent_of_reference_per_month_high": 20.088682,
+    "percent_of_reference_per_month_low": 13.075212,
+    "reference_capacity_ah": 188.0,
+    "what_it_holds": "the charge the battery loses that its meter does not see: cell self-discharge, BMS supply, balancing and the current sensor's zero offset; mostly not cell self-discharge",
+    "year_end_values": [
+     {
+      "charge_loss_ma": 19.465661,
+      "charge_loss_ma_high": 47.296893,
+      "charge_loss_ma_low": -8.3655715,
+      "charge_loss_sigma_ma": 16.576993,
+      "n_pairs": 47.685396,
+      "time": "2017-12-31T00:00:00",
+      "year": 2017
+     },
+     {
+      "charge_loss_ma": 55.48207,
+      "charge_loss_ma_high": 69.643634,
+      "charge_loss_ma_low": 41.320505,
+      "charge_loss_sigma_ma": 8.4944924,
+      "n_pairs": 72.176686,
+      "time": "2018-12-31T00:00:00",
+      "year": 2018
+     },
+     {
+      "charge_loss_ma": 40.893693,
+      "charge_loss_ma_high": 57.961816,
+      "charge_loss_ma_low": 23.825571,
+      "charge_loss_sigma_ma": 10.188381,
+      "n_pairs": 53.230962,
+      "time": "2019-12-31T00:00:00",
+      "year": 2019
+     },
+     {
+      "charge_loss_ma": 27.032162,
+      "charge_loss_ma_high": 38.01003,
+      "charge_loss_ma_low": 16.054295,
+      "charge_loss_sigma_ma": 6.5908858,
+      "n_pairs": 76.733887,
+      "time": "2020-09-30T00:00:00",
+      "year": 2020
+     },
+     {
+      "charge_loss_ma": 42.674962,
+      "charge_loss_ma_high": 51.699824,
+      "charge_loss_ma_low": 33.6501,
+      "charge_loss_sigma_ma": 5.4118371,
+      "n_pairs": 71.133138,
+      "time": "2022-12-31T23:59:59",
+      "year": 2022
+     }
+    ]
+   },
+   "events": 71.133138,
+   "field": "the evolution of self-discharging rates",
+   "high": 51.699824,
+   "label": "apparent charge loss (an upper bound for self-discharge)",
+   "low": 33.6501,
+   "method": "minus the offset current of the capacity fit (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); band with the current sensor's gain error",
+   "status": "estimated",
+   "unit": "mA",
+   "value": 42.674962
+  },
+  {
+   "code": "A5",
+   "details": {
+    "bands": [
+     {
+      "n_days": 7.8116504,
+      "n_steps": 30.697796,
+      "resistance_ohm": null,
+      "resistance_ohm_high": null,
+      "resistance_ohm_low": null,
+      "status": "not possible from this data: the voltage is not refreshed with the current (31.4 % of steps show no voltage change)",
+      "temp_band_c": 25.0
+     },
+     {
+      "n_days": 3.4734101,
+      "n_steps": 152.03018,
+      "resistance_ohm": null,
+      "resistance_ohm_high": null,
+      "resistance_ohm_low": null,
+      "status": "not possible from this data: the voltage is not refreshed with the current (28.6 % of steps show no voltage change)",
+      "temp_band_c": 30.0
+     },
+     {
+      "n_days": 5.3851897,
+      "n_steps": 99.722183,
+      "resistance_ohm": null,
+      "resistance_ohm_high": null,
+      "resistance_ohm_low": null,
+      "status": "not possible from this data: the voltage is not refreshed with the current (28.0 % of steps show no voltage change)",
+      "temp_band_c": 35.0
+     },
+     {
+      "n_days": 3.9958276,
+      "n_steps": 6.5912546,
+      "resistance_ohm": null,
+      "resistance_ohm_high": null,
+      "resistance_ohm_low": null,
+      "status": "not possible from this data: the voltage is not refreshed with the current (24.3 % of steps show no voltage change)",
+      "temp_band_c": 40.0
+     }
+    ],
+    "growth_n_days": 219.0,
+    "growth_percent_per_year": 1.5253099,
+    "growth_percent_per_year_high": 3.6195325,
+    "growth_percent_per_year_low": -0.56891268,
+    "growth_span_years": 7.1622177,
+    "growth_status": "estimated",
+    "headline_band_c": 25.0,
+    "n_steps": 30.697796,
+    "sample_s": 1.0,
+    "what_it_is": "the voltage step over the current step between two samples 1 s apart; it depends on that timescale, the state of charge and the temperature, and is not the cell's ohmic resistance alone"
+   },
+   "events": 7.8116504,
+   "field": "where possible, the ohmic resistance",
+   "high": null,
+   "label": "1-second resistance, pack temperature band at 25 degrees C",
+   "low": null,
+   "method": "dV/dI of current steps between consecutive samples (Barai et al., Sci. Rep. 8, 21 (2018), doi:10.1038/s41598-017-18424-5; Schweiger et al., Sensors 10, 5604 (2010), doi:10.3390/s100605604)",
+   "status": "not possible from this data: the voltage is not refreshed with the current (31.4 % of steps show no voltage change)",
+   "unit": "ohm",
+   "value": null
+  },
+  {
+   "code": "B1",
+   "details": {
+    "date_of_manufacture": null,
+    "date_of_manufacture_status": "not possible from this data: not in the dataset",
+    "date_put_into_service": "2015-08-31",
+    "date_put_into_service_status": "stated in the pack's documents"
+   },
+   "events": 0.0,
+   "field": "the date of manufacture of the battery and, where appropriate, the date of putting into service",
+   "high": null,
+   "label": "date of manufacture; date of putting into service",
+   "low": null,
+   "method": "the pack's documents (PackSpec), passed through",
+   "status": "not possible from this data: not in the dataset",
+   "unit": "date",
+   "value": null
+  },
+  {
+   "code": "B2",
+   "details": {
+    "counted_from": "2015-10-29T00:00:00",
+    "counted_to": "2022-12-31T00:00:00",
+    "energy_in_kwh": 10778.511,
+    "energy_out_kwh": 10317.305,
+    "hours_measured": 45956.268,
+    "hours_missing": 16934.379,
+    "n_days_with_data": 1984,
+    "note": "counted since the first day of data (2015-10-29), not a lifetime total; time without measurement is in hours_missing",
+    "share_interpolated": 9.8963664e-05,
+    "since": "the first day of data, not a lifetime total"
+   },
+   "events": 1984.0,
+   "field": "the energy throughput",
+   "high": 21207.808,
+   "label": "energy throughput (in + out) since the first day of data",
+   "low": 20983.823,
+   "method": "trapezoid sums of charging and discharging power over the measured time; band: sensor accuracy (Figgener et al. 2024, Supplementary Table 2) as a rectangular half-width (JCGM 100:2008, 4.3.7)",
+   "status": "estimated",
+   "unit": "kWh",
+   "value": 21095.816
+  },
+  {
+   "code": "B3",
+   "details": {
+    "charge_in_ah": 221015.29,
+    "charge_out_ah": 218841.2,
+    "counted_from": "2015-10-29T00:00:00",
+    "counted_to": "2022-12-31T00:00:00",
+    "hours_measured": 45956.268,
+    "hours_missing": 16934.379,
+    "n_days_with_data": 1984,
+    "note": "counted since the first day of data (2015-10-29), not a lifetime total; time without measurement is in hours_missing",
+    "share_interpolated": 9.8963664e-05,
+    "since": "the first day of data, not a lifetime total"
+   },
+   "events": 1984.0,
+   "field": "the capacity throughput",
+   "high": 441945.05,
+   "label": "capacity throughput (in + out) since the first day of data",
+   "low": 437767.92,
+   "method": "trapezoid sums of charging and discharging current over the measured time; band: sensor accuracy (Figgener et al. 2024, Supplementary Table 2) as a rectangular half-width (JCGM 100:2008, 4.3.7)",
+   "status": "estimated",
+   "unit": "Ah",
+   "value": 439856.49
+  },
+  {
+   "code": "B4",
+   "details": {
+    "cell_voltage_note": "pack voltage / cells in series: an average, one cell can be lower or higher",
+    "counted_from": "2015-10-29T00:00:00",
+    "counted_to": "2022-12-31T00:00:00",
+    "deep_discharge_events": {
+     "status": "not possible from this data: no limits given",
+     "value": null
+    },
+    "hours_above_temp_high": {
+     "status": "not possible from this data: no limits given",
+     "value": null
+    },
+    "hours_below_temp_low": {
+     "status": "not possible from this data: no limits given",
+     "value": null
+    },
+    "hours_charging_above_temp_high": {
+     "status": "not possible from this data: no limits given",
+     "value": null
+    },
+    "hours_charging_below_temp_low": {
+     "status": "not possible from this data: no limits given",
+     "value": null
+    },
+    "hours_measured": 45956.268,
+    "hours_missing": 16934.379,
+    "hours_no_temperature": 674.03639,
+    "hours_per_temperature_band": [
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": -20
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": -15
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": -10
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": -5
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 0
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 5
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 10
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 15
+     },
+     {
+      "hours_charge": 425.17917,
+      "hours_discharge": 218.34556,
+      "hours_idle": 3739.4981,
+      "temp_band_c": 20
+     },
+     {
+      "hours_charge": 3661.515,
+      "hours_discharge": 8347.7847,
+      "hours_idle": 10412.147,
+      "temp_band_c": 25
+     },
+     {
+      "hours_charge": 3761.6456,
+      "hours_discharge": 8491.2628,
+      "hours_idle": 4267.3894,
+      "temp_band_c": 30
+     },
+     {
+      "hours_charge": 843.90389,
+      "hours_discharge": 482.05361,
+      "hours_idle": 631.50722,
+      "temp_band_c": 35
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 40
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 45
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 50
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 55
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 60
+     },
+     {
+      "hours_charge": 0.0,
+      "hours_discharge": 0.0,
+      "hours_idle": 0.0,
+      "temp_band_c": 65
+     }
+    ],
+    "limits_status": "not possible from this data: no limits given",
+    "n_days_with_data": 1984,
+    "note": "counted since the first day of data (2015-10-29), not a lifetime total; time without measurement is in hours_missing",
+    "share_interpolated": 9.8963664e-05,
+    "since": "the first day of data, not a lifetime total",
+    "temperature_measured": "pack temperature, not cell temperature",
+    "voltage_max_cell_v": 6.9261154,
+    "voltage_max_v": 90.0395,
+    "voltage_min_cell_v": 3.3077692,
+    "voltage_min_v": 43.001
+   },
+   "events": 278.0,
+   "field": "the tracking of harmful events, such as the number of deep discharge events, time spent in extreme temperatures, time spent charging in extreme temperatures",
+   "high": 278.0,
+   "label": "discharges to the system's own end-of-discharge level (observed; not a limit count)",
+   "low": 278.0,
+   "method": "measured hours per pack-temperature band and mode; discharges that reached the system's own end-of-discharge level (empty rests); voltage extremes; counts against limits when limits are given",
+   "status": "estimated",
+   "unit": "events",
+   "value": 278.0
+  },
+  {
+   "code": "B5",
+   "details": {
+    "counted_from": "2015-10-29T00:00:00",
+    "counted_to": "2022-12-31T00:00:00",
+    "hours_measured": 45956.268,
+    "hours_missing": 16934.379,
+    "n_days_with_data": 1984,
+    "note": "counted since the first day of data (2015-10-29), not a lifetime total; time without measurement is in hours_missing",
+    "reference_capacity_ah": 188.0,
+    "share_interpolated": 9.8963664e-05,
+    "since": "the first day of data, not a lifetime total"
+   },
+   "events": 1984.0,
+   "field": "the number of full equivalent charge-discharge cycles",
+   "high": 1175.3858,
+   "label": "full equivalent cycles since the first day of data",
+   "low": 1164.2764,
+   "method": "capacity throughput / (2 x reference capacity); band: sensor accuracy (Figgener et al. 2024, Supplementary Table 2) as a rectangular half-width (JCGM 100:2008, 4.3.7)",
+   "status": "estimated",
+   "unit": "cycles",
+   "value": 1169.8311
+  }
+ ],
+ "level": 0.9,
+ "not_a_certificate": "computes the Annex VII parameters; does not certify them",
+ "pack": {
+  "cells_in_parallel": 96,
+  "cells_in_series": 13,
+  "chemistry": "NMC",
+  "name": "Figgener 2024, system 08",
+  "nominal_capacity_ah": 188.0,
+  "nominal_energy_kwh": 8.7984
+ },
+ "record_config_hash": "c2f7f545cebb",
+ "reference_capacity_ah": 188.0,
+ "sample_s": 1.0
+}
