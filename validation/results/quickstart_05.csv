@@ -1,0 +1,11 @@
+code,field,value,low,high,unit,events,status
+A1,the remaining capacity,11.52256,11.40527,11.63984,Ah,210.4433,estimated
+A2,"where possible, the remaining power capability",0.7261569,0.6553439,0.7969699,share of the first day,283,estimated
+A3,"where possible, the remaining round trip efficiency",0.960471,0.9601909,0.960751,share,97.40719,estimated
+A4,the evolution of self-discharging rates,,,,mA,210.4433,not possible from this data: the band of the offset current could not be computed
+A5,"where possible, the ohmic resistance",0.1405762,0.1340977,0.1470547,ohm,55.67497,estimated
+B1,"the date of manufacture of the battery and, where appropriate, the date of putting into service",,,,date,0,not possible from this data: not in the dataset
+B2,the energy throughput,5645.648,5615.677,5675.619,kWh,1607,estimated
+B3,the capacity throughput,37245.98,37069.13,37422.84,Ah,1607,estimated
+B4,"the tracking of harmful events, such as the number of deep discharge events, time spent in extreme temperatures, time spent charging in extreme temperatures",566,566,566,events,566,estimated
+B5,the number of full equivalent charge-discharge cycles,1241.533,1235.638,1247.428,cycles,1607,estimated

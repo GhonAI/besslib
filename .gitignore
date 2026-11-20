@@ -1,5 +1,5 @@
-# data never goes into git
-data/
+# data never goes into git (the folder at the root only; the shipped sample lives in src/besslib/data/)
+/data/
 
 # Python
 .venv/

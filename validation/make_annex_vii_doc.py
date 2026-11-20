@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
@@ -366,7 +367,71 @@ def _time_panels(ctx: dict, title: str, ylabel: str, draw) -> plt.Figure:
 
 
 def _label_end(ax, x, y, sid: int, colour: str) -> None:
-    ax.annotate(sid_text(sid), (x, y), xytext=(4, 0), textcoords="offset points", va="center", fontsize=7.5, color=INK2)
+    """Remember an end-of-line label; ``_place_end_labels`` draws them once the layout is fixed."""
+    if not hasattr(ax, "_end_labels"):
+        ax._end_labels = []
+    ax._end_labels.append((x, y, sid_text(sid), colour))
+
+
+_LABEL_GAP_PT = 9.0  # smallest vertical distance between two end labels of a panel (font size 7.5 pt)
+
+
+def _place_end_labels(fig, name: str) -> None:
+    """Draw the end labels of every panel, pushed apart vertically to a minimum gap in
+    display units, in their order, with a thin leader line where a label moved. Check R8:
+    afterwards no two labels of a panel overlap, or the script stops."""
+    from matplotlib.text import Text
+
+    renderer = fig.canvas.get_renderer()
+    pt = fig.dpi / 72.0
+    overlaps = 0
+    for ax in fig.axes:
+        items = getattr(ax, "_end_labels", [])
+        if not items:
+            continue
+        probes = [
+            ax.annotate(text, (x, y), xytext=(6, 0), textcoords="offset points", va="center", fontsize=7.5)
+            for x, y, text, _ in items
+        ]
+        fig.canvas.draw()
+        boxes = [Text.get_window_extent(n, renderer) for n in probes]
+        for n in probes:
+            n.remove()
+        centre = np.array([b.y0 + b.height / 2.0 for b in boxes])
+        home = centre.copy()
+        order = sorted(range(len(items)), key=lambda k: centre[k])
+        gap = max(_LABEL_GAP_PT * pt, max(b.height for b in boxes))
+        for _ in range(500):  # relax: labels that share x and are closer than the gap move apart, half each
+            moved = False
+            for pos, i in enumerate(order):
+                for j in order[pos + 1:]:
+                    if boxes[i].x1 < boxes[j].x0 or boxes[j].x1 < boxes[i].x0:
+                        continue  # side by side: no clash
+                    short = gap - (centre[j] - centre[i])
+                    if short > 1e-6:
+                        centre[i] -= short / 2.0
+                        centre[j] += short / 2.0
+                        moved = True
+            if not moved:
+                break
+        notes = []
+        for k, (x, y, text, colour) in enumerate(items):
+            shift = (centre[k] - home[k]) / pt
+            leader = None
+            if abs(shift) > 0.5:
+                leader = dict(arrowstyle="-", lw=0.6, color=colour, shrinkA=0, shrinkB=1)
+            notes.append(ax.annotate(text, (x, y), xytext=(6, shift), textcoords="offset points",
+                                     va="center", fontsize=7.5, color=INK2, annotation_clip=False,
+                                     arrowprops=leader))  # fmt: skip
+        fig.canvas.draw()
+        boxes = [Text.get_window_extent(n, renderer) for n in notes]
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                if boxes[i].overlaps(boxes[j]):
+                    overlaps += 1
+    print(f"{name}: end-label overlaps: {overlaps}")
+    if overlaps:
+        sys.exit(f"R8: {overlaps} overlapping end labels in {name}; not written")
 
 
 def figure_resistance(ctx: dict, band_c: float) -> str:
@@ -391,6 +456,7 @@ def figure_resistance(ctx: dict, band_c: float) -> str:
     fig.text(0.99, 0.01, "Each panel has its own scale. Gaps: year ends without an estimate.", ha="right",
              fontsize=7.5, color=MUTED)  # fmt: skip
     fig.tight_layout(rect=(0, 0.06, 1, 0.97))
+    _place_end_labels(fig, "03_resistance.png")
     return _finish(fig, "03_resistance.png")
 
 
@@ -427,6 +493,7 @@ def figure_efficiency(ctx: dict) -> str:
     fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=8)
     fig.text(0.99, 0.01, "Each panel has its own scale.", ha="right", fontsize=7.5, color=MUTED)
     fig.tight_layout(rect=(0, 0.07, 1, 0.97))
+    _place_end_labels(fig, "03_efficiency.png")
     return _finish(fig, "03_efficiency.png")
 
 

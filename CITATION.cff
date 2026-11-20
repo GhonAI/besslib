@@ -1,0 +1,85 @@
+cff-version: 1.2.0
+message: "If you use besslib, please cite it as below, and cite the field data it was checked on."
+type: software
+title: besslib
+abstract: >-
+  State of health from battery storage operating data, with confidence bands, in the fields of
+  EU Regulation 2023/1542, Annex VII. Checked against field capacity tests on open data.
+version: 0.1.0
+date-released: "2026-11-20"
+license: BSD-3-Clause
+repository-code: "https://github.com/GhonAI/besslib"
+authors:
+  - given-names: Islam
+    family-names: Ghonaiem
+    email: ghonaiem@vgtai.com
+contact:
+  - given-names: Islam
+    family-names: Ghonaiem
+    email: ghonaiem@vgtai.com
+keywords:
+  - battery
+  - battery energy storage
+  - BESS
+  - state of health
+  - capacity estimation
+  - EU Battery Regulation
+  - Annex VII
+references:
+  - type: data
+    title: "Data for: Multi-year field measurements of home storage systems and their use in capacity estimation"
+    authors:
+      - family-names: Figgener
+        given-names: Jan
+      - family-names: Haberschusz
+        given-names: David
+      - family-names: Wessels
+        given-names: Oliver
+      - family-names: Kairies
+        given-names: Kai-Philipp
+      - family-names: Bors
+        given-names: Jakob
+      - family-names: Ouwerkerk
+        name-particle: van
+        given-names: Jonas
+      - family-names: Sauer
+        given-names: Dirk Uwe
+    publisher:
+      name: Zenodo
+    date-published: "2024-08-26"
+    doi: 10.5281/zenodo.12091223
+    url: "https://doi.org/10.5281/zenodo.12091223"
+    license: CC-BY-4.0
+  - type: article
+    title: "Multi-year field measurements of home storage systems and their use in capacity estimation"
+    authors:
+      - family-names: Figgener
+        given-names: Jan
+      - family-names: Ouwerkerk
+        name-particle: van
+        given-names: Jonas
+      - family-names: Haberschusz
+        given-names: David
+      - family-names: Bors
+        given-names: Jakob
+      - family-names: Woerner
+        given-names: Philipp
+      - family-names: Mennekes
+        given-names: Marc
+      - family-names: Hildenbrand
+        given-names: Felix
+      - family-names: Hecht
+        given-names: Christopher
+      - family-names: Kairies
+        given-names: Kai-Philipp
+      - family-names: Wessels
+        given-names: Oliver
+      - family-names: Sauer
+        given-names: Dirk Uwe
+    journal: Nature Energy
+    volume: 9
+    start: 1438
+    end: 1447
+    year: 2024
+    doi: 10.1038/s41560-024-01620-9
+    license: CC-BY-NC-ND-4.0

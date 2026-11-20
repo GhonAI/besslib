@@ -27,6 +27,7 @@ import pyarrow as pa
 import pyarrow.csv as pc
 
 from besslib.frames import PackSpec
+from besslib.soh.reduce import Reduced
 
 SYSTEM_IDS = tuple(range(1, 22))
 
@@ -46,6 +47,11 @@ _TIME_FORMAT = "%d-%b-%Y %H:%M:%S"
 CREDIT = (
     "Data: Figgener, J. et al., Data for: Multi-year field measurements of home storage systems and their use "
     "in capacity estimation, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0."
+)
+PAPER = (
+    "Figgener, J. et al., Multi-year field measurements of home storage systems and their use in capacity "
+    "estimation, Nature Energy 9, 1438-1447 (2024), https://doi.org/10.1038/s41560-024-01620-9, licence "
+    "CC BY-NC-ND 4.0: cited, nothing copied."
 )
 
 
@@ -88,6 +94,31 @@ def pack_spec(system_id: int) -> PackSpec:
             "data_credit": CREDIT,
         },
     )
+
+
+def read_sample() -> tuple[Reduced, PackSpec]:
+    """The sample shipped with besslib: system 05 of this dataset, as reduced tables.
+
+    The three tables (one row per day, per current step and per rest candidate) were
+    made from the system's measurements by ``besslib.soh.reduce_parts``; the samples
+    themselves are not shipped. The data are licensed under CC BY 4.0, not under the
+    licence of the code; the credit is in ``besslib/data/sample_05/NOTICE.md``.
+
+    Returns
+    -------
+    (reduced, spec)
+        A ``Reduced`` for ``besslib.soh.annex_vii(None, spec, reduced=reduced)``, and the
+        system's ``PackSpec``.
+    """
+    folder = resources.files("besslib.data").joinpath("sample_05")
+    tables = {}
+    for name in ("daily", "steps", "rests"):
+        with resources.as_file(folder.joinpath(f"{name}.parquet")) as path:
+            tables[name] = pd.read_parquet(path)
+    daily = tables["daily"]
+    sample_s = float(daily["sample_s"].iloc[0]) if len(daily) else float("nan")
+    reduced = Reduced(daily=daily, steps=tables["steps"], rests=tables["rests"], sample_s=sample_s)
+    return reduced, pack_spec(5)
 
 
 def list_months(root: str | Path, system_id: int) -> pd.DataFrame:

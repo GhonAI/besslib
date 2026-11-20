@@ -1,0 +1,2 @@
+# The source distribution holds the library only; tests, validation and docs live in the repository.
+prune tests
