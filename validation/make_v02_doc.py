@@ -171,7 +171,7 @@ def seen_block(ctx: dict) -> list[str]:
         f"this version fixes were found in those results: a capacity at or below zero marked `estimated` "
         f"({by_set(zero)}) and power capability `estimated` without a resistance ({by_set(power)}). The 0.2 "
         f"settings were fixed on synthetic packs and the {len(DEVELOPMENT)} development systems, except the plausibility "
-        "rule and the power-capability rule, which answer the two faults found in the held-out results; then the held-out "
+        "rules and the power-capability rule, which answer the two faults found in the held-out results; then the held-out "
         "systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**",
     ]
 
@@ -215,6 +215,8 @@ def changes_block(ctx: dict) -> list[str]:
          "one row per system and day (X5)", "none: check only", "held-out results"),
         ("Empty-slice warnings in the rest search", "a warning when a rest had no temperature reading",
          "the statistic is NaN without a warning; values unchanged (X8)", "none", "held-out results"),
+        ("The A1 label", "remaining capacity between the system's own end of charge and end of discharge",
+         "the capacity between two stated relaxed rest voltages, not between the BMS stops", "none: text", "the README"),
         ("The A3 method text", "read awkwardly", "new wording (X9)", "none: text", "the README"),
         ("A warning in `soh.report` on pandas 2.2.2", "`dt.to_pydatetime` FutureWarning",
          "Python datetimes built per value; the figure is the same (X10)", "none", "the lowest-version test"),

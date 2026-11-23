@@ -14,15 +14,15 @@ Author: Islam Ghonaiem, ghonaiem@vgtai.com — questions on the method and its f
 *System 05 (LMO/NMC, 15 Ah nominal): the capacity from operating data, at the end of each month, with its 90 % band, against the 4 field capacity tests (dots). 2 of the 4 tests have an estimate at their date, and the band holds the test value in 2 of them. The first estimate is at the end of September 2017: the first year gives none (grey). Hollow dots: tests without an estimate. 17 month ends without data are left blank.*
 
 Checked on open field data: 21 home storage systems, 1,269 months, 60 field capacity tests.
-On the 14 held-out systems (not used for tuning; seen once before, at release 0.1.0, where two of this version's rules were found):
+On the 14 held-out systems (not used to tune any threshold; their release 0.1.0 results showed two faults that this version's rules now catch, so these numbers are a second look, not a blind test):
 
 - LMO/NMC and NMC, 28 tests: median error 2.99 points of nominal capacity, a test without an estimate counted as infinite (target ≤ 3): **passed**; over the 22 tests with an estimate, 1.54 points.
-- LFP, 10 tests: 5 have no estimate (2 in the first year, 3 with too few full-to-empty pairs) and the other 5 read a median 4.48 points high (target: median error ≤ 5 points): **failed**.
+- LFP, 10 tests: 5 have no estimate (2 in the first year, 3 with too few full-to-empty pairs) and the other 5 read a median 4.48 points high (target: median error ≤ 5 points, a test without an estimate counted as infinite): **failed**.
 - The 90 % band held the measured value in 29 % of 28 tests (target 80 %): **failed**. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md)
 
-**Version 0.2** is closer to the held-out field tests where it gives an estimate (median error 2.13 → 1.54 points), but its band narrowed more (median width 2.90 → 1.30 points) and held fewer of them (43 % → 29 %): the band covers the capacity between two rest voltages, not the drift of the BMS stops the tests run to. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
+**Version 0.2** is closer to the held-out field tests where it gives an estimate (median error 2.13 → 1.54 points over the 22 tests with one), but the median over all 28, which V2 judges, rose (2.62 → 2.99); its band narrowed (median width 2.90 → 1.30 points) and held fewer tests (43 % → 29 %). The band is built for the capacity between two rest voltages and leaves out the drift of the BMS stops the tests run to; which band change narrowed it most is not separated. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
 
-**What the data showed.** On the 6 LMO/NMC systems the relaxed voltage of the empty rests sank by 50 to 157 mV per cell over the record: the BMS discharged them further as they aged, so the capacity from operation and the capacity a field test measures came apart, and a band must carry that drift. [Data →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
+**What the data showed.** On the 6 LMO/NMC systems the relaxed voltage of the empty rests fell by 50 to 157 mV per cell between the first and the last month end that has one: the systems were discharged to a lower voltage as they aged (cause not verified). So the capacity between fixed rest voltages and the charge a field test measures between the stops drift apart, and a band must carry that drift. [Data →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
 
 Every number on this page is written by `validation/make_readme.py` from a results file in `validation/results/`.
 
@@ -54,7 +54,7 @@ Output (the frame, as a table; resistance in ohm, efficiency and power capabilit
 | B4 | the tracking of harmful events, such as the number of deep discharge events, time spent in extreme temperatures, time spent charging in extreme temperatures | 566 | 566 | 566 | events | 566 | estimated |
 | B5 | the number of full equivalent charge-discharge cycles | 1242 | 1236 | 1247 | cycles | 1607 | estimated |
 
-Each band is the 90 % statistical band of its fit; on the held-out field tests the capacity band held 29 %, so it is not the whole uncertainty. "events" is a count weighted by the 180-day memory, hence the decimals. A2 is relative to the first day of the resistance fit (2017-03-16), not to the new pack (in service 2014-11-21).
+Each band is a 90 % band from its field's method (fit scatter, sensor accuracy or both; see the method column below). On the 28 held-out LMO/NMC and NMC field tests the capacity band held 29 %, so a band is not the whole uncertainty. For A1, A3, A4 and A5, "events" is a count weighted by the 180-day memory, hence the decimals; for A2 and B2–B5 it counts days, for B4 discharges. A2 is relative to the first day of the resistance fit (2017-03-16), not to the system's installation (2014-11-21, in B1's details; B1 is not possible because the date of manufacture is missing).
 
 The sample is system 05, LMO/NMC, 15 Ah nominal, from August 2016 to September 2022: three reduced tables (one row per day, per current step and per rest candidate, not the raw samples), 6.8 MB in the package; the raw archive is 856 MB. The sample's data is CC BY 4.0, not BSD-3-Clause; its credit is in
 [`NOTICE.md`](https://github.com/GhonAI/besslib/blob/v0.2.0/src/besslib/data/sample_05/NOTICE.md) and in each file's metadata.

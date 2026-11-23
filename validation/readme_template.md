@@ -14,10 +14,10 @@ Author: Islam Ghonaiem, ghonaiem@vgtai.com — questions on the method and its f
 *{{figure_caption}}*
 
 Checked on open field data: {{n_systems}} home storage systems, {{n_months}} months, {{n_tests}} field capacity tests.
-On the {{n_heldout}} held-out systems (not used for tuning; seen once before, at release {{previous_release}}, where two of this version's rules were found):
+On the {{n_heldout}} held-out systems (not used to tune any threshold; their release {{previous_release}} results showed two faults that this version's rules now catch, so these numbers are a second look, not a blind test):
 
 - LMO/NMC and NMC, {{v2_tests}} tests: median error {{v2_value}} points of nominal capacity, a test without an estimate counted as infinite (target ≤ {{v2_target}}): **{{v2_result}}**; over the {{v2_have}} tests with an estimate, {{v2_est_error}} points.
-- LFP, {{v3_tests}} tests: {{v3_missing}} have no estimate ({{v3_reasons}}) and the other {{v3_have}} read a median {{v3_bias}} points {{v3_direction}} (target: median error ≤ {{v3_target}} points): **{{v3_result}}**.
+- LFP, {{v3_tests}} tests: {{v3_missing}} have no estimate ({{v3_reasons}}) and the other {{v3_have}} read a median {{v3_bias}} points {{v3_direction}} (target: median error ≤ {{v3_target}} points, a test without an estimate counted as infinite): **{{v3_result}}**.
 - The {{band_level}} % band held the measured value in {{v4_share}} % of {{v4_tests}} tests (target {{v4_target}} %): **{{v4_result}}**. [Why →]({{url:docs/limits.md}})
 
 {{version_sentence}}

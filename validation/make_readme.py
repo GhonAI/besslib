@@ -189,27 +189,31 @@ def test_details() -> dict:
 
 def version_sentence() -> str:
     """What this version improved, what got worse, and why: held-out LMO/NMC and NMC tests, now against the tag."""
-    def summary(t: pd.DataFrame) -> tuple[float, float]:
+    def summary(t: pd.DataFrame) -> tuple[float, float, float, int, int]:
+        """Median error over the tests with an estimate, median band width, median error over all tests (a test
+        without an estimate counted as infinite, as V2 judges), and the two counts."""
         t = t[t["chemistry"] != "LFP"]
         est = t[t["capacity_ah"].notna()]
-        return float(est["error_points"].abs().median()), float(est["band_points"].median())
+        return (float(est["error_points"].abs().median()), float(est["band_points"].median()),
+                float(t["error_points"].abs().fillna(np.inf).median()), len(est), len(t))
 
     text = tag_file("validation/results/phase2_tests.csv")
     checks = tag_file("validation/results/checks_phase2.csv")
     if text is None or checks is None:
         refuse(f"the files of {TAG} cannot be read")
-    (e_old, w_old), (e_new, w_new) = summary(held_tests(text)), summary(held_tests())
+    (e_old, w_old, a_old, _, _), (e_new, w_new, a_new, n_est, n_all) = summary(held_tests(text)), summary(held_tests())
     pattern = r"held the test in (\d+)% of"
     (s_old,) = parse(pattern, check_row(pd.read_csv(io.StringIO(checks)), "V4")["value"], "V4 at the tag")
     (s_new,) = parse(pattern, check_row(pd.read_csv(RESULTS / "checks_phase2.csv"), "V4")["value"], "V4")
-    if not (e_new < e_old and w_new < w_old and int(s_new) < int(s_old)):
+    if not (e_new < e_old and w_new < w_old and int(s_new) < int(s_old) and a_new > a_old):
         refuse("the version sentence no longer fits the numbers: write it again")
     return (
         f"**Version {VERSION_PAGE[0]}** is closer to the held-out field tests where it gives an estimate (median error "
-        f"{e_old:.2f} → {e_new:.2f} points), but its band narrowed more (median width {w_old:.2f} → {w_new:.2f} points) "
-        f"and held fewer of them ({s_old} % → {s_new} %): the band covers the capacity between two rest voltages, not "
-        f"the drift of the BMS stops the tests run to. [Why →]({{{{url:{VERSION_PAGE[1]}}}}}"
-        "#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
+        f"{e_old:.2f} → {e_new:.2f} points over the {n_est} tests with one), but the median over all {n_all}, which V2 "
+        f"judges, rose ({a_old:.2f} → {a_new:.2f}); its band narrowed (median width {w_old:.2f} → {w_new:.2f} points) "
+        f"and held fewer tests ({s_old} % → {s_new} %). The band is built for the capacity between two rest voltages and "
+        "leaves out the drift of the BMS stops the tests run to; which band change narrowed it most is not separated. "
+        f"[Why →]({{{{url:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
     )
 
 
@@ -229,9 +233,10 @@ def data_showed() -> str:
         refuse("the drift line no longer fits the numbers: write it again")
     low, high = sorted(abs(round(c)) for c in changes)[0], sorted(abs(round(c)) for c in changes)[-1]
     return (
-        f"**What the data showed.** On the {len(changes)} LMO/NMC systems the relaxed voltage of the empty rests sank by "
-        f"{low} to {high} mV per cell over the record: the BMS discharged them further as they aged, so the capacity "
-        "from operation and the capacity a field test measures came apart, and a band must carry that drift. "
+        f"**What the data showed.** On the {len(changes)} LMO/NMC systems the relaxed voltage of the empty rests fell by "
+        f"{low} to {high} mV per cell between the first and the last month end that has one: the systems were "
+        "discharged to a lower voltage as they aged (cause not verified). So the capacity between fixed rest voltages "
+        "and the charge a field test measures between the stops drift apart, and a band must carry that drift. "
         f"[Data →]({{{{url:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
     )
 
@@ -338,14 +343,19 @@ def run_quickstart() -> tuple[str, str]:
 def quickstart_caveat(record, spec) -> str:
     """What the bands and the events of the quickstart are, and what A2 is relative to."""
     level = inspect.signature(annex_vii).parameters["level"].default
-    (share,) = parse(r"held the test in (\d+)% of", check_row(pd.read_csv(RESULTS / "checks_phase2.csv"), "V4")["value"], "V4")
+    (share, tests) = parse(r"held the test in (\d+)% of (\d+)", check_row(pd.read_csv(RESULTS / "checks_phase2.csv"), "V4")["value"], "V4")
     first = pd.Timestamp(record.field("A2").details["first_day"])
-    service = spec.date_put_into_service
+    b1 = record.field("B1")
+    service = b1.details.get("date_put_into_service")
+    no_manufacture = str(b1.details.get("date_of_manufacture_status", "")).startswith("not possible")
     return (
-        f"Each band is the {level * 100:g} % statistical band of its fit; on the held-out field tests the capacity band "
-        f"held {share} %, so it is not the whole uncertainty. \"events\" is a count weighted by the "
-        f"{CapacityConfig().tau_days:g}-day memory, hence the decimals. A2 is relative to the first day of the resistance "
-        f"fit ({first:%Y-%m-%d})" + (f", not to the new pack (in service {service:%Y-%m-%d})." if service else ".")
+        f"Each band is a {level * 100:g} % band from its field's method (fit scatter, sensor accuracy or both; see the "
+        f"method column below). On the {tests} held-out LMO/NMC and NMC field tests the capacity band held {share} %, so a "
+        f"band is not the whole uncertainty. For A1, A3, A4 and A5, \"events\" is a count weighted by the "
+        f"{CapacityConfig().tau_days:g}-day memory, hence the decimals; for A2 and B2–B5 it counts days, for B4 "
+        f"discharges. A2 is relative to the first day of the resistance fit ({first:%Y-%m-%d})"
+        + ((f", not to the system's installation ({pd.Timestamp(service):%Y-%m-%d}, in B1's details"
+            + ("; B1 is not possible because the date of manufacture is missing)." if no_manufacture else ").")) if service else ".")
     )
 
 

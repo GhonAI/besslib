@@ -4,7 +4,7 @@ Written by `validation/make_v02_doc.py` from `validation/results/` and from the 
 
 ## Seen once
 
-The 14 held-out systems were seen once before, at the settings of release 0.1.0 (tagged 20 November 2026). Two faults this version fixes were found in those results: a capacity at or below zero marked `estimated` (held-out 09) and power capability `estimated` without a resistance (held-out 08, 18 and 20; development 19). The 0.2 settings were fixed on synthetic packs and the 7 development systems, except the plausibility rule and the power-capability rule, which answer the two faults found in the held-out results; then the held-out systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**
+The 14 held-out systems were seen once before, at the settings of release 0.1.0 (tagged 20 November 2026). Two faults this version fixes were found in those results: a capacity at or below zero marked `estimated` (held-out 09) and power capability `estimated` without a resistance (held-out 08, 18 and 20; development 19). The 0.2 settings were fixed on synthetic packs and the 7 development systems, except the plausibility rules and the power-capability rule, which answer the two faults found in the held-out results; then the held-out systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**
 
 ## What changed and why
 
@@ -18,6 +18,7 @@ The 14 held-out systems were seen once before, at the settings of release 0.1.0 
 | Power capability `estimated` without a resistance | A2 used the whole-record growth fit | A2 is `estimated` only where A5 is `estimated` at the same date | `a2_needs_a5`: False → True | held-out 08, 18 and 20; development 19 |
 | W4 and W6 counted a day twice | 31 December at 00:00 and a last sample on 31 December were two rows | one row per system and day (X5) | none: check only | held-out results |
 | Empty-slice warnings in the rest search | a warning when a rest had no temperature reading | the statistic is NaN without a warning; values unchanged (X8) | none | held-out results |
+| The A1 label | remaining capacity between the system's own end of charge and end of discharge | the capacity between two stated relaxed rest voltages, not between the BMS stops | none: text | the README |
 | The A3 method text | read awkwardly | new wording (X9) | none: text | the README |
 | A warning in `soh.report` on pandas 2.2.2 | `dt.to_pydatetime` FutureWarning | Python datetimes built per value; the figure is the same (X10) | none | the lowest-version test |
 
