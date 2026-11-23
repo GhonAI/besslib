@@ -38,12 +38,16 @@ def _validation_mask(system_id: int):
 
 
 def test_sample_reproduces_the_held_out_record(sample):
+    """The shipped sample, reduced once with the frozen settings, gives the held-out record of
+    system 05 at today's settings exactly: every field, band, count, method text and hash."""
+    import json
+
     expected = VALIDATION / "results" / "phase3" / "system_05_record.json"
     if not expected.exists():
         pytest.skip("validation/ is not present (the check needs the repository checkout)")
     reduced, spec = sample
     record = annex_vii(None, spec, reduced=reduced, mask=_validation_mask(5))
-    assert record.to_json() == expected.read_text()
+    assert json.loads(record.to_json()) == json.loads(expected.read_text())
 
 
 def test_metadata_in_every_file():
@@ -59,13 +63,15 @@ def test_metadata_in_every_file():
 
 
 def test_metadata_hashes_are_the_frozen_settings():
+    """The sample was reduced with the settings of release 0.1.0; version 0.2 changes no
+    setting the reduction uses, so the sample is unchanged and keeps their hashes."""
     from besslib.soh import CapacityConfig, RecordConfig, config_hash
 
     folder = resources.files("besslib.data").joinpath("sample_05")
     with resources.as_file(folder.joinpath("daily.parquet")) as path:
         meta = pq.read_schema(path).metadata
-    assert meta[b"capacity_config_hash"].decode() == config_hash(CapacityConfig())
-    assert meta[b"record_config_hash"].decode() == config_hash(RecordConfig())
+    assert meta[b"capacity_config_hash"].decode() == config_hash(CapacityConfig().v0_1())
+    assert meta[b"record_config_hash"].decode() == config_hash(RecordConfig().v0_1())
 
 
 def test_quickstart_without_mask(sample):

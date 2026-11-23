@@ -1,6 +1,6 @@
 {
  "annex_vii_version": "Regulation (EU) 2023/1542, Annex VII, consolidated version of 31 July 2025",
- "capacity_config_hash": "109e9eb1efa5",
+ "capacity_config_hash": "b3959941c19b",
  "data_credit": "Data: Figgener, J. et al., Data for: Multi-year field measurements of home storage systems and their use in capacity estimation, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.",
  "date": "2022-12-31T23:59:59",
  "fields": [
@@ -11,20 +11,22 @@
     "levels_from": "2017-09-13T08:39:48",
     "n_full_empty_pairs": 173.22241,
     "n_same_kind_pairs": 56.138792,
+    "read_at_empty_rest_v": 130.73672,
+    "read_at_full_rest_v": 163.93284,
     "reference_capacity_ah": 15.0,
-    "share_of_reference": 0.74694273,
-    "share_of_reference_high": 0.75431563,
-    "share_of_reference_low": 0.73956984
+    "share_of_reference": 0.73048998,
+    "share_of_reference_high": 0.73411911,
+    "share_of_reference_low": 0.72686085
    },
    "events": 229.3612,
    "field": "the remaining capacity",
-   "high": 11.314734,
+   "high": 11.011787,
    "label": "remaining capacity between the system's own end of charge and end of discharge",
-   "low": 11.093548,
-   "method": "capacity between full and empty rests by coulomb counting, fitted with the offset current (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9)",
+   "low": 10.902913,
+   "method": "capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed voltage of each rest (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); read at the mean full and empty rest voltages of the memory time, which the record gives",
    "status": "estimated",
    "unit": "Ah",
-   "value": 11.204141
+   "value": 10.95735
   },
   {
    "code": "A2",
@@ -70,7 +72,7 @@
    "high": 0.95722731,
    "label": "round-trip efficiency (DC, at the battery terminals) over full-to-full loops",
    "low": 0.9560011,
-   "method": "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); band: the ratio over these loops had each closed exactly, from the error of the state of charge at their end rests, estimated as the mean lag-2 product of the loop scores minus the mean lag-1 product",
+   "method": "energy out / energy in, summed over closed loops from one full rest to the next (Regulation (EU) 2023/1542, Annex IV (6)); band: how far that ratio can be off because a loop does not end at exactly the state of charge it started from; the size of that error is learnt from the loops themselves (mean lag-2 product of the loop scores minus the mean lag-1 product)",
    "status": "estimated",
    "unit": "share",
    "value": 0.9566142
@@ -79,74 +81,74 @@
    "code": "A4",
    "details": {
     "evolution": {
-     "config_hash": "c2f7f545cebb",
+     "config_hash": "d49cbfdcd5b6",
      "dof": 4.0,
-     "intercept_ma": 3.2844403,
+     "intercept_ma": 3.3346628,
      "n_years": 6,
-     "slope_ma_per_year": -0.024987075,
-     "slope_ma_per_year_high": 0.32384238,
-     "slope_ma_per_year_low": -0.37381653,
-     "slope_sigma_ma_per_year": 0.16377599,
+     "slope_ma_per_year": 0.012133179,
+     "slope_ma_per_year_high": 0.2159247,
+     "slope_ma_per_year_low": -0.19165834,
+     "slope_sigma_ma_per_year": 0.09568045,
      "span_years": 5.0020534,
      "status": "estimated",
      "t0": "2017-12-31T00:00:00"
     },
-    "percent_of_reference_per_month": 19.42451,
-    "percent_of_reference_per_month_high": 24.608235,
-    "percent_of_reference_per_month_low": 14.240785,
+    "percent_of_reference_per_month": 18.11973,
+    "percent_of_reference_per_month_high": 21.426035,
+    "percent_of_reference_per_month_low": 14.813425,
     "reference_capacity_ah": 15.0,
     "what_it_holds": "the charge the battery loses that its meter does not see: cell self-discharge, BMS supply, balancing and the current sensor's zero offset; mostly not cell self-discharge",
     "year_end_values": [
      {
-      "charge_loss_ma": 3.6137441,
-      "charge_loss_ma_high": 4.8930857,
-      "charge_loss_ma_low": 2.3344025,
-      "charge_loss_sigma_ma": 0.74345055,
+      "charge_loss_ma": 3.3023999,
+      "charge_loss_ma_high": 4.2103812,
+      "charge_loss_ma_low": 2.3944186,
+      "charge_loss_sigma_ma": 0.43960927,
       "n_pairs": 23.021048,
       "time": "2017-12-31T00:00:00",
       "year": 2017
      },
      {
-      "charge_loss_ma": 3.1913675,
-      "charge_loss_ma_high": 4.9962379,
-      "charge_loss_ma_low": 1.3864971,
-      "charge_loss_sigma_ma": 1.0898897,
+      "charge_loss_ma": 3.7972144,
+      "charge_loss_ma_high": 4.8122102,
+      "charge_loss_ma_low": 2.7822186,
+      "charge_loss_sigma_ma": 0.6057432,
       "n_pairs": 140.20686,
       "time": "2018-12-31T00:00:00",
       "year": 2018
      },
      {
-      "charge_loss_ma": 1.5909731,
-      "charge_loss_ma_high": 7.6752353,
-      "charge_loss_ma_low": -4.4932892,
-      "charge_loss_sigma_ma": 3.6010024,
+      "charge_loss_ma": 1.4739568,
+      "charge_loss_ma_high": 4.9146433,
+      "charge_loss_ma_low": -1.9667297,
+      "charge_loss_sigma_ma": 1.9333988,
       "n_pairs": 36.977987,
       "time": "2019-11-30T00:00:00",
       "year": 2019
      },
      {
-      "charge_loss_ma": 3.3188288,
-      "charge_loss_ma_high": 5.6653512,
-      "charge_loss_ma_low": 0.97230635,
-      "charge_loss_sigma_ma": 1.414846,
+      "charge_loss_ma": 3.3653027,
+      "charge_loss_ma_high": 4.7151382,
+      "charge_loss_ma_low": 2.0154671,
+      "charge_loss_sigma_ma": 0.79804353,
       "n_pairs": 114.8963,
       "time": "2020-12-31T00:00:00",
       "year": 2020
      },
      {
-      "charge_loss_ma": 2.5801024,
-      "charge_loss_ma_high": 3.4034187,
-      "charge_loss_ma_low": 1.7567862,
-      "charge_loss_sigma_ma": 0.49536219,
+      "charge_loss_ma": 2.961957,
+      "charge_loss_ma_high": 3.6588144,
+      "charge_loss_ma_low": 2.2650996,
+      "charge_loss_sigma_ma": 0.41057503,
       "n_pairs": 92.503443,
       "time": "2021-12-31T00:00:00",
       "year": 2021
      },
      {
-      "charge_loss_ma": 3.9886057,
-      "charge_loss_ma_high": 5.0530256,
-      "charge_loss_ma_low": 2.9241859,
-      "charge_loss_sigma_ma": 0.64438255,
+      "charge_loss_ma": 3.7206838,
+      "charge_loss_ma_high": 4.3995965,
+      "charge_loss_ma_low": 3.041771,
+      "charge_loss_sigma_ma": 0.4083213,
       "n_pairs": 229.3612,
       "time": "2022-12-31T23:59:59",
       "year": 2022
@@ -155,13 +157,13 @@
    },
    "events": 229.3612,
    "field": "the evolution of self-discharging rates",
-   "high": 5.0530256,
+   "high": 4.3995965,
    "label": "apparent charge loss (an upper bound for self-discharge)",
-   "low": 2.9241859,
+   "low": 3.041771,
    "method": "minus the offset current of the capacity fit (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); band with the current sensor's gain error",
    "status": "estimated",
    "unit": "mA",
-   "value": 3.9886057
+   "value": 3.7206838
   },
   {
    "code": "A5",
@@ -476,7 +478,7 @@
   "nominal_capacity_ah": 15.0,
   "nominal_energy_kwh": 2.2
  },
- "record_config_hash": "c2f7f545cebb",
+ "record_config_hash": "d49cbfdcd5b6",
  "reference_capacity_ah": 15.0,
  "sample_s": 1.0
 }

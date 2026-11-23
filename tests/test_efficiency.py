@@ -54,7 +54,7 @@ def labelled(kinds, eta=0.95, hours=12.0, start="2021-03-01", gaps=(), rest_erro
             missing += 2000.0
         rows.append(
             dict(start=t, kind=kind, charge_ah=q, throughput_ah=thr, missing_s=missing, edge_v=50.0,
-                 temp_pack_c=25.0, energy_in_wh=e_in, energy_out_wh=e_out, accepted=True)
+                 ocv_v=50.0, temp_pack_c=25.0, energy_in_wh=e_in, energy_out_wh=e_out, accepted=True)
         )
         t += pd.Timedelta(hours=hours)
     out = pd.DataFrame(rows)

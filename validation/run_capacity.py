@@ -17,6 +17,9 @@ Every output row carries the configuration hash. The settings are the defaults o
 Writes ``validation/results/phase2/system_XX_{tests,monthly}.csv`` and
 ``system_XX_summary.json``.
 
+With ``--settings 0.1 --out DIR`` the run uses the settings of release 0.1.0
+(``CapacityConfig().v0_1()``) and writes to DIR (check X0 of version 0.2).
+
 Usage:
     python validation/run_capacity.py 1 4 7          # some systems
     python validation/run_capacity.py development    # the 7 development systems
@@ -34,7 +37,7 @@ import numpy as np
 import pandas as pd
 
 from besslib.io import figgener
-from besslib.soh.capacity import estimate_capacity, fade_rate
+from besslib.soh.capacity import estimate_capacity, fade_rate_checked
 from besslib.soh.config import CapacityConfig, config_hash
 from besslib.soh.rests import classify_rests, levels_from, rest_chain, rest_pairs
 
@@ -78,32 +81,33 @@ def ensure_candidates(system_id: int, config: CapacityConfig) -> Path:
     return path
 
 
-def run_system(system_id: int, tests: pd.DataFrame, config: CapacityConfig) -> None:
+def run_system(system_id: int, tests: pd.DataFrame, config: CapacityConfig, out: Path = OUT) -> None:
     which = "development" if system_id in DEVELOPMENT else "held-out"
     print(f"system {system_id:02d} ({which})", flush=True)
     spec = figgener.pack_spec(system_id)
     candidates = pd.read_parquet(ensure_candidates(system_id, config))
     digest = config_hash(config)
-    OUT.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
 
     mine = tests[tests["system_id"] == system_id]
     mask = masks_for(tests, system_id)
     if len(mine):
         per_test, pairs, ready = estimate_at_tests(candidates, system_id, tests, config)
+        rests = per_test.attrs["rests"]
         per_test.insert(1, "set", which)
         per_test["config_hash"] = digest
-        per_test.to_csv(OUT / f"system_{system_id:02d}_tests.csv", index=False, float_format="%.5f")
+        per_test.to_csv(out / f"system_{system_id:02d}_tests.csv", index=False, float_format="%.5f")
     else:
         cands = candidates[candidates["duration_min"] >= config.min_duration_min]
         rests = classify_rests(cands, spec, config)
         pairs = rest_pairs(rest_chain(rests, spec, config), config)
         ready = levels_from(rests, config)
 
-    monthly = estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=ready)
+    monthly = estimate_capacity(None, spec, rests=rests, config=config, pairs=pairs, levels_from=ready)
     monthly["config_hash"] = digest
-    monthly.to_csv(OUT / f"system_{system_id:02d}_monthly.csv", float_format="%.5f")
+    monthly.to_csv(out / f"system_{system_id:02d}_monthly.csv", float_format="%.5f")
 
-    fade = fade_rate(pairs, spec, config)
+    fade = fade_rate_checked(monthly, pairs, spec, config)
     summary = {
         "system_id": system_id,
         "set": which,
@@ -116,7 +120,7 @@ def run_system(system_id: int, tests: pd.DataFrame, config: CapacityConfig) -> N
         **{k: (None if isinstance(v, float) and not np.isfinite(v) else v) for k, v in fade.items()},
         **paper_offset(pairs),
     }
-    (OUT / f"system_{system_id:02d}_summary.json").write_text(json.dumps(summary, indent=1, default=float) + "\n")
+    (out / f"system_{system_id:02d}_summary.json").write_text(json.dumps(summary, indent=1, default=lambda v: float(v) if isinstance(v, (int, float, np.generic)) else str(v)) + "\n")
     rate = summary.get("rate_points_per_year")
     print(
         f"  {summary['n_pairs_used']} pairs {summary['pairs_by_kind']}; fade "
@@ -126,17 +130,27 @@ def run_system(system_id: int, tests: pd.DataFrame, config: CapacityConfig) -> N
 
 
 def main(argv: list[str]) -> None:
+    config, out = CapacityConfig(), OUT
+    if "--settings" in argv:
+        k = argv.index("--settings")
+        if argv[k + 1] != "0.1":
+            sys.exit("--settings takes 0.1 (release 0.1.0); the default is the current settings")
+        config = config.v0_1()
+        del argv[k : k + 2]
+    if "--out" in argv:
+        k = argv.index("--out")
+        out = Path(argv[k + 1])
+        del argv[k : k + 2]
     if argv == ["development"]:
         ids = list(DEVELOPMENT)
     elif argv == ["held-out"]:
         ids = list(HELD_OUT)
     else:
         ids = [int(a) for a in argv]
-    config = CapacityConfig()
-    print(f"frozen configuration {config_hash(config)}", flush=True)
+    print(f"frozen configuration {config_hash(config)}; output {out}", flush=True)
     tests = all_tests()
     for system_id in ids:
-        run_system(system_id, tests, config)
+        run_system(system_id, tests, config, out)
 
 
 if __name__ == "__main__":

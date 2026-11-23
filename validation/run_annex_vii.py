@@ -22,6 +22,11 @@ For each system:
 
 Floats are written with a fixed format; two runs give identical files.
 
+With ``--settings 0.1 --out DIR`` the run uses the settings of release 0.1.0
+(``CapacityConfig().v0_1()``, ``RecordConfig().v0_1()``) and writes to DIR (check X0 of
+version 0.2); the A1 comparison of step 5 then reads the phase 2 files of
+``--phase2 DIR`` and is skipped without it.
+
 Usage:
     python validation/run_annex_vii.py 1 4         # some systems
     python validation/run_annex_vii.py development # the 7 development systems
@@ -130,16 +135,19 @@ def year_ends(reduced) -> list[pd.Timestamp]:
     return [d for d in ends if first < d <= last] + [pd.Timestamp(last)]
 
 
-def check_a1(system_id: int, reduced, spec, mask) -> dict:
-    """A1 by the record's path against the phase 2 monthly file, at its printed precision (5 decimals)."""
-    path = PHASE2 / f"system_{system_id:02d}_monthly.csv"
-    if system_id not in DEVELOPMENT or not path.exists():
+def check_a1(system_id: int, reduced, spec, mask, config: CapacityConfig | None = None, phase2_dir: Path | None = PHASE2) -> dict:
+    """A1 by the record's path against the phase 2 monthly file, at its printed precision (5 decimals).
+
+    Check W10 of version 0.2: the record's capacity equals the capacity run at every month end.
+    """
+    config = config or CapacityConfig()
+    path = None if phase2_dir is None else phase2_dir / f"system_{system_id:02d}_monthly.csv"
+    if path is None or not path.exists():
         return {"compared": 0, "different": 0}
-    config = CapacityConfig()
     phase2 = pd.read_csv(path, parse_dates=["time"]).set_index("time")
     rests = operating_rests(reduced.rests, spec, config, mask=mask)
     pairs = rest_pairs(rest_chain(rests, spec, config, mask=mask), config)
-    mine = estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=levels_from(rests, config),
+    mine = estimate_capacity(None, spec, rests=rests, config=config, pairs=pairs, levels_from=levels_from(rests, config),
                              at=phase2.index)
     columns = ["capacity_ah", "capacity_ah_low", "capacity_ah_high", "offset_current_a", "n_pairs"]
     different = 0
@@ -151,24 +159,29 @@ def check_a1(system_id: int, reduced, spec, mask) -> dict:
     return {"compared": int(len(phase2)), "different": different}
 
 
-def run_system(system_id: int, tests: pd.DataFrame) -> None:
+def run_system(
+    system_id: int, tests: pd.DataFrame, config: CapacityConfig | None = None, record_config: RecordConfig | None = None,
+    out: Path = OUT, phase2_dir: Path | None = PHASE2,
+) -> dict:
+    """Write the record and yearly table of one system into ``out``; return the A1 comparison (``check_a1``)."""
     which = "development" if system_id in DEVELOPMENT else "held-out"
     started = time.time()
     spec = figgener.pack_spec(system_id)
     ensure_reduced(system_id)
     reduced = load_reduced(system_id)
     mask = masks_for(tests, system_id)
-    OUT.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
+    kw = dict(capacity_config=config, config=record_config)
 
-    record = annex_vii(None, spec, reduced=reduced, mask=mask)
-    (OUT / f"system_{system_id:02d}_record.json").write_text(record.to_json())
+    record = annex_vii(None, spec, reduced=reduced, mask=mask, **kw)
+    (out / f"system_{system_id:02d}_record.json").write_text(record.to_json())
     rows = []
     for when in year_ends(reduced):
-        rows += quantities(record if when == record.date else annex_vii(None, spec, reduced=reduced, at=when, mask=mask))
+        rows += quantities(record if when == record.date else annex_vii(None, spec, reduced=reduced, at=when, mask=mask, **kw))
     yearly = pd.DataFrame(rows, columns=YEARLY_COLUMNS)
     yearly["date"] = pd.to_datetime(yearly["date"]).dt.strftime("%Y-%m-%d %H:%M:%S")
-    yearly.to_csv(OUT / f"system_{system_id:02d}_yearly.csv", index=False, float_format=FLOAT)
-    a1 = check_a1(system_id, reduced, spec, mask)
+    yearly.to_csv(out / f"system_{system_id:02d}_yearly.csv", index=False, float_format=FLOAT)
+    a1 = check_a1(system_id, reduced, spec, mask, config, phase2_dir)
 
     print(f"system {system_id:02d} ({which}), record at {record.date}, {time.time() - started:.0f} s", flush=True)
     for f in record.fields:
@@ -176,9 +189,25 @@ def run_system(system_id: int, tests: pd.DataFrame) -> None:
         print(f"  {f.code} {f.label}: {value}; events {f.events:.4g}; {f.status}", flush=True)
     if a1["compared"]:
         print(f"  A1 against phase 2: {a1['compared']} month ends, {a1['different']} values differ", flush=True)
+    return a1
 
 
 def main(argv: list[str]) -> None:
+    config, record_config, out, phase2_dir = CapacityConfig(), RecordConfig(), OUT, PHASE2
+    if "--settings" in argv:
+        k = argv.index("--settings")
+        if argv[k + 1] != "0.1":
+            sys.exit("--settings takes 0.1 (release 0.1.0); the default is the current settings")
+        config, record_config, phase2_dir = config.v0_1(), record_config.v0_1(), None
+        del argv[k : k + 2]
+    if "--out" in argv:
+        k = argv.index("--out")
+        out = Path(argv[k + 1])
+        del argv[k : k + 2]
+    if "--phase2" in argv:
+        k = argv.index("--phase2")
+        phase2_dir = Path(argv[k + 1])
+        del argv[k : k + 2]
     held_out = "--held-out" in argv
     argv = [a for a in argv if a != "--held-out"]
     if argv == ["development"]:
@@ -191,10 +220,10 @@ def main(argv: list[str]) -> None:
     refused = [i for i in ids if i in HELD_OUT]
     if refused and not held_out:
         sys.exit(f"refused: systems {refused} are held out; give --held-out (or the mode held-out) to run them")
-    print(f"configuration: capacity {config_hash(CapacityConfig())}, record {config_hash(RecordConfig())}", flush=True)
+    print(f"configuration: capacity {config_hash(config)}, record {config_hash(record_config)}; output {out}", flush=True)
     tests = all_tests()
     for system_id in ids:
-        run_system(system_id, tests)
+        run_system(system_id, tests, config, record_config, out, phase2_dir)
 
 
 if __name__ == "__main__":

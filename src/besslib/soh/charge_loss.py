@@ -14,7 +14,9 @@ self-discharge. A negative value is possible (a sensor offset can have either si
 is reported as it is.
 
 Band: a Student-t interval on the offset's lag-1 sandwich standard error, with the
-degrees of freedom of the capacity fit (decayed pair count minus 2), and the current
+offset's own degrees of freedom from the capacity fit (its ``offset_dof`` column, the rule
+of ``besslib.soh._core`` on the offset's scores; tables without it: ``dof``, else the
+decayed pair count minus 2), and the current
 sensor's gain error as a systematic term (``RecordConfig.charge_sigma``; JCGM 100:2008,
 4.3.7): a gain error scales every measured charge, and so the fitted offset, by the same
 factor.
@@ -75,8 +77,16 @@ def charge_loss(
     rel = config.charge_sigma
     per_month = HOURS_PER_MONTH / spec.reference_capacity_ah * 100.0 / 1000.0  # mA -> % of reference per month
     rows = []
-    for status, off, sig, n in zip(
-        capacity["status"], capacity["offset_current_a"], capacity["offset_current_sigma_a"], capacity["n_pairs"]
+    # the offset's own degrees of freedom from the capacity fit; older tables: the fit's dof, or pairs minus 2
+    if "offset_dof" in capacity.columns:
+        dofs = capacity["offset_dof"]
+    elif "dof" in capacity.columns:
+        dofs = capacity["dof"]
+    else:
+        dofs = capacity["n_pairs"] - 2.0
+    for status, off, sig, n, dof in zip(
+        capacity["status"], capacity["offset_current_a"], capacity["offset_current_sigma_a"], capacity["n_pairs"],
+        dofs,
     ):
         row = dict.fromkeys(LOSS_COLUMNS[:-2], math.nan)
         row["n_pairs"] = float(n)
@@ -87,7 +97,7 @@ def charge_loss(
         else:
             value = -1000.0 * float(off)
             stat = 1000.0 * float(sig)
-            k = _core.t_quantile(z, float(n) - 2.0)
+            k = _core.t_quantile(z, float(dof))
             half = math.sqrt((k * stat) ** 2 + (z * rel * value) ** 2)
             row.update(
                 charge_loss_ma=value,

@@ -18,6 +18,8 @@ capacity estimate.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -114,6 +116,15 @@ def _ocv_fit(seconds: np.ndarray, volts: np.ndarray) -> tuple[float, float]:
     return ocv, float(0.5 * abs(ocv - volts[-1]) + rmse)
 
 
+def _nanstat(func, values) -> float:
+    """``func`` (``np.nanmedian`` or ``np.nanmean``) of the non-NaN values; NaN, without a
+    warning, when there are none (an empty slice too)."""
+    values = np.asarray(values, dtype=float)
+    if np.isnan(values).all():
+        return math.nan
+    return float(func(values))
+
+
 def detect_rests(
     frame: pd.DataFrame,
     spec: PackSpec,
@@ -177,9 +188,9 @@ def detect_rests(
             rows.append(
                 (
                     t[a2], t[b2 - 1], duration / 60.0, bool(b2 == len(t)),
-                    float(np.nanmedian(v[pre_idx])), float(np.nanmedian(i[pre_idx])),
-                    float(np.nanmean(v[max(b2 - 10, a2) : b2])), ocv, ocv_sigma,
-                    float(np.nanmean(temp[a2:b2])), q[a2], qa[a2], qa[b2 - 1], miss[a2], ins[a2], ein[a2], eout[a2],
+                    _nanstat(np.nanmedian, v[pre_idx]), _nanstat(np.nanmedian, i[pre_idx]),
+                    _nanstat(np.nanmean, v[max(b2 - 10, a2) : b2]), ocv, ocv_sigma,
+                    _nanstat(np.nanmean, temp[a2:b2]), q[a2], qa[a2], qa[b2 - 1], miss[a2], ins[a2], ein[a2], eout[a2],
                 )
             )
     out = pd.DataFrame(rows, columns=REST_COLUMNS)
@@ -396,6 +407,7 @@ def operating_rests(
 #: Columns of the rest chain.
 CHAIN_COLUMNS = [
     "time", "kind", "full", "q_ah", "throughput_ah", "missing_s", "edge_v", "temp_pack_c", "new_segment", "reason",
+    "ocv_v",
 ]
 
 
@@ -431,6 +443,7 @@ def rest_chain(
             "missing_s": ends["missing_s"].astype(float),
             "edge_v": ends["edge_v"].astype(float),
             "temp_pack_c": ends["temp_pack_c"].astype(float),
+            "ocv_v": ends["ocv_v"].astype(float),
         }
     )
     reason = np.full(len(chain), "", dtype=object)
@@ -454,7 +467,7 @@ def rest_chain(
 #: Columns of the pair table.
 PAIR_COLUMNS = [
     "t_start", "t_end", "kind", "x", "dt_days", "q_ah", "throughput_ah", "dv", "temp_pack_c",
-    "sigma_q_ah", "sigma_x", "linked",
+    "sigma_q_ah", "sigma_x", "linked", "u_start", "u_end",
 ]
 
 
@@ -464,6 +477,9 @@ def rest_pairs(chain: pd.DataFrame, config: CapacityConfig | None = None) -> pd.
     ``x`` is the change of state of charge (+1, -1 or 0), ``q_ah`` the charge measured
     between the rests, ``dv`` the change of edge voltage. ``linked`` is 1 when the pair
     starts at the rest where the previous pair ended (their errors share that rest).
+    ``u_start`` and ``u_end`` are the relaxed open-circuit voltages (``ocv_v``) of the
+    two rests: the capacity fit's voltage terms are formed from them
+    (``besslib.soh._core``; ``capacity.voltage_terms``).
     """
     config = config or CapacityConfig()
     a = chain.iloc[:-1].reset_index(drop=True)
@@ -482,6 +498,8 @@ def rest_pairs(chain: pd.DataFrame, config: CapacityConfig | None = None) -> pd.
             "linked": (a["new_segment"] == 0).astype(int),
         }
     )
+    pairs["u_start"] = a["ocv_v"].to_numpy(float)
+    pairs["u_end"] = b["ocv_v"].to_numpy(float)
     pairs = pairs[(b["new_segment"] == 0).to_numpy()].reset_index(drop=True)
     pairs["sigma_q_ah"] = config.sigma_q_rel * pairs["throughput_ah"].abs()
     pairs["sigma_x"] = np.sqrt(2.0) * config.sigma_soc_edge

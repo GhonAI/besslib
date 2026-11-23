@@ -190,9 +190,9 @@ def test_fade_exact_recovery():
     pairs["sigma_x"] = 0.02
     est = feed(pairs, _core.fade_state(100.0, t0), end_day(pairs))
     assert est.status == _core.OK
-    assert est.theta[1] == pytest.approx(-2.4, abs=1e-8)
-    assert est.theta[0] == pytest.approx(120.0, abs=1e-8)
-    assert est.theta[2] == pytest.approx(-0.5, abs=1e-9)
+    assert est.theta[_core.I_RATE] == pytest.approx(-2.4, abs=1e-8)
+    assert est.theta[_core.I_C] == pytest.approx(120.0, abs=1e-8)
+    assert est.theta[_core.I_BETA] == pytest.approx(-0.5, abs=1e-9)
 
 
 # --- saved vectors ---------------------------------------------------------------------
@@ -240,8 +240,6 @@ def _vector_inputs():
 def write_vectors() -> None:
     inputs, queries = _vector_inputs()
     VECTORS.mkdir(exist_ok=True)
-    for old in VECTORS.glob("capacity_core_*.csv"):
-        old.unlink()
     inputs.to_csv(VECTORS / "capacity_core_pairs.csv", index=False, float_format="%.17g")
     _vector_outputs(inputs, queries).to_csv(VECTORS / "capacity_core_expected.csv", index=False, float_format="%.17g")
 
@@ -258,6 +256,593 @@ def test_saved_vectors():
 if __name__ == "__main__" and "--write-vectors" in sys.argv:
     write_vectors()
     print(f"wrote {VECTORS}")
+
+
+# --- version 0.2: trend, voltage terms, forgetting squared, plausibility -------------------
+
+KIND_TEXT = {_core.PAIR_FE: "F->E", _core.PAIR_EF: "E->F", _core.PAIR_FF: "F->F", _core.PAIR_EE: "E->E"}
+V02 = CapacityConfig()  # the version 0.2 settings
+
+
+def chain_v02(seed=21, n=400, cap=100.0, fade=-3.0, beta=-1.2, slope_f=2.0, slope_e=5.0, sigma_soc=0.02,
+              sigma_u=0.002, sigma_meter=0.0, breaks=(150,), no_ee=None, wrong=(), collapse_days=None):
+    """Core inputs from a random walk over full and empty rests (``t_days``, ..., ``kind``,
+    ``u_start``, ``u_end``).
+
+    Each rest misses its nominal state of charge by an error shared by its two pairs; its
+    relaxed voltage moves with that error by ``slope_f`` (full) or ``slope_e`` (empty) volts
+    per unit of state of charge, plus ``sigma_u`` of noise. The capacity changes by ``fade``
+    Ah per year (or falls linearly to zero over ``collapse_days``). ``no_ee`` is a range of
+    rests without empty-to-empty pairs; ``wrong`` lists pair indices from which the next
+    full-to-empty pair gets a charge of the wrong sign.
+    """
+    rng = np.random.default_rng(seed)
+    t = 7000.0 + np.cumsum(rng.uniform(0.2, 1.5, n + 1))
+    full = rng.integers(0, 2, n + 1)
+    if no_ee is not None:
+        lo, hi = no_ee
+        full[lo:hi] = np.resize([1, 1, 0], hi - lo)
+    eps = rng.normal(0.0, sigma_soc, n + 1)
+    u = np.where(full == 1, 57.4 + slope_f * eps, 44.8 + slope_e * eps) + rng.normal(0.0, sigma_u, n + 1)
+    days_in = t - t[0]
+    cap_t = cap + fade * days_in / 365.25 if collapse_days is None else cap * (1.0 - days_in / collapse_days)
+    soc = full + eps
+    x = (full[1:] - full[:-1]).astype(float)
+    q = cap_t[1:] * (soc[1:] - soc[:-1]) + beta * np.diff(t) + rng.normal(0.0, 1.0, n) * sigma_meter
+    kind = np.where(x < 0, _core.PAIR_FE, np.where(x > 0, _core.PAIR_EF, np.where(full[1:] == 1, _core.PAIR_FF, _core.PAIR_EE)))
+    for i in wrong:
+        k = i + int(np.argmax(kind[i:] == _core.PAIR_FE))
+        q[k] = abs(q[k])
+    linked = np.ones(n, dtype=int)
+    linked[0] = 0
+    for b in breaks:
+        linked[b] = 0
+    return pd.DataFrame(
+        {
+            "t_days": t[1:],
+            "x": x,
+            "dt_days": np.diff(t),
+            "q_ah": q,
+            "sigma_q_ah": 0.3,
+            "sigma_x": np.sqrt(2.0) * 0.02,
+            "linked": linked,
+            "kind": kind,
+            "u_start": u[:-1],
+            "u_end": u[1:],
+        }
+    )
+
+
+def du_of(rows):
+    """The voltage terms written out from their definition (``_core`` docstring): each end
+    gives its own kind's rest voltage minus that kind's first rest voltage. Returns
+    ``du_f``, ``du_e``, and each end's voltage minus its reference."""
+    kind = rows["kind"].to_numpy()
+    fa = (kind == _core.PAIR_FE) | (kind == _core.PAIR_FF)
+    fb = (kind == _core.PAIR_EF) | (kind == _core.PAIR_FF)
+    ua, ub = rows["u_start"].to_numpy(float), rows["u_end"].to_numpy(float)
+    seq_u, seq_f = np.column_stack([ua, ub]).ravel(), np.column_stack([fa, fb]).ravel()
+    r0f, r0e = seq_u[seq_f][0], seq_u[~seq_f][0]
+    da = ua - np.where(fa, r0f, r0e)
+    db = ub - np.where(fb, r0f, r0e)
+    du_f = np.where(fb, db, 0.0) - np.where(fa, da, 0.0)
+    du_e = np.where(~fb, db, 0.0) - np.where(~fa, da, 0.0)
+    return du_f, du_e, da, db
+
+
+def reference_shift(rows, at, tau):
+    """The forgetting-weighted mean of (u - reference) per kind at ``at``: every pair's end
+    rest, and the start rest of a pair that does not continue the one before."""
+    _, _, da, db = du_of(rows)
+    kind = rows["kind"].to_numpy()
+    fa = (kind == _core.PAIR_FE) | (kind == _core.PAIR_FF)
+    fb = (kind == _core.PAIR_EF) | (kind == _core.PAIR_FF)
+    t = rows["t_days"].to_numpy()
+    dt = rows["dt_days"].to_numpy()
+    lam_b = np.exp(-(at - t) / tau) if tau > 0 else np.ones_like(t)
+    lam_a = np.exp(-(at - t + dt) / tau) if tau > 0 else np.ones_like(t)
+    linked = rows["linked"].to_numpy()
+    new_a = np.r_[True, linked[1:] == 0]
+    out = []
+    for full in (True, False):
+        sa, sb = new_a & (fa == full), fb == full
+        out.append(((lam_a * da)[sa].sum() + (lam_b * db)[sb].sum()) / (lam_a[sa].sum() + lam_b[sb].sum()))
+    return out
+
+
+def as_pairs(inputs: pd.DataFrame) -> pd.DataFrame:
+    """The same pairs as a ``rests.rest_pairs`` table (what ``capacity.py`` reads)."""
+    out = inputs.drop(columns=["t_days"]).copy()
+    out.insert(0, "t_end", EPOCH + pd.to_timedelta(inputs["t_days"], unit="D"))
+    out["kind"] = inputs["kind"].map(KIND_TEXT)
+    return out
+
+
+def new_state(setting, c_weight=100.0, t0=0.0):
+    if setting["fit"] == "fade":
+        return _core.fade_state(c_weight, t0, setting["voltage"], setting["band"], setting["plausibility"])
+    return _core.capacity_state(c_weight, setting["tau_days"], setting["trend"], setting["voltage"], setting["band"],
+                                setting["plausibility"])
+
+
+def feed_v02(state, rows, rounder=None):
+    for r in rows.itertuples():
+        _core.update(state, r.t_days, r.x, r.dt_days, r.q_ah, r.sigma_q_ah, r.sigma_x, int(r.linked), r.u_start,
+                     r.u_end, int(r.kind))
+        if rounder is not None:
+            rounder(state)
+
+
+def direct_v02(rows, at, tau, trend, voltage, band, min_same=2.0, fade=False, min_cross_trend=0.0):
+    """The 0.2 estimate and band from the residuals in two passes (plain numpy).
+
+    Returns (C at the date and the reference voltages, or r; its sandwich standard error;
+    dof; terms used; theta).
+    """
+    rows = rows[rows["t_days"] <= at]
+    du_f, du_e, _, _ = du_of(rows)
+    d_f, d_e = reference_shift(rows, at, tau)
+    t = rows["t_days"].to_numpy()
+    lam = np.exp(-(at - t) / tau) if tau > 0 else np.ones_like(t)
+    w = 1.0 / (rows["sigma_q_ah"].to_numpy() ** 2 + (100.0 * rows["sigma_x"].to_numpy()) ** 2)
+    x = rows["x"].to_numpy()
+    y = (t - t[0]) / 365.25
+    kind = rows["kind"].to_numpy()
+    cross_count = lam[(kind == _core.PAIR_FE) | (kind == _core.PAIR_EF)].sum()
+    cols, names, grad = [x], ["C"], [1.0]
+    if trend and (fade or cross_count >= min_cross_trend):
+        cols.append(x * y)
+        names.append("r")
+        grad.append(0.0 if fade else (at - t[0]) / 365.25)
+    cols.append(rows["dt_days"].to_numpy())
+    names.append("beta")
+    grad.append(0.0)
+    if voltage and lam[kind == _core.PAIR_FF].sum() >= min_same:
+        cols.append(du_f)
+        names.append("gamma_full")
+        grad.append(d_f)
+    if voltage and lam[kind == _core.PAIR_EE].sum() >= min_same:
+        cols.append(du_e)
+        names.append("gamma_empty")
+        grad.append(-d_e)
+    a = np.column_stack(cols)
+    q = rows["q_ah"].to_numpy()
+    amat = (lam * w)[:, None, None] * a[:, :, None] * a[:, None, :]
+    amat = amat.sum(axis=0)
+    theta = np.linalg.solve(amat, ((lam * w * q)[:, None] * a).sum(axis=0))
+    e = q - a @ theta
+    g = ((lam ** (band / 2.0)) * w * e)[:, None] * a  # scores with the band's weight
+    meat_s = (g[:, :, None] * g[:, None, :]).sum(axis=0)
+    linked = rows["linked"].to_numpy()
+    cur = np.flatnonzero(np.r_[False, linked[1:] == 1])
+    cross = g[cur][:, :, None] * g[cur - 1][:, None, :]
+    meat_l = (cross + cross.transpose(0, 2, 1)).sum(axis=0)
+    inv = np.linalg.inv(amat)
+    m = lam.sum()
+    p = len(cols)
+    vmat = inv @ (meat_s + meat_l) @ inv * m / (m - p)
+    grad = np.array(grad)
+    if fade:
+        grad = np.zeros(p)
+        grad[1] = 1.0
+    value = grad @ theta
+    se = np.sqrt(grad @ vmat @ grad)
+    dof = m - p
+    if band == 2:
+        c = inv @ grad
+        e2, l2 = c @ meat_s @ c, c @ meat_l @ c
+        m2 = (lam * lam).sum()
+        link_w = lam[cur] * lam[cur - 1]
+        m2_lag = link_w.sum()
+        m2_ll = link_w[np.r_[False, linked[1:] == 1][cur - 1]].sum()
+        rho = (0.5 * l2 / m2_lag) / (e2 / m2) if m2_lag > 0 and e2 > 0 else 0.0
+        qq, q2 = m2_lag / m2, m2_ll / m2
+        dof = (m - p) * (1 + 2 * rho * qq) ** 2 / (1 + 2 * qq + 8 * rho * qq + 4 * rho * rho * (qq + q2))
+    return value, se, dof, "+".join(n for n in ("C", "beta", "r", "gamma_full", "gamma_empty") if n in names), theta
+
+
+def _terms_text(est):
+    from besslib.soh.capacity import _terms
+
+    return _terms(est)
+
+
+def test_cholesky_inverse_matches_numpy_and_the_closed_forms():
+    rng = np.random.default_rng(4)
+    for p in (2, 3, 4, 5):
+        for _ in range(20):
+            b = rng.normal(size=(p + 3, p)) * rng.uniform(0.01, 100.0, p)
+            mat = b.T @ b
+            flat = [0.0] * 25
+            for i in range(p):
+                for j in range(p):
+                    flat[5 * i + j] = float(mat[i, j])
+            out = [0.0] * 25
+            assert _core._cholesky_inverse(p, flat, out) == 1
+            got = np.array(out).reshape(5, 5)[:p, :p]
+            np.testing.assert_allclose(got, np.linalg.inv(mat), rtol=1e-8, atol=1e-12 * np.abs(np.linalg.inv(mat)).max())
+            closed = [0.0] * 25
+            assert _core._invert(p, flat, closed) == 1
+            np.testing.assert_allclose(np.array(closed).reshape(5, 5)[:p, :p], got, rtol=1e-8, atol=1e-12 * np.abs(got).max())
+    b = rng.normal(size=(9, 4))
+    b[:, 3] = b[:, 0] - 2.0 * b[:, 1]  # rank 3
+    mat = b.T @ b
+    singular = [0.0] * 25
+    for i in range(4):
+        for j in range(4):
+            singular[5 * i + j] = float(mat[i, j])
+    assert _core._cholesky_inverse(4, singular, [0.0] * 25) == 0
+
+
+def test_v02_exact_recovery_without_noise():
+    rows = chain_v02(sigma_soc=0.0, breaks=())
+    rng = np.random.default_rng(2)
+    u = rng.normal(0.0, 0.05, len(rows) + 1) + np.r_[rows["u_start"].iloc[0], rows["u_end"].to_numpy()]
+    rows["u_start"], rows["u_end"] = u[:-1], u[1:]
+    du_f, du_e, _, _ = du_of(rows)
+    y = (rows["t_days"] - rows["t_days"].iloc[0]) / 365.25
+    rows["q_ah"] = (110.0 - 4.0 * y) * rows["x"] - 0.7 * rows["dt_days"] + 14.0 * du_f + 25.0 * du_e
+    at = rows["t_days"].iloc[-1] + 0.5
+    # C at the date is read at the reference voltages at the date (no forgetting: their mean).
+    d_f, d_e = reference_shift(rows, at, 0.0)
+    for fit in ("capacity", "fade"):
+        state = new_state(dict(fit=fit, tau_days=60.0, trend=1, voltage=1, band=2, plausibility=1))
+        if fit == "fade":
+            state = _core.fade_state(100.0, rows["t_days"].iloc[0], 1, 2, 1)
+        feed_v02(state, rows)
+        est = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 0.5)
+        assert est.status == _core.OK
+        if fit == "capacity":
+            d_f, d_e = reference_shift(rows, at, 60.0)
+        else:
+            d_f, d_e = reference_shift(rows, at, 0.0)
+        c_at = 110.0 - 4.0 * (at - rows["t_days"].iloc[0]) / 365.25 if fit == "capacity" else 110.0
+        assert est.theta[_core.I_C] == pytest.approx(c_at + 14.0 * d_f - 25.0 * d_e, abs=1e-7)
+        assert est.u_full == pytest.approx(rows["u_start"].iloc[0] + d_f if rows["kind"].iloc[0] in (_core.PAIR_FE, _core.PAIR_FF)
+                                           else est.u_full)
+        assert est.theta[_core.I_RATE] == pytest.approx(-4.0, abs=1e-6)
+        assert est.theta[_core.I_BETA] == pytest.approx(-0.7, abs=1e-9)
+        assert est.theta[_core.I_GF] == pytest.approx(14.0, abs=1e-6)
+        assert est.theta[_core.I_GE] == pytest.approx(25.0, abs=1e-6)
+        assert est.terms == _core.TERM_TREND | _core.TERM_FULL | _core.TERM_EMPTY and est.p == 5
+
+
+@pytest.mark.parametrize(
+    "tau, trend, voltage, band",
+    [(90.0, 1, 1, 2), (30.0, 1, 1, 2), (0.0, 1, 1, 2), (90.0, 0, 1, 2), (90.0, 1, 0, 1), (90.0, 1, 1, 1)],
+)
+def test_v02_core_equals_direct_sandwich(tau, trend, voltage, band):
+    rows = chain_v02(seed=5, no_ee=(230, 300))
+    for at in rows["t_days"].iloc[[120, 260, 290, 399]].to_numpy() + 0.3:
+        state = new_state(dict(fit="capacity", tau_days=tau, trend=trend, voltage=voltage, band=band, plausibility=0))
+        feed_v02(state, rows[rows["t_days"] <= at])
+        est = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0)
+        assert est.status == _core.OK
+        value, se, dof, terms, _ = direct_v02(rows, at, tau, trend, voltage, band)
+        assert est.theta[_core.I_C] == pytest.approx(value, rel=1e-10)
+        assert est.sigma[_core.I_C] == pytest.approx(se, rel=1e-7)
+        assert est.dof == pytest.approx(dof, rel=1e-7)
+        assert _terms_text(est) == terms
+        assert est.high - est.low == pytest.approx(2.0 * _core.t_quantile(Z90, dof) * se, rel=1e-7)
+
+
+def test_v02_fade_equals_direct_sandwich():
+    rows = chain_v02(seed=6, n=900, breaks=(300,))
+    at = rows["t_days"].iloc[-1]
+    state = _core.fade_state(100.0, rows["t_days"].iloc[0], 1, 2, 0)
+    feed_v02(state, rows)
+    est = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0)
+    assert est.status == _core.OK
+    value, se, dof, terms, theta = direct_v02(rows, at, 0.0, 1, 1, 2, fade=True)
+    assert est.theta[_core.I_RATE] == pytest.approx(value, rel=1e-9)
+    assert est.sigma[_core.I_RATE] == pytest.approx(se, rel=1e-7)
+    d_f, d_e = reference_shift(rows, at, 0.0)  # c0 is read at the record's mean rest voltages
+    assert est.theta[_core.I_C] == pytest.approx(theta[0] + theta[3] * d_f - theta[4] * d_e, rel=1e-10)
+    assert est.dof == pytest.approx(dof, rel=1e-7)
+    assert est.high - est.low == pytest.approx(2.0 * _core.t_quantile(Z90, dof) * se, rel=1e-7)  # no gain term
+
+
+def test_v02_band_forgetting_and_dof():
+    rows = chain_v02(seed=8)
+    at = rows["t_days"].iloc[-1] + 0.2
+    est = {}
+    for tau in (0.0, 90.0):
+        for band in (1, 2):
+            state = new_state(dict(fit="capacity", tau_days=tau, trend=1, voltage=1, band=band, plausibility=0))
+            feed_v02(state, rows)
+            est[tau, band] = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0)
+    # Without forgetting the band's sums are the same; only the degrees of freedom differ.
+    assert est[0.0, 2].sigma[_core.I_C] == pytest.approx(est[0.0, 1].sigma[_core.I_C], rel=1e-12)
+    assert est[0.0, 1].dof == pytest.approx(est[0.0, 1].m - 5, rel=1e-12)
+    assert est[0.0, 2].dof < est[0.0, 1].dof
+    # With forgetting, the weight squared narrows the band (about sqrt(2) for a long record).
+    ratio = est[90.0, 1].sigma[_core.I_C] / est[90.0, 2].sigma[_core.I_C]
+    assert 1.15 < ratio < 1.7
+    # Without links the share is 1: dof = m - p.
+    unlinked = rows.assign(linked=0)
+    state = new_state(dict(fit="capacity", tau_days=90.0, trend=1, voltage=1, band=2, plausibility=0))
+    feed_v02(state, unlinked)
+    e = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0)
+    assert e.dof == pytest.approx(e.m - 5, rel=1e-12)
+
+
+def test_v02_left_out_voltage_term():
+    rows = chain_v02(seed=9, no_ee=(230, 300))
+    at = rows["t_days"].iloc[290] + 0.3
+    state = new_state(dict(fit="capacity", tau_days=30.0, trend=1, voltage=1, band=2, plausibility=1))
+    feed_v02(state, rows[rows["t_days"] <= at])
+    est = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0)
+    assert est.status == _core.OK
+    assert state.m_ee < 2.0 <= state.m_ff
+    assert est.terms == _core.TERM_TREND | _core.TERM_FULL and est.p == 4
+    assert math.isnan(est.theta[_core.I_GE]) and math.isfinite(est.theta[_core.I_GF])
+
+
+def test_v02_plausibility_statuses():
+    rows = chain_v02(seed=10, wrong=(330,))
+    k = int(np.flatnonzero((rows["kind"] == _core.PAIR_FE) & (rows["q_ah"] >= 0))[0])
+    t_wrong = rows["t_days"].iloc[k]
+    for tau, at, expected in [(30.0, t_wrong + 1.0, _core.WRONG_SIGN), (30.0, t_wrong + 31.0, _core.OK),
+                              (0.0, t_wrong + 31.0, _core.WRONG_SIGN)]:
+        for plaus in (1, 0):
+            state = new_state(dict(fit="capacity", tau_days=tau, trend=1, voltage=1, band=2, plausibility=plaus))
+            feed_v02(state, rows[rows["t_days"] <= at])
+            status = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0).status
+            assert status == (expected if plaus else _core.OK)
+    # The wrong sign is read from the kind, not from x: an empty-to-full pair of zero charge counts too.
+    state = new_state(dict(fit="capacity", tau_days=30.0, trend=1, voltage=1, band=2, plausibility=1))
+    head = rows.iloc[:200].copy()
+    j = int(np.flatnonzero(head["kind"] == _core.PAIR_EF)[-1])
+    head.loc[head.index[j], "q_ah"] = 0.0
+    feed_v02(state, head)
+    assert _core.solve(state, head["t_days"].iloc[-1], Z90, 0.005, 3.0, 2.0, 1.0).status == _core.WRONG_SIGN
+    # A capacity that falls towards zero: read 15 days after the last pair, the trend
+    # puts it below zero, while every pair has the right sign.
+    fall = chain_v02(seed=12, n=40, cap=10.0, sigma_soc=0.002, breaks=(), collapse_days=40.0)
+    assert ((fall["kind"] == _core.PAIR_FE) & (fall["q_ah"] < 0)).sum() == (fall["kind"] == _core.PAIR_FE).sum()
+    for plaus, expected in ((1, _core.OUT_OF_RANGE), (0, _core.OK)):
+        state = new_state(dict(fit="capacity", tau_days=30.0, trend=1, voltage=1, band=2, plausibility=plaus))
+        feed_v02(state, fall)
+        est = _core.solve(state, fall["t_days"].iloc[-1] + 15.0, Z90, 0.005, 3.0, 2.0, 1.0)
+        assert est.status == expected
+        assert est.theta[_core.I_C] < 0.0  # filled also for OUT_OF_RANGE
+
+
+@pytest.mark.parametrize("tau", [0.0, 30.0, 180.0])
+def test_v02_batch_path_equals_core(tau):
+    rows = chain_v02(seed=13, no_ee=(230, 300), wrong=(330,))
+    pairs = as_pairs(rows)
+    config = V02.with_(tau_days=tau)
+    at = pairs["t_end"].iloc[[30, 149, 150, 260, 290, 335, 380, 399]] + pd.Timedelta(hours=6)
+    core = run_core(pairs, SPEC, config, at)
+    statuses = set()
+    for when, c in zip(at, core):
+        td = (when - EPOCH).total_seconds() / 86400.0
+        b = _solve(capacity_state_at(pairs, SPEC, config, td), td, Z90, config)
+        assert b.status == c.status
+        assert b.terms == c.terms and b.p == c.p
+        statuses.add(c.status)
+        for k in range(_core.P_MAX):
+            assert b.theta[k] == pytest.approx(c.theta[k], rel=1e-9, nan_ok=True)
+            assert b.sigma[k] == pytest.approx(c.sigma[k], rel=1e-9, nan_ok=True)
+        assert b.dof == pytest.approx(c.dof, rel=1e-9)
+        assert b.low == pytest.approx(c.low, rel=1e-9, nan_ok=True)
+        # rho (a diagnostic) cancels more than the rest: it agrees to rounding at 1e-7
+        assert b.rho == pytest.approx(c.rho, rel=1e-7, abs=1e-12, nan_ok=True)
+        assert b.u_full == pytest.approx(c.u_full, rel=1e-12, nan_ok=True)
+        assert b.u_empty == pytest.approx(c.u_empty, rel=1e-12, nan_ok=True)
+        assert b.dof_beta == pytest.approx(c.dof_beta, rel=1e-9)
+    assert _core.OK in statuses and _core.WRONG_SIGN in statuses
+
+
+def test_v02_batch_state_continues_like_the_core():
+    rows = chain_v02(seed=14)
+    pairs = as_pairs(rows)
+    mid = 0.5 * (rows["t_days"].iloc[250] + rows["t_days"].iloc[251])  # between two pairs
+    state = capacity_state_at(pairs, SPEC, V02, float(mid))
+    feed_v02(state, rows[rows["t_days"] > mid])
+    full = capacity_state_at(pairs, SPEC, V02, float(rows["t_days"].iloc[-1]) + 0.01)
+    at = float(rows["t_days"].iloc[-1]) + 1.0
+    a, b = _solve(state, at, Z90, V02), _solve(full, at, Z90, V02)
+    assert a.status == b.status == _core.OK
+    assert a.theta[_core.I_C] == pytest.approx(b.theta[_core.I_C], rel=1e-10)
+    assert a.high == pytest.approx(b.high, rel=1e-10)
+
+
+def test_v02_band_at_the_date_holds_a_fading_capacity():
+    # A steady fade, 90 days of memory: with the trend the band holds the capacity at the
+    # date, without it the estimate lags. The truth is the capacity between the two
+    # reference voltages at the date, on the chain's own voltage map (u = 57.4 + 2 eps at
+    # full, 44.8 + 5 eps at empty): the quantity the estimate reads.
+    held = 0
+    lag_trend, lag_flat = [], []
+    runs = 200
+    config = V02.with_(tau_days=90.0, gain_error=0.0, plausibility=False)
+    for seed in range(runs):
+        rows = chain_v02(seed=100 + seed, n=600, fade=-8.0, breaks=(300,))
+        pairs = as_pairs(rows)
+        at = float(rows["t_days"].iloc[-1]) + 0.5
+        cap = 100.0 - 8.0 * (at - rows["t_days"].iloc[0] + rows["dt_days"].iloc[0]) / 365.25
+        est = _solve(capacity_state_at(pairs, SPEC, config, at), at, Z90, config)
+        flat = _solve(capacity_state_at(pairs, SPEC, config.with_(local_trend=False), at), at, Z90, config)
+        assert est.terms == _core.TERM_TREND | _core.TERM_FULL | _core.TERM_EMPTY
+        truth = cap * (1.0 + (est.u_full - 57.4) / 2.0 - (est.u_empty - 44.8) / 5.0)
+        held += est.low <= truth <= est.high
+        lag_trend.append(est.theta[_core.I_C] - truth)
+        lag_flat.append(flat.theta[_core.I_C] - truth)
+    assert 0.84 <= held / runs <= 0.96
+    assert abs(np.mean(lag_trend)) < 2.0 * np.std(lag_trend) / np.sqrt(runs)
+    assert np.mean(lag_flat) > 1.5  # about tau_days of fade: 8 Ah/yr x 90/365 = 2 Ah
+
+
+def test_v02_reference_moves_only_the_capacity():
+    # Moving every rest voltage of one kind by the same amount moves the references and
+    # nothing else: the same fit, the same estimate.
+    rows = chain_v02(seed=15)
+    at = rows["t_days"].iloc[-1] + 0.2
+    base, moved = [], []
+    for shift, out in ((0.0, base), (0.3, moved)):
+        r = rows.copy()
+        kind = r["kind"].to_numpy()
+        fa = (kind == _core.PAIR_FE) | (kind == _core.PAIR_FF)
+        fb = (kind == _core.PAIR_EF) | (kind == _core.PAIR_FF)
+        r["u_start"] += np.where(fa, shift, 0.0)
+        r["u_end"] += np.where(fb, shift, 0.0)
+        state = new_state(dict(fit="capacity", tau_days=90.0, trend=1, voltage=1, band=2, plausibility=0))
+        feed_v02(state, r)
+        out.append(_core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0))
+    a, b = base[0], moved[0]
+    for k in range(_core.P_MAX):
+        assert b.theta[k] == pytest.approx(a.theta[k], rel=1e-9)
+        assert b.sigma[k] == pytest.approx(a.sigma[k], rel=1e-7)
+    assert b.u_full == pytest.approx(a.u_full + 0.3, rel=1e-12) and b.u_empty == pytest.approx(a.u_empty, rel=1e-12)
+    # The capacity at another reference: C(rf) = C(r0f) + gamma_f (rf - r0f), the same band.
+    state = new_state(dict(fit="capacity", tau_days=90.0, trend=1, voltage=1, band=2, plausibility=0))
+    feed_v02(state, rows)
+    est = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0)
+    d_f, d_e = reference_shift(rows, at, 90.0)
+    assert est.u_full - d_f == pytest.approx(rows["u_start"].iloc[0] if rows["kind"].iloc[0] in (_core.PAIR_FE, _core.PAIR_FF)
+                                             else est.u_full - d_f)
+
+
+def test_v02_trend_needs_enough_full_to_empty_pairs():
+    rows = chain_v02(seed=16)
+    at = rows["t_days"].iloc[-1] + 0.2
+    state = new_state(dict(fit="capacity", tau_days=30.0, trend=1, voltage=1, band=2, plausibility=0))
+    feed_v02(state, rows)
+    m_cross = state.m_cross
+    on = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0, m_cross - 0.5)
+    off = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0, m_cross + 0.5)
+    assert on.terms & _core.TERM_TREND and on.p == 5 and math.isfinite(on.theta[_core.I_RATE])
+    assert not off.terms & _core.TERM_TREND and off.p == 4 and math.isnan(off.theta[_core.I_RATE])
+    for est, gate in ((on, m_cross - 0.5), (off, m_cross + 0.5)):
+        value, se, dof, terms, _ = direct_v02(rows, at, 30.0, 1, 1, 2, min_cross_trend=gate)
+        assert est.theta[_core.I_C] == pytest.approx(value, rel=1e-10)
+        assert est.sigma[_core.I_C] == pytest.approx(math.hypot(se, 0.005 * value), rel=1e-7)
+        assert _terms_text(est) == terms
+    # The fade fit always keeps its trend: it is its main quantity.
+    fade = _core.fade_state(100.0, rows["t_days"].iloc[0], 1, 2, 0)
+    feed_v02(fade, rows)
+    kept = _core.solve(fade, at, Z90, 0.0, 3.0, 2.0, 0.5, 1e9)
+    assert kept.status == _core.OK and kept.terms & _core.TERM_TREND
+
+
+def test_v02_rest_without_voltage():
+    # A rest whose relaxed voltage is not finite gives no voltage term and does not move
+    # the references; the estimate stays finite.
+    rows = chain_v02(seed=17)
+    rows.loc[rows.index[50], "u_end"] = np.nan
+    rows.loc[rows.index[51], "u_start"] = np.nan
+    at = rows["t_days"].iloc[-1] + 0.2
+    state = new_state(dict(fit="capacity", tau_days=0.0, trend=1, voltage=1, band=2, plausibility=0))
+    feed_v02(state, rows)
+    est = _core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0)
+    assert est.status == _core.OK and math.isfinite(est.theta[_core.I_C]) and math.isfinite(est.u_full)
+    pairs = as_pairs(rows)
+    b = _solve(capacity_state_at(pairs, SPEC, V02.with_(tau_days=0.0), float(at)), float(at), Z90, V02.with_(tau_days=0.0))
+    assert b.theta[_core.I_C] == pytest.approx(est.theta[_core.I_C], rel=1e-9)
+    assert b.u_full == pytest.approx(est.u_full, rel=1e-12) and b.u_empty == pytest.approx(est.u_empty, rel=1e-12)
+
+
+_OUT_V02 = (
+    "status", "theta0", "theta1", "theta2", "theta3", "theta4", "sigma0", "sigma1", "sigma2", "sigma3", "sigma4",
+    "low", "high", "chi2", "dof", "birge", "rho", "m", "m_cross", "m_same", "terms", "p", "u_full", "u_empty",
+    "dof_beta",
+)
+_SETTINGS_V02 = ("fit", "tau_days", "trend", "voltage", "band", "plausibility", "min_cross_trend")
+
+
+def _v02_vector_inputs():
+    main = chain_v02(seed=31, no_ee=(230, 300), wrong=(330,)).assign(chain=0)
+    fall = chain_v02(seed=12, n=40, cap=10.0, sigma_soc=0.01, breaks=(), collapse_days=40.0).assign(chain=1)
+    fall["sigma_q_ah"] = 0.03  # a 10 Ah pack: its weights and centring use its own nominal 10 Ah
+    inputs = pd.concat([main, fall], ignore_index=True)
+    at_main = main["t_days"].iloc[[20, 60, 149, 150, 220, 290, 300, 335, 380, 399]].to_numpy() + 0.25
+    at_fall = np.r_[fall["t_days"].iloc[[25, 39]].to_numpy() + 0.25, fall["t_days"].iloc[-1] + 15.0]
+    settings = [
+        ("capacity", 0.0, 1, 1, 2, 1, 0.0), ("capacity", 30.0, 1, 1, 2, 1, 0.0), ("capacity", 90.0, 1, 1, 2, 1, 0.0),
+        ("capacity", 90.0, 1, 0, 1, 0, 0.0), ("capacity", 90.0, 0, 1, 2, 1, 0.0), ("fade", 0.0, 1, 1, 2, 0, 0.0),
+        ("capacity", 30.0, 1, 1, 2, 1, 12.0),  # the trend left out while fewer than 12 weighted cross pairs
+    ]
+    queries = [(0, 100.0) + s + (a,) for s in settings for a in at_main]
+    queries += [(1, 10.0, "capacity", 30.0, 1, 1, 2, 1, 0.0, a) for a in at_fall]
+    return inputs, pd.DataFrame(queries, columns=("chain", "c_weight") + _SETTINGS_V02 + ("t_days",))
+
+
+def _v02_vector_outputs(inputs: pd.DataFrame, queries: pd.DataFrame, rounder=None) -> pd.DataFrame:
+    rows = []
+    for key, group in queries.groupby(["chain", "c_weight", *_SETTINGS_V02], sort=False):
+        setting = dict(zip(("chain", "c_weight") + _SETTINGS_V02, key))
+        chain = inputs[inputs["chain"] == setting["chain"]]
+        state = new_state(setting, c_weight=setting["c_weight"], t0=float(chain["t_days"].iloc[0]))
+        k = 0
+        for at in group["t_days"]:
+            while k < len(chain) and chain["t_days"].iloc[k] <= at:
+                feed_v02(state, chain.iloc[k:k + 1], rounder)
+                k += 1
+            e = _core.solve(state, float(at), Z90, 0.005, 3.0, 2.0, 1.0, float(setting["min_cross_trend"]))
+            row = dict(setting, t_days=at, status=e.status, low=e.low, high=e.high, chi2=e.chi2, dof=e.dof,
+                       birge=e.birge, rho=e.rho, m=e.m, m_cross=e.m_cross, m_same=e.m_same, terms=e.terms, p=e.p,
+                       u_full=e.u_full, u_empty=e.u_empty, dof_beta=e.dof_beta)
+            for i in range(_core.P_MAX):
+                row[f"theta{i}"] = e.theta[i]
+                row[f"sigma{i}"] = e.sigma[i]
+            rows.append(row)
+    return pd.DataFrame(rows)[["chain", "c_weight", *_SETTINGS_V02, "t_days", *_OUT_V02]]
+
+
+def write_v02_vectors() -> None:
+    inputs, queries = _v02_vector_inputs()
+    VECTORS.mkdir(exist_ok=True)
+    inputs.to_csv(VECTORS / "capacity_core_v02_pairs.csv", index=False, float_format="%.17g")
+    _v02_vector_outputs(inputs, queries).to_csv(VECTORS / "capacity_core_v02_expected.csv", index=False, float_format="%.17g")
+
+
+def test_saved_v02_vectors():
+    inputs = pd.read_csv(VECTORS / "capacity_core_v02_pairs.csv")
+    expected = pd.read_csv(VECTORS / "capacity_core_v02_expected.csv")
+    got = _v02_vector_outputs(inputs, expected[["chain", "c_weight", *_SETTINGS_V02, "t_days"]])
+    for col in ("status", "terms", "p"):
+        assert (got[col].to_numpy() == expected[col].to_numpy()).all(), col
+    for col in _OUT_V02:
+        if col not in ("status", "terms", "p"):
+            np.testing.assert_allclose(got[col].to_numpy(float), expected[col].to_numpy(float), rtol=1e-12, atol=1e-9, equal_nan=True)
+    # What the vectors cover: the trend, both voltage terms and one left out, forgetting
+    # squared, and the statuses of plausibility rules 2 and 3.
+    assert {_core.OK, _core.WRONG_SIGN, _core.OUT_OF_RANGE} <= set(expected["status"])
+    ok = expected[(expected["status"] == _core.OK) & (expected["voltage"] == 1)]
+    assert (ok["terms"] == _core.TERM_TREND | _core.TERM_FULL | _core.TERM_EMPTY).any()
+    assert (ok["terms"] == _core.TERM_TREND | _core.TERM_FULL).any()
+    assert (ok["terms"] == _core.TERM_FULL | _core.TERM_EMPTY).any()  # the trend left out by the gate
+    assert set(expected["band"]) == {1, 2}
+
+
+def _v02_float32_errors():
+    """Largest relative error of C (or r) and of the band's width, 32-bit state against 64-bit,
+    over the estimated rows of the 0.2 vectors."""
+    inputs, queries = _v02_vector_inputs()
+    e64 = _v02_vector_outputs(inputs, queries)
+    e32 = _v02_vector_outputs(inputs, queries, rounder=_to_f32)
+    ok = (e64["status"] == _core.OK) & (e32["status"] == _core.OK)
+    main = np.where(e64["fit"] == "fade", "theta2", "theta0")
+    v64 = np.array([e64[c].iloc[i] for i, c in enumerate(main)])[ok]
+    v32 = np.array([e32[c].iloc[i] for i, c in enumerate(main)])[ok]
+    w64 = (e64["high"] - e64["low"])[ok].to_numpy()
+    w32 = (e32["high"] - e32["low"])[ok].to_numpy()
+    return float(np.max(np.abs(v32 - v64) / np.abs(v64))), float(np.max(np.abs(w32 - w64) / np.abs(w64))), \
+        int((e64["status"] != e32["status"]).sum())
+
+
+def test_float32_state_v02():
+    value_err, width_err, status_diff = _v02_float32_errors()
+    assert status_diff == 0
+    assert value_err < 1e-4
+    assert width_err < 1e-2
+
+
+if __name__ == "__main__" and "--write-v02-vectors" in sys.argv:
+    write_v02_vectors()
+    print(f"wrote the 0.2 capacity vectors to {VECTORS}")
 
 
 # --- the through-origin ratio fit --------------------------------------------------------

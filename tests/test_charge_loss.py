@@ -119,3 +119,15 @@ def test_synthetic_pack_finds_the_hidden_drain():
     assert abs(last["charge_loss_ma"] - truth) < 10.0
     assert 0.0 < last["charge_loss_ma_high"] - last["charge_loss_ma_low"] < 20.0
     np.testing.assert_allclose(out["charge_loss_ma"], -1000.0 * cap["offset_current_a"])
+
+
+def test_band_uses_the_fits_own_degrees_of_freedom():
+    rows = [("2021-01-31", -0.05, 0.002, 40.0, OK)]
+    cap = capacity_table(rows)
+    without = charge_loss(cap, SPEC).iloc[0]  # no dof column: n - 2
+    cap["dof"] = [5.0]
+    with_dof = charge_loss(cap, SPEC).iloc[0]
+    z = _z(0.90)
+    half = math.hypot(_core.t_quantile(z, 5.0) * 2.0, z * RecordConfig().charge_sigma * 50.0)
+    assert with_dof["charge_loss_ma_high"] - with_dof["charge_loss_ma"] == pytest.approx(half)
+    assert with_dof["charge_loss_ma_high"] > without["charge_loss_ma_high"]

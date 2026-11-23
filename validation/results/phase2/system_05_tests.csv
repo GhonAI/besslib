@@ -1,5 +1,5 @@
 test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
-05/1,held-out,5,LMO/NMC,13.35640,0.84150,ok,2017-06-12 16:39:57,,,,,0.00000,0.00000,0.00000,,,not possible from this data: not enough history yet to set the full and empty levels,,,False,109e9eb1efa5
-05/2,held-out,5,LMO/NMC,13.19680,0.78700,ok,2018-03-13 14:07:18,13.20715,13.04440,13.36990,-0.01202,72.82133,44.84590,27.97544,0.63997,-0.27388,estimated,0.06900,2.17000,True,109e9eb1efa5
-05/3,held-out,5,LMO/NMC,12.59670,0.84170,ok,2019-06-03 14:37:21,12.67614,12.52296,12.82931,-0.01044,131.20227,63.15324,68.04903,0.92139,-0.37649,estimated,0.52957,2.04236,True,109e9eb1efa5
-05/4,held-out,5,LMO/NMC,11.78610,0.30260,ok,2022-04-10 12:56:42,,,,,10.08674,7.20377,2.88297,,,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,,,False,109e9eb1efa5
+05/1,held-out,5,LMO/NMC,13.35640,0.84150,ok,2017-06-12 16:39:57,,,,,0.00000,0.00000,0.00000,,,not possible from this data: not enough history yet to set the full and empty levels,,,False,b3959941c19b
+05/2,held-out,5,LMO/NMC,13.19680,0.78700,ok,2018-03-13 14:07:18,13.23613,13.13875,13.33350,-0.01134,72.82133,44.84590,27.97544,0.17557,0.40859,estimated,0.26218,1.29830,True,b3959941c19b
+05/3,held-out,5,LMO/NMC,12.59670,0.84170,ok,2019-06-03 14:37:21,12.60493,12.53900,12.67086,-0.01006,131.20227,63.15324,68.04903,0.17566,0.10821,estimated,0.05486,0.87907,True,b3959941c19b
+05/4,held-out,5,LMO/NMC,11.78610,0.30260,ok,2022-04-10 12:56:42,,,,,10.08674,7.20377,2.88297,,,not possible from this data: no full-to-empty or empty-to-full pair within the memory time,,,False,b3959941c19b

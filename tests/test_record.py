@@ -134,3 +134,48 @@ def test_limits(record, reduced):
     assert d["deep_discharge_events"]["value"] == 0 and d["deep_discharge_events"]["status"] == OK
     assert d["hours_above_temp_high"]["value"] == 0.0
     assert d["hours_below_temp_low"]["status"] == "not possible from this data: no limit given for temp_low_c"
+
+
+def test_a2_follows_a5(reduced, monkeypatch):
+    from besslib.soh import record as record_module
+
+    real = record_module.estimate_resistance
+
+    def no_headline(*args, **kwargs):
+        table = real(*args, **kwargs).copy()
+        table["headline"] = False  # no temperature band at the reference temperature: A5 not possible
+        return table
+
+    real_growth = record_module.resistance_growth
+
+    def estimated_growth(*args, **kwargs):  # the short synthetic record has no growth rate: give A2 a value
+        out = dict(real_growth(*args, **kwargs))
+        out.update(status=OK, power_capability_share=0.9, power_capability_share_low=0.8,
+                   power_capability_share_high=1.0, power_capability_w=1000.0, power_capability_w_low=900.0,
+                   power_capability_w_high=1100.0, power_capability_w_status=OK)
+        return out
+
+    monkeypatch.setattr(record_module, "estimate_resistance", no_headline)
+    monkeypatch.setattr(record_module, "resistance_growth", estimated_growth)
+    old = annex_vii(None, SPEC, reduced=reduced, capacity_config=SHORT, config=RecordConfig().v0_1())
+    new = annex_vii(None, SPEC, reduced=reduced, capacity_config=SHORT)
+    for r in (old, new):
+        assert r.field("A5").status.startswith("not possible from this data: ")
+    assert old.field("A2").status == ESTIMATED_TEXT  # release 0.1.0: A2 on its own
+    a2 = new.field("A2")
+    reason = new.field("A5").status.removeprefix("not possible from this data: ")
+    assert a2.status == f"not possible from this data: no resistance at the date (A5: {reason})"
+    assert math.isnan(a2.value) and math.isnan(a2.low) and math.isnan(a2.high)
+    assert a2.details["power_capability_w_status"] == a2.status
+
+
+def test_a3_method_text(record):
+    assert record.field("A3").method == (
+        "energy out / energy in, summed over closed loops from one full rest to the next (Regulation (EU) "
+        "2023/1542, Annex IV (6)); band: how far that ratio can be off because a loop does not end at exactly the "
+        "state of charge it started from; the size of that error is learnt from the loops themselves (mean lag-2 "
+        "product of the loop scores minus the mean lag-1 product)"
+    )
+
+
+ESTIMATED_TEXT = OK

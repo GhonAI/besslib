@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from besslib.soh.capacity import estimate_capacity, fade_rate, run_core
+from besslib.soh.capacity import estimate_capacity, fade_rate, run_core, voltage_terms
 from besslib.soh.config import CapacityConfig, config_hash
 from besslib.soh import _core
 from besslib.soh.rests import classify_rests, detect_rests_in_parts, levels_from, rest_chain, rest_pairs
@@ -29,14 +29,29 @@ def pairs(candidates):
     return rest_pairs(rest_chain(classify_rests(candidates, SPEC, config), SPEC, config), config)
 
 
+def window_fade(pairs) -> float:
+    """The fade the voltage terms measure: the pack's fade times the state-of-charge window
+    between the record's mean full and mean empty rest voltage, on the simulator's own
+    open-circuit voltage curve (points per year)."""
+    import synth
+
+    du_f, du_e, r0f, r0e = voltage_terms(pairs)
+    kind = pairs["kind"].to_numpy()
+    full_u = np.r_[pairs["u_start"].to_numpy()[[k[0] == "F" for k in kind]], pairs["u_end"].to_numpy()[[k[-1] == "F" for k in kind]]]
+    empty_u = np.r_[pairs["u_start"].to_numpy()[[k[0] == "E" for k in kind]], pairs["u_end"].to_numpy()[[k[-1] == "E" for k in kind]]]
+    soc = lambda v: np.interp(v / PACK.cells_in_series, synth._OCV_V, synth._OCV_SOC)  # noqa: E731
+    return -PACK.fade_points_per_year * float(soc(np.mean(full_u)) - soc(np.mean(empty_u)))
+
+
 def test_fade_rate_near_the_truth(pairs):
     out = fade_rate(pairs, SPEC, n_boot=200)
     assert out["status"] == "estimated"
     # One pack: the truth is near the estimate. Whether the 90 % band holds it in 90 % of
-    # packs is check V6 (validation/synthetic_coverage.py, 200 packs).
+    # packs is check V6 (validation/synthetic_coverage.py, 200 packs). With the voltage
+    # terms the rate is that of the capacity between two fixed rest voltages.
     half = (out["rate_points_per_year_high"] - out["rate_points_per_year_low"]) / 2.0
-    assert abs(out["rate_points_per_year"] + PACK.fade_points_per_year) < 2.0 * half
-    assert 0.1 < half < 1.0
+    assert abs(out["rate_points_per_year"] - window_fade(pairs)) < 2.0 * half
+    assert 0.01 < half < 1.0
     assert out["offset_current_a"] == pytest.approx(PACK.hidden_current_a, abs=0.02)
 
 
@@ -89,3 +104,103 @@ def test_fade_rate_needs_a_span(pairs):
     out = fade_rate(short, SPEC, n_boot=0)
     assert out["status"] == _core.STATUS_TEXT[_core.SHORT_SPAN]
     assert np.isnan(out["rate_points_per_year"])
+
+
+def test_pairs_carry_the_relaxed_voltage_of_both_rests(candidates):
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    chain = rest_chain(classify_rests(candidates, SPEC, config), SPEC, config)
+    pairs = rest_pairs(chain, config)
+    assert np.isfinite(chain["ocv_v"]).all()
+    keep = (chain["new_segment"] == 0).to_numpy()[1:]
+    np.testing.assert_array_equal(pairs["u_start"].to_numpy(), chain["ocv_v"].to_numpy()[:-1][keep])
+    np.testing.assert_array_equal(pairs["u_end"].to_numpy(), chain["ocv_v"].to_numpy()[1:][keep])
+    # The voltage terms on every pair: each end its own kind's voltage minus that kind's first rest.
+    du_f, du_e, r0f, r0e = voltage_terms(pairs)
+    kind = pairs["kind"].to_numpy()
+    first = pairs.iloc[0]
+    assert r0f == (first["u_start"] if kind[0][0] == "F" else (first["u_end"] if kind[0][-1] == "F" else r0f))
+    same_f, same_e = kind == "F->F", kind == "E->E"
+    np.testing.assert_allclose(du_f[same_f], (pairs["u_end"] - pairs["u_start"]).to_numpy()[same_f], atol=1e-12)
+    np.testing.assert_allclose(du_e[same_e], (pairs["u_end"] - pairs["u_start"]).to_numpy()[same_e], atol=1e-12)
+    fe = kind == "F->E"
+    np.testing.assert_allclose(du_f[fe], -(pairs["u_start"].to_numpy()[fe] - r0f), atol=1e-12)
+    np.testing.assert_allclose(du_e[fe], pairs["u_end"].to_numpy()[fe] - r0e, atol=1e-12)
+    assert (du_e[same_f] == 0).all() and (du_f[same_e] == 0).all()
+    assert same_f.any() and same_e.any() and fe.any()
+
+
+def test_settings_of_release_0_1_give_its_fit(pairs):
+    old = estimate_capacity(None, SPEC, pairs=pairs, config=CapacityConfig().v0_1())
+    new = estimate_capacity(None, SPEC, pairs=pairs)
+    ok = old[old["status"] == "estimated"]
+    assert (ok["terms"] == "C+beta").all()
+    np.testing.assert_allclose(ok["dof"], ok["n_pairs"] - 2, rtol=1e-12)
+    assert ok[["trend_ah_per_year", "gamma_full_ah_per_v", "gamma_empty_ah_per_v"]].isna().all().all()
+    used = new.loc[new["status"] == "estimated", "terms"]
+    assert used.str.startswith("C+beta+r").all() and used.str.contains("gamma_full").any()
+    fade_old = fade_rate(pairs, SPEC, CapacityConfig().v0_1(), n_boot=0)
+    fade_new = fade_rate(pairs, SPEC, n_boot=50)
+    assert fade_old["terms"] == "C+beta+r" and fade_old["dof"] == pytest.approx(fade_old["n_pairs"] - 3, rel=1e-12)
+    assert "gamma_full" in fade_new["terms"] and np.isfinite(fade_new["rate_boot_low"])
+    # 0.1 against the cell fade (its band is wide); 0.2 against window_fade (test above).
+    half_old = (fade_old["rate_points_per_year_high"] - fade_old["rate_points_per_year_low"]) / 2.0
+    assert abs(fade_old["rate_points_per_year"] + PACK.fade_points_per_year) < 2.0 * half_old
+
+
+# --- version 0.2: plausibility rule 1 (levels crossed) and rule 4 (fade rate) ---------------------------------
+
+
+def _crossed_rests(candidates):
+    """Rests whose empty level has reached the full level from the middle of the record on."""
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    rests = classify_rests(candidates, SPEC, config)
+    middle = rests["start"].iloc[len(rests) // 2]
+    late = rests["start"] >= middle
+    rests.loc[late, "level_empty_v"] = rests.loc[late, "level_full_v"] + 0.1
+    return config, rests, middle
+
+
+def test_crossed_levels_give_status_12(candidates):
+    config, rests, middle = _crossed_rests(candidates)
+    pairs = rest_pairs(rest_chain(rests, SPEC, config), config)
+    at = [middle - pd.Timedelta(days=20), rests["start"].iloc[-1]]
+    ready = levels_from(rests, config)
+    crossed = estimate_capacity(None, SPEC, rests=rests, pairs=pairs, config=config, at=at, levels_from=ready)
+    assert crossed["status"].iloc[0] != _core.STATUS_TEXT[_core.LEVELS_CROSSED]
+    assert crossed["status"].iloc[1] == _core.STATUS_TEXT[_core.LEVELS_CROSSED]
+    assert np.isnan(crossed["capacity_ah"].iloc[1])
+    # release 0.1.0 settings: no rule; with pairs alone the levels are not known, the rule is not checked
+    old = estimate_capacity(None, SPEC, rests=rests, pairs=pairs, config=config.v0_1(), at=at, levels_from=ready)
+    assert old["status"].iloc[1] != _core.STATUS_TEXT[_core.LEVELS_CROSSED]
+    alone = estimate_capacity(None, SPEC, pairs=pairs, config=config, at=at, levels_from=ready)
+    assert alone["status"].iloc[1] != _core.STATUS_TEXT[_core.LEVELS_CROSSED]
+
+
+def test_fade_rate_checked_follows_the_rules(candidates):
+    from besslib.soh.capacity import fade_rate_checked
+
+    config, rests, middle = _crossed_rests(candidates)
+    pairs = rest_pairs(rest_chain(rests, SPEC, config), config)
+    table = estimate_capacity(None, SPEC, rests=rests, pairs=pairs, config=config, levels_from=levels_from(rests, config))
+    out = fade_rate_checked(table, pairs, SPEC, config, n_boot=0)
+    assert out["status"].startswith("not possible from this data: the capacity is implausible at ")
+    assert np.isnan(out["rate_points_per_year"])
+    first = table.index[table["status"] == _core.STATUS_TEXT[_core.LEVELS_CROSSED]][0]
+    assert out["first_implausible_date"] == first and out["first_implausible_rule"] == 1
+    # no rule held (the real levels), or the rules off: fade_rate's own result
+    clean = estimate_capacity(None, SPEC, rests=classify_rests(candidates, SPEC, config), pairs=pairs, config=config,
+                              levels_from=levels_from(rests, config))
+    assert fade_rate_checked(clean, pairs, SPEC, config, n_boot=0)["status"] == fade_rate(pairs, SPEC, config, n_boot=0)["status"]
+    off = fade_rate_checked(table, pairs, SPEC, config.v0_1(), n_boot=0)
+    assert "first_implausible_date" not in off
+
+
+def test_gain_term_is_a_rectangular_half_width(pairs):
+    # Version 0.2: the 0.5 % gain accuracy is a half-width a; the band adds a / sqrt(3) (JCGM 100:2008, 4.3.7).
+    at = [pairs["t_end"].iloc[-1]]
+    new = estimate_capacity(None, SPEC, pairs=pairs, at=at).iloc[0]
+    same = estimate_capacity(None, SPEC, pairs=pairs, at=at,
+                             config=CapacityConfig(gain_rectangular=False, gain_error=0.005 / np.sqrt(3.0))).iloc[0]
+    old = estimate_capacity(None, SPEC, pairs=pairs, at=at, config=CapacityConfig(gain_rectangular=False)).iloc[0]
+    assert new["capacity_ah_high"] == pytest.approx(same["capacity_ah_high"], rel=1e-12)
+    assert new["capacity_ah_high"] - new["capacity_ah"] < old["capacity_ah_high"] - old["capacity_ah"]

@@ -40,9 +40,9 @@ Rules fixed before any result:
   and 17, the month of test 01/1, 07/1 and 17/2. (b) The daily counters against the
   rest counters at every rest of every system that has reduced tables: charge,
   throughput, energy in, energy out and missing seconds.
-* W10: the capacity settings still hash to ``109e9eb1efa5``; every committed phase 2
-  result file is identical to its committed version; rebuilding each system's record
-  gives the bytes on disk.
+* W10 (version 0.2): the record's A1 equals the phase 2 capacity run at every month end;
+  rebuilding each system's phase 2 files and record gives the bytes on disk, twice. That
+  release 0.1.0 is untouched is check X0 of ``check_v02.py``.
 
 A check without results is written as ``not run``, never as ``fail``. W3 with too few
 references is written as ``not possible``, as its rule says.
@@ -57,7 +57,6 @@ Usage:
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -74,7 +73,7 @@ RESULTS = ROOT / "validation" / "results"
 PHASE3 = RESULTS / "phase3"
 REDUCED = ROOT / "data" / "reduced" / "phase3"
 HELD_OUT = tuple(i for i in figgener.SYSTEM_IDS if i not in DEVELOPMENT)
-CAPACITY_HASH = "109e9eb1efa5"
+CAPACITY_HASH = config_hash(CapacityConfig())  # read from the settings, not typed
 NOT_RUN = "not run"
 NOT_POSSIBLE = "not possible"
 PASS_RANGE = (0.85, 0.95)
@@ -134,44 +133,28 @@ def w9_counters() -> dict:
     }
 
 
-# --- W10: phase 2 untouched ------------------------------------------------------------
-
-
-def git(*args: str) -> str:
-    return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, check=True).stdout
-
-
-def phase2_differences() -> tuple[int, int]:
-    """Committed phase 2 result files, and how many of them differ from their committed version."""
-    listed = [line.split("\t") for line in git("ls-tree", "-r", "HEAD", "validation/results/phase2").splitlines()]
-    files = [(meta.split()[2], path) for meta, path in listed]
-    different = 0
-    for blob, path in files:
-        target = ROOT / path
-        if not target.exists() or git("hash-object", str(target)).strip() != blob:
-            different += 1
-    return len(files), different
+# --- W10: phase 2 rebuilt --------------------------------------------------------------
 
 
 def phase2_rebuild(system_ids, folder: Path) -> dict:
-    """Rebuild the phase 2 results of some systems into ``folder`` and compare each file with its committed bytes.
+    """Rebuild the phase 2 results of some systems into ``folder`` and compare each file with the file on disk.
 
-    The committed files are never overwritten: ``run_capacity.OUT`` is pointed at ``folder``.
+    The files on disk are never overwritten: the run writes into ``folder``, cleared of old results first.
+    (That release 0.1.0 is untouched is check X0 of ``check_v02.py``.)
     """
     import run_capacity
 
     folder.mkdir(parents=True, exist_ok=True)
-    run_capacity.OUT = folder
+    for old in folder.glob("system_*"):
+        old.unlink()
     tests = run_capacity.all_tests()
     for system_id in system_ids:
-        run_capacity.run_system(system_id, tests, CapacityConfig())
+        run_capacity.run_system(system_id, tests, CapacityConfig(), out=folder)
     compared, different = 0, []
     for path in sorted(folder.glob("system_*")):
-        committed = subprocess.run(
-            ["git", "-C", str(ROOT), "show", f"HEAD:validation/results/phase2/{path.name}"], capture_output=True, check=False
-        )
+        on_disk = RESULTS / "phase2" / path.name
         compared += 1
-        if committed.returncode != 0 or committed.stdout != path.read_bytes():
+        if not on_disk.exists() or on_disk.read_bytes() != path.read_bytes():
             different.append(path.name)
     return {"compared": compared, "different": different}
 
@@ -235,6 +218,23 @@ def synthetic_rows(record_hash: str) -> list[tuple]:
 # --- W4, W6: from the yearly tables of the Annex VII run --------------------------------
 
 
+def one_row_per_day(table: pd.DataFrame) -> pd.DataFrame:
+    """One date per system and day (D47): of two dates on one day (31 December 00:00 and a last sample
+    later that day) the earlier one stays, with all its rows."""
+    first = table.groupby(["system_id", table["date"].dt.normalize()])["date"].transform("min")
+    return table[table["date"] == first].reset_index(drop=True)
+
+
+def duplicate_days(table: pd.DataFrame) -> int:
+    """X5: the system-days that hold more than one date (W4's table), or more than one row (W6's table)."""
+    if table.empty:
+        return 0
+    day = table["date"].dt.normalize()
+    if "cold_c" in table.columns:  # W4: several band pairs share a date, but not two dates share a day
+        return int((table.groupby(["system_id", day])["date"].nunique() > 1).sum())
+    return int(pd.DataFrame({"system_id": table["system_id"], "day": day}).duplicated().sum())
+
+
 def yearly(system_ids, record_hash: str) -> pd.DataFrame:
     """The yearly tables of some systems, one frame; refuses rows of other settings."""
     frames = []
@@ -246,7 +246,7 @@ def yearly(system_ids, record_hash: str) -> pd.DataFrame:
             frames.append(t)
     if not frames:
         return pd.DataFrame()
-    table = pd.concat(frames, ignore_index=True)
+    table = one_row_per_day(pd.concat(frames, ignore_index=True))
     hashes = set(table["record_config_hash"]) | {f"capacity {h}" for h in table["capacity_config_hash"]}
     if hashes != {record_hash, f"capacity {CAPACITY_HASH}"}:
         raise SystemExit(f"yearly tables come from settings {sorted(hashes)}: rerun run_annex_vii.py")
@@ -316,6 +316,7 @@ def loop_ratios(system_id: int) -> pd.DataFrame:
         out[kind] = ratio
         out[f"n_{kind}"] = est["n_loops"].to_numpy(float)
     table = pd.DataFrame(out)
+    table = table[~table["date"].dt.normalize().duplicated(keep="first")].reset_index(drop=True)  # D47: one row per day
     table["difference_points"] = 100.0 * (table["full"] - table["empty"])
     table["within_1_point"] = table["difference_points"].abs() <= 1.0
     return table[W6_COLUMNS]
@@ -484,14 +485,24 @@ def w1_record(path: Path) -> dict:
 
 
 def records_rebuild(system_ids, folder: Path) -> dict:
-    """Run the Annex VII run twice into two folders; compare both with each other and with the files on disk."""
+    """Run the Annex VII run twice into two folders; compare both with each other and with the files on disk.
+
+    Also sums the first run's comparison of A1 with the phase 2 monthly files (``run_annex_vii.check_a1``).
+    """
     import run_annex_vii
 
     tests = run_annex_vii.all_tests()
+    a1 = {"systems": 0, "compared": 0, "different": 0}
     for name in ("first", "second"):
-        run_annex_vii.OUT = folder / name
+        (folder / name).mkdir(parents=True, exist_ok=True)
+        for old in (folder / name).glob("system_*"):
+            old.unlink()
         for sid in system_ids:
-            run_annex_vii.run_system(sid, tests)
+            got = run_annex_vii.run_system(sid, tests, out=folder / name)
+            if name == "first":
+                a1["systems"] += int(got["compared"] > 0)
+                a1["compared"] += got["compared"]
+                a1["different"] += got["different"]
     compared, different = 0, []
     for path in sorted((folder / "first").glob("system_*")):
         twin = folder / "second" / path.name
@@ -501,7 +512,7 @@ def records_rebuild(system_ids, folder: Path) -> dict:
             different.append(f"{path.name} (run against run)")
         if not on_disk.exists() or on_disk.read_bytes() != path.read_bytes():
             different.append(f"{path.name} (run against the file on disk)")
-    return {"compared": compared, "different": different}
+    return {"compared": compared, "different": different, "a1": a1}
 
 
 # --- W3: resistance from operation against the first minute of the capacity tests ---------
@@ -580,6 +591,8 @@ def main(argv: list[str]) -> None:
                 rows.append((name, f"{label}: {what}", "not run in this mode" if is_held and development_only else "no pairs",
                              f">= {need:.0%}", NOT_RUN if is_held else None))
                 continue
+            dup = duplicate_days(frame)
+            rows.append(("X5", f"{label}: {check} table, system-days with more than one row", str(dup), "0", dup == 0))
             share = float(frame[column].mean())
             rows.append((name, f"{label}: {what}", f"{int(frame[column].sum())} of {len(frame)} ({share:.0%})",
                          f">= {need:.0%}", bool(share >= need) if is_held else None))
@@ -601,17 +614,17 @@ def main(argv: list[str]) -> None:
                  f"max relative difference {counters['worst']:.1e} ({counters['where']})", "<= 1e-6",
                  bool(counters["n_rests"] and counters["worst"] <= 1e-6)))
 
-    # W10
-    n_files, n_diff = phase2_differences()
-    rows.append(("W10", "capacity settings and committed phase 2 files",
-                 f"hash {config_hash(CapacityConfig())}; {n_diff} of {n_files} committed files differ", "0 differences",
-                 n_diff == 0))
+    # W10 (version 0.2): the record's A1 equals the capacity run; both runs rebuild identically
     scratch = Path(argv[argv.index("--scratch") + 1]) if "--scratch" in argv else ROOT / "data" / "rebuild"
     ids = list(DEVELOPMENT) if development_only else list(figgener.SYSTEM_IDS)
     rebuilt = phase2_rebuild(ids, scratch / "phase2")
     rows.append(("W10", f"phase 2 rebuilt for {len(ids)} systems", f"{len(rebuilt['different'])} of {rebuilt['compared']} files differ"
                  + (f": {rebuilt['different']}" if rebuilt["different"] else ""), "0 differences", not rebuilt["different"]))
     again = records_rebuild(ids, scratch / "phase3")
+    a1 = again["a1"]
+    rows.append(("W10", f"record A1 against the phase 2 capacity run, every month end, {len(ids)} systems",
+                 f"{a1['different']} values differ over {a1['compared']} month ends ({a1['systems']} systems with a file)",
+                 "0 differences, every system", a1["different"] == 0 and a1["systems"] == len(ids)))
     rows.append(("W10", f"records rebuilt twice for {len(ids)} systems", f"{len(again['different'])} differences over {again['compared']} files"
                  + (f": {again['different']}" if again["different"] else ""), "0 differences", not again["different"]))
 

@@ -172,7 +172,7 @@ def _figure(series: pd.DataFrame, code: str, unit: str) -> str:
     FigureCanvasAgg(fig)
     ax = fig.add_subplot()
     ax.set_facecolor(_SURFACE)
-    x = series["date"].dt.to_pydatetime()
+    x = [pd.Timestamp(d).to_pydatetime() for d in series["date"]]
     band = series["low"].notna() & series["high"].notna()
     if band.any():
         ax.fill_between(x, series["low"], series["high"], where=band.to_numpy(), color=_LINE, alpha=0.18,

@@ -15,6 +15,12 @@ classification, pairing and the fade rate, with the frozen settings.
 Pass: the 90 % band holds the truth in 85-95 % of packs. Also reported: coverage of each
 pack's own realised usable fade, and of the 2-point capacity fade.
 
+Information, chosen after the first results (version 0.2): with the voltage terms the
+rate is that of the capacity between two fixed rest voltages; its truth is the 2-point
+capacity fade times the state-of-charge window between the pack's mean full and mean
+empty rest voltage on the simulator's own open-circuit voltage curve
+(``window_fade_points_per_year``, ``held_window``).
+
 Writes ``validation/results/synthetic_coverage.csv`` (one row per pack).
 
 Usage:
@@ -33,6 +39,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 
+import numpy as np  # noqa: E402
+
+import synth  # noqa: E402
 from synth import SynthPack, frames, true_usable_fade  # noqa: E402
 
 from besslib.soh.capacity import fade_rate  # noqa: E402
@@ -53,10 +62,15 @@ def one_pack(seed: int) -> dict:
     pairs = rest_pairs(rest_chain(classify_rests(candidates, spec, config), spec, config), config)
     out = fade_rate(pairs, spec, config)
     truth = -pack.fade_points_per_year
+    kind = pairs["kind"].to_numpy()
+    starts, ends = np.array([k[0] for k in kind]), np.array([k[-1] for k in kind])
+    u = {f: np.r_[pairs["u_start"].to_numpy()[starts == f], pairs["u_end"].to_numpy()[ends == f]] for f in ("F", "E")}
+    soc = np.interp(np.array([u["F"].mean(), u["E"].mean()]) / pack.cells_in_series, synth._OCV_V, synth._OCV_SOC)
     return {
         "seed": seed,
         "capacity_fade_points_per_year": truth,
         "usable_fade_points_per_year": true_usable_fade(pack, MONTHS, seed),
+        "window_fade_points_per_year": truth * float(soc[0] - soc[1]),
         "rate_points_per_year": out.get("rate_points_per_year"),
         "low": out.get("rate_points_per_year_low"),
         "high": out.get("rate_points_per_year_high"),
@@ -88,6 +102,9 @@ def main(argv: list[str]) -> None:
     table["held_capacity_fade"] = (table["low"] <= table["capacity_fade_points_per_year"]) & (
         table["capacity_fade_points_per_year"] <= table["high"]
     )
+    table["held_window"] = (table["low"] <= table["window_fade_points_per_year"]) & (
+        table["window_fade_points_per_year"] <= table["high"]
+    )
     RESULTS.mkdir(parents=True, exist_ok=True)
     table.to_csv(RESULTS / "synthetic_coverage.csv", index=False, float_format="%.5f")
     share = table["held"].mean()
@@ -98,6 +115,10 @@ def main(argv: list[str]) -> None:
         f"Mean estimate {table['rate_points_per_year'].mean():.3f}; own usable fade held in "
         f"{table['held_own_usable'].mean():.1%}; capacity fade -2.0 held in {table['held_capacity_fade'].mean():.1%} "
         f"(config {table['config_hash'].iloc[0]})"
+    )
+    print(
+        f"Information (chosen after the first results): the window fade (mean {table['window_fade_points_per_year'].mean():.3f}) "
+        f"held in {int(table['held_window'].sum())} of {len(table)} packs ({table['held_window'].mean():.1%})"
     )
 
 

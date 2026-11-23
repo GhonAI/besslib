@@ -27,6 +27,7 @@ checks read those tables. Each part is one check (``PARTS``), with its own colum
     w7        synthetic_efficiency.check_w7    W7
     w8        synthetic_usage.check            W8 (pack B)
     w8noise   synthetic_usage.check            W8, information (pack B with noise)
+    w7bf1     synthetic_efficiency.check_w7    W7, information: band_forgetting = 1 (version 0.1's band)
 
 Pass: the 90 % band holds the truth in 85-95 % of the packs (W2 for the value and for
 the growth, W5, W7); Ah, kWh and cycles within 0.6 % of the truth and the planted
@@ -91,6 +92,7 @@ PARTS = {
     "w7": Part("synthetic_efficiency", "check_w7", "w7_", ("measured",)),
     "w8": Part("synthetic_usage", "check", "w8_", ("plain", "true")),
     "w8noise": Part("synthetic_usage", "check", "w8noise_", ("noisy", "true")),
+    "w7bf1": Part("synthetic_efficiency", "check_w7", "w7bf1_", ("measured",)),
 }
 
 HOT_C, COLD_C = 47.0, -3.0  # planted pack temperatures, outside the seasonal range
@@ -187,6 +189,9 @@ def run_part(name: str, run: Run) -> dict:
     if name == "w8noise":
         out = function(replace(run, pack_plain=run.pack_noisy, reduced_plain=run.reduced_noisy))
         return {part.prefix + key[len("w8_"):]: value for key, value in out.items()}
+    if name == "w7bf1":  # the same packs with the forgetting weight once in the band's sums (D51)
+        out = function(run, RecordConfig(), CapacityConfig().with_(band_forgetting=1))
+        return {part.prefix + key[len("w7_"):]: value for key, value in out.items()}
     if part.function in ("check_w5", "check_w7"):
         return function(run, RecordConfig(), CapacityConfig())
     return function(run)
@@ -290,7 +295,11 @@ def summary(table: pd.DataFrame) -> list[str]:
             f"origin): the band held it in {n} of {total} packs ({share:.1%}): {verdict}; same-days truth "
             f"(information): {int(same.sum())} of {len(same)} ({same.mean():.1%})"
         )
-    for check, column, what in (("W5", "w5_held", "round-trip efficiency"), ("W7", "w7_held", "apparent charge loss")):
+    for check, column, what in (
+        ("W5", "w5_held", "round-trip efficiency"),
+        ("W7", "w7_held", "apparent charge loss"),
+        ("W7 information, band_forgetting = 1,", "w7bf1_held", "apparent charge loss"),
+    ):
         if column in table:
             n, total, share, verdict = coverage(table, column)
             lines.append(f"{check} {what}: the band held the truth in {n} of {total} packs ({share:.1%}): {verdict}")

@@ -15,6 +15,10 @@ import math
 from dataclasses import asdict, dataclass, replace
 
 
+#: The forms of ``CapacityConfig.voltage_terms``.
+VOLTAGE_TERMS = ("every_pair", "none")
+
+
 @dataclass(frozen=True)
 class CapacityConfig:
     """Settings for rest detection, pairing and the estimator.
@@ -48,9 +52,27 @@ class CapacityConfig:
     moved is the charge error of a pair and ``sigma_soc_edge`` the state-of-charge error
     of one rest (both set the relative weights only; the band is taken from the scatter
     of the pairs themselves); ``gain_error`` is the current sensor's systematic error
-    (0.5 %, Figgener et al. 2024, Supplementary Table 2). An estimate needs at least ``min_cross``
+    (0.5 %, Figgener et al. 2024, Supplementary Table 2). With ``gain_rectangular`` (version
+    0.2) it is read as the half-width ``a`` of a rectangular distribution, so the capacity's
+    band adds ``a / sqrt(3)`` as its standard uncertainty (JCGM 100:2008, 4.3.7, Eq. 7), as
+    ``RecordConfig`` does for the other fields; release 0.1.0 added ``a`` itself. An estimate needs at least ``min_cross``
     full-to-empty or empty-to-full pairs and ``min_same`` full-to-full or empty-to-empty
     pairs in memory (decayed counts). The fade rate needs ``fade_min_span_years``.
+
+    Version 0.2 adds six settings; each defaults to the 0.2 behaviour, and ``v0_1()``
+    gives the settings of release 0.1.0. ``voltage_terms``: ``"every_pair"`` gives every
+    pair two terms in the relaxed open-circuit voltage of its rests, each end its own
+    kind's voltage minus a reference, because two stops of one kind are not at the same
+    state of charge; the capacity is then read at the forgetting-weighted mean rest
+    voltage of each kind at the date (``besslib.soh._core``). ``"none"``: release 0.1.0.
+    ``local_trend``: the fit with forgetting carries a linear trend in the capacity and
+    reads the value at the date, so a fading capacity does not lag; ``trend_min_cross``
+    is the decayed count of full-to-empty and empty-to-full pairs it needs in memory
+    (below it the solve leaves the trend out; frozen: ``validation/tune_trend.py``).
+    ``band_forgetting``: how often the forgetting weight enters the band's sums (2: as
+    the weight of a weighted least-squares fit; 1: release 0.1.0). ``plausibility``: an
+    estimate whose levels have crossed, whose value or band reaches zero, or whose memory
+    holds a full-to-empty or empty-to-full pair of the wrong sign is ``not possible``.
     """
 
     current_c_rate: float = 0.005  # frozen: validation/tune_capacity.py
@@ -75,10 +97,24 @@ class CapacityConfig:
     min_cross: float = 3.0
     min_same: float = 2.0
     fade_min_span_years: float = 1.0
+    voltage_terms: str = "every_pair"  # version 0.2: "every_pair" or "none"
+    local_trend: bool = True  # version 0.2
+    band_forgetting: int = 2  # version 0.2
+    plausibility: bool = True  # version 0.2
+    trend_min_cross: float = 0.0  # version 0.2; frozen: validation/tune_trend.py (development systems)
+    gain_rectangular: bool = True  # version 0.2: gain_error / sqrt(3) in the capacity's band
+
+    def __post_init__(self) -> None:
+        if self.voltage_terms not in VOLTAGE_TERMS:
+            raise ValueError(f"voltage_terms must be one of {VOLTAGE_TERMS}, not {self.voltage_terms!r}")
 
     def with_(self, **changes) -> "CapacityConfig":
         """A copy with some settings changed."""
         return replace(self, **changes)
+
+    def v0_1(self) -> "CapacityConfig":
+        """A copy with the version 0.2 settings at their release 0.1.0 values."""
+        return replace(self, **_V0_1["CapacityConfig"])
 
 
 @dataclass(frozen=True)
@@ -111,6 +147,10 @@ class RecordConfig:
     A gain error moves every reading of a sensor the same way, so averaging does not
     reduce it: it enters a band as a systematic term. The trend of the apparent charge
     loss needs ``charge_loss_min_years`` year-end values.
+
+    Version 0.2 adds ``a2_needs_a5``: the remaining power capability (A2) is
+    ``estimated`` only when the resistance (A5) is ``estimated`` at the same date.
+    ``v0_1()`` gives the settings of release 0.1.0.
     """
 
     min_step_c_rate: float = 0.05  # frozen after validation/tune_resistance.py (development systems only)
@@ -126,10 +166,15 @@ class RecordConfig:
     current_accuracy: float = 0.005
     voltage_accuracy: float = 0.0025
     charge_loss_min_years: int = 3
+    a2_needs_a5: bool = True  # version 0.2
 
     def with_(self, **changes) -> "RecordConfig":
         """A copy with some settings changed."""
         return replace(self, **changes)
+
+    def v0_1(self) -> "RecordConfig":
+        """A copy with the version 0.2 settings at their release 0.1.0 values."""
+        return replace(self, **_V0_1["RecordConfig"])
 
     @property
     def charge_sigma(self) -> float:
@@ -147,7 +192,25 @@ class RecordConfig:
         return math.hypot(self.current_accuracy, self.voltage_accuracy) / math.sqrt(3.0)
 
 
+#: The settings added in version 0.2, at their release 0.1.0 values.
+_V0_1 = {
+    "CapacityConfig": {
+        "voltage_terms": "none", "local_trend": False, "band_forgetting": 1, "plausibility": False,
+        "trend_min_cross": 0.0, "gain_rectangular": False,
+    },
+    "RecordConfig": {"a2_needs_a5": False},
+}
+
+
 def config_hash(config: CapacityConfig | RecordConfig) -> str:
-    """The first 12 hex digits of the SHA-256 of the settings, as sorted JSON."""
-    text = json.dumps(asdict(config), sort_keys=True, separators=(",", ":"))
+    """The first 12 hex digits of the SHA-256 of the settings, as sorted JSON.
+
+    A setting added in version 0.2 is left out while it holds its release 0.1.0 value,
+    so the 0.1.0 settings keep their 0.1.0 hash.
+    """
+    settings = asdict(config)
+    for name, old in _V0_1[type(config).__name__].items():
+        if settings[name] == old:
+            del settings[name]
+    text = json.dumps(settings, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode()).hexdigest()[:12]

@@ -1269,7 +1269,7 @@ def method_block(ctx: dict) -> list[str]:
         "",
         f"Settings (`CapacityConfig()`, hash `{ctx['hash']}`):",
         "",
-        table(pd.DataFrame([{"Setting": f"`{k}`", "Value": f"{v:g}", "Meaning": MEANING.get(k, "")} for k, v in asdict(c).items()])),
+        table(pd.DataFrame([{"Setting": f"`{k}`", "Value": f"{v:g}" if isinstance(v, (int, float)) and not isinstance(v, bool) else str(v), "Meaning": MEANING.get(k, "")} for k, v in asdict(c).items()])),
     ]
 
 

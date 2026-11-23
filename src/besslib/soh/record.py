@@ -75,11 +75,17 @@ _RESISTANCE = (
 )
 _METHODS = {
     "A1": f"capacity between full and empty rests by coulomb counting, fitted with the offset current ({_FIGGENER})",
+    "A1 voltage": (  # version 0.2, voltage_terms = "every_pair" (owner's wording, D55 Q3)
+        "capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed "
+        f"voltage of each rest ({_FIGGENER}); read at the mean full and empty rest voltages of the memory time, "
+        "which the record gives"
+    ),
     "A2": f"ratio of the resistance on the first day to the resistance at the date, from {_RESISTANCE}; no power test",
     "A3": (
-        "energy out / energy in over closed loops between full rests (Regulation (EU) 2023/1542, Annex IV (6)); "
-        "band: the ratio over these loops had each closed exactly, from the error of the state of charge at their "
-        "end rests, estimated as the mean lag-2 product of the loop scores minus the mean lag-1 product"
+        "energy out / energy in, summed over closed loops from one full rest to the next (Regulation (EU) "
+        "2023/1542, Annex IV (6)); band: how far that ratio can be off because a loop does not end at exactly "
+        "the state of charge it started from; the size of that error is learnt from the loops themselves (mean "
+        "lag-2 product of the loop scores minus the mean lag-1 product)"
     ),
     "A4": f"minus the offset current of the capacity fit ({_FIGGENER}); band with the current sensor's gain error",
     "A5": _RESISTANCE,
@@ -241,13 +247,14 @@ def _capacity_fields(reduced, spec, at, mask, level, config, capacity_config) ->
     ready = levels_from(rests, capacity_config)
     first = reduced.daily["day"].min()
     times = pd.DatetimeIndex(pd.date_range(first, at, freq="ME").append(pd.DatetimeIndex([at])).unique()).sort_values()
-    cap = estimate_capacity(None, spec, config=capacity_config, pairs=pairs, levels_from=ready, at=times)
+    cap = estimate_capacity(None, spec, rests=rests, config=capacity_config, pairs=pairs, levels_from=ready, at=times)
     now = cap.loc[at]
     value, low, high = _row_value(now, "capacity_ah")
     ref = float(spec.reference_capacity_ah)
     a1 = Field(
         "A1", _LEGAL["A1"], "remaining capacity between the system's own end of charge and end of discharge",
-        value, low, high, "Ah", _METHODS["A1"], float(now["n_pairs"]), now["status"],
+        value, low, high, "Ah", _METHODS["A1" if capacity_config.voltage_terms == "none" else "A1 voltage"],
+        float(now["n_pairs"]), now["status"],
         {
             "share_of_reference": value / ref,
             "share_of_reference_low": low / ref,
@@ -257,6 +264,9 @@ def _capacity_fields(reduced, spec, at, mask, level, config, capacity_config) ->
             "n_same_kind_pairs": float(now["n_same_kind"]),
             "band_level": capacity_config.level,
             "levels_from": ready,
+            # version 0.2: the rest voltages the capacity is read at (NaN without voltage terms)
+            "read_at_full_rest_v": float(now.get("ref_full_v", np.nan)),
+            "read_at_empty_rest_v": float(now.get("ref_empty_v", np.nan)),
         },
     )
     loss = charge_loss(cap, spec, level=level, config=config)
@@ -359,17 +369,26 @@ def _resistance_fields(reduced, spec, at, mask, level, config, capacity_config) 
         },
     )
     ok = growth["status"] == ESTIMATED
+    a2_status = growth["status"]
+    w_status = growth["power_capability_w_status"]
+    follows = config.a2_needs_a5 and a5.status != ESTIMATED
+    if follows:
+        # version 0.2: no resistance at the date, no power capability at the date
+        reason = a5.status.removeprefix("not possible from this data: ")
+        a2_status = f"not possible from this data: no resistance at the date (A5: {reason})"
+        w_status = a2_status
+        ok = False
     share = float(growth["power_capability_share"]) if ok else math.nan
     a2 = Field(
         "A2", _LEGAL["A2"], f"power capability share, derived from the {seconds}, not measured",
         share, float(growth["power_capability_share_low"]) if ok else math.nan,
         float(growth["power_capability_share_high"]) if ok else math.nan, "share of the first day", _METHODS["A2"],
-        float(growth["n_days"]), growth["status"],
+        float(growth["n_days"]), a2_status,
         {
-            "power_capability_w": growth["power_capability_w"],
-            "power_capability_w_low": growth["power_capability_w_low"],
-            "power_capability_w_high": growth["power_capability_w_high"],
-            "power_capability_w_status": growth["power_capability_w_status"],
+            "power_capability_w": math.nan if follows else growth["power_capability_w"],
+            "power_capability_w_low": math.nan if follows else growth["power_capability_w_low"],
+            "power_capability_w_high": math.nan if follows else growth["power_capability_w_high"],
+            "power_capability_w_status": w_status,
             "resistance_start_ohm": growth["resistance_start_ohm"],
             "resistance_at_ohm": growth["resistance_at_ohm"],
             "first_day": growth["first_day"],

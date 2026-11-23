@@ -147,3 +147,15 @@ def test_a_year_long_level_window_ignores_the_seasons():
     assert (year.loc[year["edge_v"] == FULL_V, "kind"] == "full").all()
     np.testing.assert_allclose(year["level_full_v"], FULL_V)
     np.testing.assert_allclose(year["level_empty_v"], EMPTY_V)
+
+
+def test_no_warning_when_a_slice_has_no_reading(months):
+    import warnings
+
+    frame = pd.concat(months).copy()
+    frame["temp_pack_c"] = np.nan  # no temperature anywhere: the rests' temperature is NaN, silently
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        rests = detect_rests(frame, SPEC, SHORT)
+    assert len(rests) > 0 and rests["temp_pack_c"].isna().all()
+    assert rests["edge_v"].notna().all()

@@ -78,7 +78,7 @@ def estimate_at_tests(candidates: pd.DataFrame, system_id: int, tests: pd.DataFr
     rows = tests[tests["system_id"] == system_id]
     at = [m[0] for m in mask]  # the estimate as of the start of each masked window
     ready = levels_from(rests, config)
-    est = estimate_capacity(None, spec, config=config, at=at, pairs=pairs, levels_from=ready)
+    est = estimate_capacity(None, spec, rests=rests, config=config, at=at, pairs=pairs, levels_from=ready)
     out = rows[["test_id", "system_id", "chemistry", "capacity_ah", "test_c_rate", "status"]].rename(
         columns={"capacity_ah": "test_capacity_ah", "status": "test_status"}
     )
@@ -90,7 +90,14 @@ def estimate_at_tests(candidates: pd.DataFrame, system_id: int, tests: pd.DataFr
     out["error_points"] = (out["capacity_ah"] - out["test_capacity_ah"]) / nominal * 100.0
     out["band_points"] = (out["capacity_ah_high"] - out["capacity_ah_low"]) / nominal * 100.0
     out["held"] = (out["capacity_ah_low"] <= out["test_capacity_ah"]) & (out["test_capacity_ah"] <= out["capacity_ah_high"])
+    out.attrs["rests"] = rests  # the levels of version 0.2's rule 1 live in the rest table
     return out, pairs, ready
+
+
+def _plain(frame: pd.DataFrame) -> pd.DataFrame:
+    """The table without its ``attrs`` (the rest table there would make ``pd.concat`` compare frames)."""
+    frame.attrs = {}
+    return frame
 
 
 def summarise(per_test: pd.DataFrame) -> dict:
@@ -123,7 +130,7 @@ def main() -> None:
     for c, d, tau in itertools.product(CURRENT_GRID, DURATION_GRID, TAU_GRID):
         config = CapacityConfig(current_c_rate=c, min_duration_min=d, tau_days=tau)
         per_test = pd.concat(
-            [estimate_at_tests(candidates[(sid, c)], sid, tests, config)[0] for sid in DEVELOPMENT],
+            [_plain(estimate_at_tests(candidates[(sid, c)], sid, tests, config)[0]) for sid in DEVELOPMENT],
             ignore_index=True,
         )
         per_test.insert(0, "config_hash", config_hash(config))
