@@ -8,6 +8,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import matplotlib
@@ -52,6 +53,8 @@ def load() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     installed = pd.to_datetime(systems["Date_storage_system_installation"])
     tests["age_years"] = (tests["documented_start"] - tests["system_id"].map(installed)).dt.days / 365.25
     tests["soh_energy"] = tests["energy_kwh"] / tests["system_id"].map(systems["Energy_nominal_in_kWh"])
+    # the share of nominal from the unrounded capacity (``soh_capacity`` in the file is rounded to 4 decimals)
+    tests["share"] = tests["capacity_ah"] / tests["reference_capacity_ah"]
     return tests, coverage, quality, systems
 
 
@@ -151,9 +154,15 @@ def figure_sheet(tests: pd.DataFrame, systems: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def cell(value) -> str:
+    """A Markdown table cell: "|" escaped so it does not split the cell, and a "<" that opens a tag-like word
+    (``<id>``) so GitHub shows it instead of dropping it as HTML."""
+    return re.sub(r"<(?=[A-Za-z/!?])", "&lt;", str(value).replace("|", "\\|").replace("\n", " "))
+
+
 def table(frame: pd.DataFrame) -> str:
-    lines = ["| " + " | ".join(frame.columns) + " |", "|" + "|".join("---" for _ in frame.columns) + "|"]
-    lines += ["| " + " | ".join(str(v) for v in row) + " |" for row in frame.itertuples(index=False)]
+    lines = ["| " + " | ".join(cell(c) for c in frame.columns) + " |", "|" + "|".join("---" for _ in frame.columns) + "|"]
+    lines += ["| " + " | ".join(cell(v) for v in row) + " |" for row in frame.itertuples(index=False)]
     return "\n".join(lines)
 
 
@@ -168,13 +177,13 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         slopes = []
         for _, one in part.groupby("system_id"):
             if len(one) >= 2 and one["age_years"].max() - one["age_years"].min() >= 1.0:
-                slopes.append(np.polyfit(one["age_years"], 100 * one["soh_capacity"], 1)[0])
+                slopes.append(np.polyfit(one["age_years"], 100 * one["share"], 1)[0])
         by_chemistry.append(
             {
                 "Chemistry": chemistry,
                 "Systems with tests": part["system_id"].nunique(),
                 "Tests measured": len(part),
-                "Capacity, % of nominal (min – max)": f"{100 * part['soh_capacity'].min():.1f} – {100 * part['soh_capacity'].max():.1f}",
+                "Capacity, % of nominal (min – max)": f"{100 * part['share'].min():.1f} – {100 * part['share'].max():.1f}",
                 "Test C-rate (min – max)": f"{part['test_c_rate'].min():.2f} – {part['test_c_rate'].max():.2f}",
                 "Change between tests, points per year (median of systems)": f"{np.median(slopes):+.1f} (n = {len(slopes)})" if slopes else "–",
             }
@@ -187,7 +196,7 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         Age=ok["age_years"].map("{:.1f}".format),
         Ah=ok["capacity_ah"].map("{:.2f}".format),
         kWh=ok["energy_kwh"].map("{:.3f}".format),
-        Share=(100 * ok["soh_capacity"]).map("{:.1f}".format),
+        Share=(100 * ok["share"]).map("{:.1f}".format),
         C=ok["test_c_rate"].map("{:.2f}".format),
         Median=ok["c_rate"].map("{:.2f}".format),
         Minutes=ok["duration_min"].map("{:.0f}".format),
@@ -241,7 +250,7 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
     )
 
     steps = ok.sort_values(["system_id", "documented_start"]).copy()
-    steps["rise"] = 100 * steps.groupby("system_id")["soh_capacity"].diff()
+    steps["rise"] = 100 * steps.groupby("system_id")["share"].diff()
     steps["months"] = steps.groupby("system_id")["age_years"].diff() * 12
     steps["previous"] = steps.groupby("system_id")["documented_start"].shift()
     rises = steps[steps["rise"] > 2.0].sort_values("rise", ascending=False)
@@ -258,8 +267,9 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
     )
 
     v1 = "pass" if len(ok) >= 55 else "fail"
+    development = quality["system_id"].nunique()
     parts = [
-        "# Phase 1 — the reference: 60 field capacity tests, measured again",
+        f"# The reference: {len(tests)} field capacity tests, measured again",
         "",
         "Written by `validation/make_reference_doc.py` from `validation/results/`. No number on this page is typed by hand.",
         "",
@@ -267,9 +277,9 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         "",
         "The open dataset documents when each field capacity test started, but not what it measured.",
         "This page measures every test again from the one-second data. These values are the reference",
-        "that besslib's capacity estimates are checked against in phase 2.",
+        "that besslib's capacity estimates are checked against on the capacity page ([`02_capacity_validation.md`](02_capacity_validation.md)).",
         "",
-        f"- **Tests documented:** {len(tests)}, on {tests['system_id'].nunique()} of 21 systems.",
+        f"- **Tests documented:** {len(tests)}, on {tests['system_id'].nunique()} of {len(systems)} systems.",
         f"- **Tests measured:** {len(ok)}. **Not measured:** {len(failed)}.",
         f"- **Check V1** (at least 55 of 60 measured, each missing one explained): **{v1}**.",
         f"- **The documented start fits the data:** the discharge begins a median of {abs(lag.median()):.0f} s "
@@ -324,7 +334,7 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         f"- Pairs where the later test reads more than 2 points higher: {len(rises)}.",
         "",
         *([table(rise_table), ""] if len(rises) else []),
-        "This matters for phase 2: an estimate cannot be expected to agree with a test more closely than two",
+        "This matters for the capacity page: an estimate cannot be expected to agree with a test more closely than two",
         "tests agree with each other.",
         "",
         "## Every test, to check by eye",
@@ -341,15 +351,15 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         "",
         "## Data quality of the development systems",
         "",
-        "Only the seven development systems are read in full before the thresholds are frozen. "
-        "The split was fixed on 13 Nov 2026, before any data was read; the other fourteen systems are held out.",
+        f"Only the {development} development systems are read in full before the thresholds are frozen. "
+        f"The split was fixed on 13 Nov 2026, before any data was read; the other {len(systems) - development} systems are held out.",
         "",
         table(quality_table),
         "",
         "\"Out ÷ in\" is the charge discharged divided by the charge charged over the whole record.",
         "A lithium-ion cell returns nearly all of its charge, so a value well below 100 % means current leaves",
         "the battery without passing the sensor (BMS supply, balancing) or the sensor has an offset.",
-        "The paper corrects this with an offset current; besslib estimates it in phase 2.",
+        "The paper corrects this with an offset current; besslib estimates it with the capacity (see the capacity page).",
         "",
     ]
     if len(failed):
@@ -381,7 +391,8 @@ def document(tests: pd.DataFrame, coverage: pd.DataFrame, quality: pd.DataFrame,
         "",
         "Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in",
         "capacity estimation*, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.",
-        "Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9.",
+        "Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9,",
+        "licence CC BY-NC-ND 4.0: cited only; no figure or text of it is copied.",
         "The values on this page are computed by besslib from that data; they are not taken from the paper.",
         "",
     ]

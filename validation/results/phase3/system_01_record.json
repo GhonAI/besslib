@@ -21,7 +21,7 @@
    "events": 114.75226,
    "field": "the remaining capacity",
    "high": 11.687652,
-   "label": "remaining capacity between the system's own end of charge and end of discharge",
+   "label": "remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops",
    "low": 11.542925,
    "method": "capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed voltage of each rest (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); read at the mean full and empty rest voltages of the memory time, which the record gives",
    "status": "estimated",

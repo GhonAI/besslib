@@ -1,4 +1,4 @@
-# Phase 1 — the reference: 60 field capacity tests, measured again
+# The reference: 60 field capacity tests, measured again
 
 Written by `validation/make_reference_doc.py` from `validation/results/`. No number on this page is typed by hand.
 
@@ -6,7 +6,7 @@ Written by `validation/make_reference_doc.py` from `validation/results/`. No num
 
 The open dataset documents when each field capacity test started, but not what it measured.
 This page measures every test again from the one-second data. These values are the reference
-that besslib's capacity estimates are checked against in phase 2.
+that besslib's capacity estimates are checked against on the capacity page ([`02_capacity_validation.md`](02_capacity_validation.md)).
 
 - **Tests documented:** 60, on 18 of 21 systems.
 - **Tests measured:** 60. **Not measured:** 0.
@@ -54,8 +54,8 @@ discharge. Where the two differ much, the power changed during the test.
 | Chemistry | Systems with tests | Tests measured | Capacity, % of nominal (min – max) | Test C-rate (min – max) | Change between tests, points per year (median of systems) |
 |---|---|---|---|---|---|
 | LMO/NMC | 6 | 22 | 65.4 – 93.5 | 0.30 – 0.85 | -3.2 (n = 6) |
-| NMC | 6 | 19 | 73.8 – 101.0 | 0.16 – 0.34 | -2.1 (n = 4) |
-| LFP | 6 | 19 | 78.5 – 96.7 | 0.18 – 0.43 | -1.4 (n = 6) |
+| NMC | 6 | 19 | 73.8 – 100.9 | 0.16 – 0.34 | -2.1 (n = 4) |
+| LFP | 6 | 19 | 78.4 – 96.7 | 0.18 – 0.43 | -1.4 (n = 6) |
 
 The last column is a straight line through each system's own tests (systems with at least two tests, one year apart).
 It describes these tests only; it is not besslib's fade estimate.
@@ -76,7 +76,7 @@ temperature, the voltage limits its software used on that day.
 | 15 | LFP | held-out | 2017-06-05 | 2018-03-05 | 9 | +3.4 |
 | 03 | LMO/NMC | held-out | 2017-06-08 | 2018-03-09 | 9 | +2.2 |
 
-This matters for phase 2: an estimate cannot be expected to agree with a test more closely than two
+This matters for the capacity page: an estimate cannot be expected to agree with a test more closely than two
 tests agree with each other.
 
 ## Every test, to check by eye
@@ -92,7 +92,7 @@ tests agree with each other.
 
 ## Data quality of the development systems
 
-Only the seven development systems are read in full before the thresholds are frozen. The split was fixed on 13 Nov 2026, before any data was read; the other fourteen systems are held out.
+Only the 7 development systems are read in full before the thresholds are frozen. The split was fixed on 13 Nov 2026, before any data was read; the other 14 systems are held out.
 
 | System | Chemistry | Months | Rows, million | Missing inside months, % | Interpolated, % | Charge in, Ah | Charge out, Ah | Out ÷ in, % |
 |---|---|---|---|---|---|---|---|---|
@@ -107,7 +107,7 @@ Only the seven development systems are read in full before the thresholds are fr
 "Out ÷ in" is the charge discharged divided by the charge charged over the whole record.
 A lithium-ion cell returns nearly all of its charge, so a value well below 100 % means current leaves
 the battery without passing the sensor (BMS supply, balancing) or the sensor has an offset.
-The paper corrects this with an offset current; besslib estimates it in phase 2.
+The paper corrects this with an offset current; besslib estimates it with the capacity (see the capacity page).
 
 ## All measured tests
 
@@ -155,13 +155,13 @@ start of the test discharge. It is shown, not added.
 | 10 | NMC | held-out | 2019-08-30 13:49 | 3.2 | 176.84 | 8.197 | 94.1 | 0.32 | 0.32 | 184 | 31.3 | 0.00 |
 | 10 | NMC | held-out | 2022-04-19 13:25 | 5.8 | 170.91 | 7.911 | 90.9 | 0.32 | 0.31 | 231 | 28.9 | 0.03 |
 | 11 | NMC | development | 2019-05-24 11:09 | 0.1 | 172.84 | 7.298 | 100.7 | 0.31 | 0.34 | 195 | 29.9 | 0.80 |
-| 12 | NMC | held-out | 2019-05-23 13:28 | 0.1 | 230.97 | 9.632 | 101.0 | 0.23 | 0.26 | 240 | 30.3 | 0.00 |
+| 12 | NMC | held-out | 2019-05-23 13:28 | 0.1 | 230.97 | 9.632 | 100.9 | 0.23 | 0.26 | 240 | 30.3 | 0.00 |
 | 12 | NMC | held-out | 2022-10-11 18:24 | 3.5 | 222.92 | 9.326 | 97.4 | 0.16 | 0.25 | 275 | 33.8 | -3.49 |
 | 14 | LFP | development | 2017-06-02 09:42 | 2.1 | 145.70 | 7.311 | 92.2 | 0.41 | 0.42 | 133 | 25.6 | 0.14 |
 | 14 | LFP | development | 2018-02-19 09:41 | 2.8 | 144.84 | 7.205 | 91.7 | 0.41 | 0.42 | 131 | 16.4 | 0.02 |
-| 14 | LFP | development | 2019-05-09 07:53 | 4.0 | 141.17 | 7.251 | 89.3 | 0.24 | 0.13 | 382 | 19.2 | 0.01 |
+| 14 | LFP | development | 2019-05-09 07:53 | 4.0 | 141.17 | 7.251 | 89.4 | 0.24 | 0.13 | 382 | 19.2 | 0.01 |
 | 15 | LFP | held-out | 2017-06-05 17:58 | 1.9 | 168.10 | 6.981 | 86.2 | 0.18 | 0.43 | 126 | 28.3 | 0.23 |
-| 15 | LFP | held-out | 2018-03-05 14:19 | 2.6 | 174.82 | 7.258 | 89.6 | 0.39 | 0.40 | 137 | 25.6 | 0.00 |
+| 15 | LFP | held-out | 2018-03-05 14:19 | 2.6 | 174.82 | 7.258 | 89.7 | 0.39 | 0.40 | 137 | 25.6 | 0.00 |
 | 15 | LFP | held-out | 2019-10-12 12:10 | 4.2 | 168.82 | 7.018 | 86.6 | 0.43 | 0.44 | 124 | 32.2 | 0.00 |
 | 15 | LFP | held-out | 2022-11-13 09:22 | 7.3 | 157.12 | 6.549 | 80.6 | 0.43 | 0.44 | 112 | 25.3 | 0.10 |
 | 17 | LFP | development | 2019-05-03 14:57 | 1.3 | 146.01 | 7.331 | 92.4 | 0.37 | 0.42 | 137 | 22.5 | 0.00 |
@@ -175,7 +175,7 @@ start of the test discharge. It is shown, not added.
 | 20 | LFP | held-out | 2019-09-08 19:21 | 4.0 | 171.08 | 6.254 | 85.5 | 0.41 | 0.10 | 244 | 34.9 | 0.00 |
 | 21 | LFP | held-out | 2017-05-31 11:39 | 2.6 | 289.52 | 10.633 | 96.5 | 0.30 | 0.30 | 211 | 26.4 | 0.01 |
 | 21 | LFP | held-out | 2018-02-19 08:25 | 3.3 | 287.33 | 10.546 | 95.8 | 0.30 | 0.30 | 204 | 23.0 | 0.00 |
-| 21 | LFP | held-out | 2019-07-04 11:26 | 4.6 | 235.34 | 8.713 | 78.5 | 0.30 | 0.08 | 272 | 27.1 | 0.00 |
+| 21 | LFP | held-out | 2019-07-04 11:26 | 4.6 | 235.34 | 8.713 | 78.4 | 0.30 | 0.08 | 272 | 27.1 | 0.00 |
 
 ### Tests with discharge just before they began
 
@@ -193,5 +193,6 @@ what a test from full would give. It is shown, not added.
 
 Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in
 capacity estimation*, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.
-Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9.
+Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9,
+licence CC BY-NC-ND 4.0: cited only; no figure or text of it is copied.
 The values on this page are computed by besslib from that data; they are not taken from the paper.

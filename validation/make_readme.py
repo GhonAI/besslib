@@ -41,7 +41,7 @@ from besslib.soh import annex_vii
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
 from make_reference_doc import GRID, INK, INK2, MUTED, SURFACE  # noqa: F401  (also sets the plot style)
-from check_v02 import TAG
+from check_v02 import TAG, tag_file
 from tune_capacity import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -154,6 +154,88 @@ def headline() -> dict:
     }  # fmt: skip
 
 
+NO_ESTIMATE = {  # why a test has no estimate, in the words of the README's first screen
+    "not possible from this data: not enough history yet to set the full and empty levels": "in the first year",
+    "not possible from this data: too few full-to-empty or empty-to-full pairs": "with too few full-to-empty pairs",
+}
+
+
+def held_tests(text: str | None = None) -> pd.DataFrame:
+    """The held-out field tests of ``phase2_tests.csv``, today's or (``text``) the release tag's."""
+    t = pd.read_csv(io.StringIO(text)) if text is not None else pd.read_csv(RESULTS / "phase2_tests.csv")
+    t = t[t["set"] == "held-out"].copy()
+    for col in ("capacity_ah", "error_points", "band_points"):
+        t[col] = pd.to_numeric(t[col], errors="coerce")
+    return t
+
+
+def test_details() -> dict:
+    """V2 over the tests with an estimate; V3's missing estimates by reason and the bias of the others."""
+    t = held_tests()
+    v2 = t[t["chemistry"] != "LFP"]
+    v2_est = v2[v2["capacity_ah"].notna()]
+    lfp = t[t["chemistry"] == "LFP"]
+    lfp_est = lfp[lfp["capacity_ah"].notna()]
+    missing = lfp.loc[lfp["capacity_ah"].isna(), "status"].value_counts()
+    reasons = [f"{missing[k]} {v}" for k, v in NO_ESTIMATE.items() if k in missing]
+    reasons += [f"{n} {k.removeprefix('not possible from this data: ')}" for k, n in missing.items() if k not in NO_ESTIMATE]
+    bias = float(lfp_est["error_points"].median())
+    return {
+        "v2_have": str(len(v2_est)), "v2_est_error": f"{v2_est['error_points'].abs().median():.2f}",
+        "v3_have": str(len(lfp_est)), "v3_reasons": ", ".join(reasons),
+        "v3_bias": f"{abs(bias):.2f}", "v3_direction": "high" if bias > 0 else "low",
+    }  # fmt: skip
+
+
+def version_sentence() -> str:
+    """What this version improved, what got worse, and why: held-out LMO/NMC and NMC tests, now against the tag."""
+    def summary(t: pd.DataFrame) -> tuple[float, float]:
+        t = t[t["chemistry"] != "LFP"]
+        est = t[t["capacity_ah"].notna()]
+        return float(est["error_points"].abs().median()), float(est["band_points"].median())
+
+    text = tag_file("validation/results/phase2_tests.csv")
+    checks = tag_file("validation/results/checks_phase2.csv")
+    if text is None or checks is None:
+        refuse(f"the files of {TAG} cannot be read")
+    (e_old, w_old), (e_new, w_new) = summary(held_tests(text)), summary(held_tests())
+    pattern = r"held the test in (\d+)% of"
+    (s_old,) = parse(pattern, check_row(pd.read_csv(io.StringIO(checks)), "V4")["value"], "V4 at the tag")
+    (s_new,) = parse(pattern, check_row(pd.read_csv(RESULTS / "checks_phase2.csv"), "V4")["value"], "V4")
+    if not (e_new < e_old and w_new < w_old and int(s_new) < int(s_old)):
+        refuse("the version sentence no longer fits the numbers: write it again")
+    return (
+        f"**Version {VERSION_PAGE[0]}** is closer to the held-out field tests where it gives an estimate (median error "
+        f"{e_old:.2f} → {e_new:.2f} points), but its band narrowed more (median width {w_old:.2f} → {w_new:.2f} points) "
+        f"and held fewer of them ({s_old} % → {s_new} %): the band covers the capacity between two rest voltages, not "
+        f"the drift of the BMS stops the tests run to. [Why →]({{{{url:{VERSION_PAGE[1]}}}}}"
+        "#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
+    )
+
+
+def data_showed() -> str:
+    """The stop drift on the LMO/NMC systems: the empty rest voltage per cell at the first and the last month end
+    that has one, from the monthly capacity files (as on the version page)."""
+    changes = []
+    for sid in figgener.SYSTEM_IDS:
+        spec = figgener.pack_spec(sid)
+        if spec.chemistry != "LMO/NMC":
+            continue
+        m = pd.read_csv(RESULTS / "phase2" / f"system_{sid:02d}_monthly.csv")
+        e = m[m["status"] == "estimated"].dropna(subset=["ref_empty_v"])
+        if len(e) > 1:
+            changes.append(1000 * (e["ref_empty_v"].iloc[-1] - e["ref_empty_v"].iloc[0]) / spec.cells_in_series)
+    if not changes or max(changes) >= 0:
+        refuse("the drift line no longer fits the numbers: write it again")
+    low, high = sorted(abs(round(c)) for c in changes)[0], sorted(abs(round(c)) for c in changes)[-1]
+    return (
+        f"**What the data showed.** On the {len(changes)} LMO/NMC systems the relaxed voltage of the empty rests sank by "
+        f"{low} to {high} mV per cell over the record: the BMS discharged them further as they aged, so the capacity "
+        "from operation and the capacity a field test measures came apart, and a band must carry that drift. "
+        f"[Data →]({{{{url:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
+    )
+
+
 def counts() -> dict:
     coverage = pd.read_csv(RESULTS / "coverage.csv")
     tests = pd.read_csv(RESULTS / "capacity_tests.csv")
@@ -170,7 +252,8 @@ def counts() -> dict:
 
 
 def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
+    """A Markdown table cell: "|" escaped, and a "<" that opens a tag-like word (``<id>``) so GitHub shows it."""
+    return re.sub(r"<(?=[A-Za-z/!?])", "&lt;", str(text).replace("|", "\\|").replace("\n", " "))
 
 
 def md_table(header: list, rows: list) -> str:
@@ -179,10 +262,12 @@ def md_table(header: list, rows: list) -> str:
     return "\n".join(lines)
 
 
-def checks_table(path: Path) -> str:
+def checks_table(path: Path, leave_out: tuple[str, ...] = ()) -> str:
     table = pd.read_csv(path, keep_default_na=False)
     rows = []
     for _, r in table.iterrows():
+        if r["check"] in leave_out:
+            continue
         info = r["result"] == ""
         rows.append([r["check"], r["scope"], r["value"], "information" if info else r["pass_if"],
                      "–" if info else {"pass": "passed", "fail": "failed"}.get(r["result"], r["result"])])  # fmt: skip
@@ -247,7 +332,21 @@ def run_quickstart() -> tuple[str, str]:
         refuse(f"the units of the frame changed: {units}")
     lead = "Output (the frame, as a table; resistance in ohm, efficiency and power capability as shares):"
     table = md_table(["code", "field", "value", "low", "high", "unit", "events", "status"], rows)
-    return f"```python\n{code}\n```", f"{lead}\n\n{table}"
+    return f"```python\n{code}\n```", f"{lead}\n\n{table}\n\n{quickstart_caveat(scope['record'], spec)}"
+
+
+def quickstart_caveat(record, spec) -> str:
+    """What the bands and the events of the quickstart are, and what A2 is relative to."""
+    level = inspect.signature(annex_vii).parameters["level"].default
+    (share,) = parse(r"held the test in (\d+)% of", check_row(pd.read_csv(RESULTS / "checks_phase2.csv"), "V4")["value"], "V4")
+    first = pd.Timestamp(record.field("A2").details["first_day"])
+    service = spec.date_put_into_service
+    return (
+        f"Each band is the {level * 100:g} % statistical band of its fit; on the held-out field tests the capacity band "
+        f"held {share} %, so it is not the whole uncertainty. \"events\" is a count weighted by the "
+        f"{CapacityConfig().tau_days:g}-day memory, hence the decimals. A2 is relative to the first day of the resistance "
+        f"fit ({first:%Y-%m-%d})" + (f", not to the new pack (in service {service:%Y-%m-%d})." if service else ".")
+    )
 
 
 def sample_note() -> str:
@@ -363,14 +462,16 @@ def main() -> None:
     template = TEMPLATE.read_text(encoding="utf-8")
     check_r1(template)
     info = project()
-    values = {**info, **hashes(), **headline(), **counts(), **figure()}
+    values = {**info, **hashes(), **headline(), **test_details(), **counts(), **figure()}
     values["quickstart_code"], values["quickstart_table"] = run_quickstart()
     values.update(
         sample_note=sample_note(),
         fulldata_code=fulldata_code(),
         annex_table=annex_table(),
         v_table=checks_table(RESULTS / "checks_phase2.csv"),
-        w_table=checks_table(RESULTS / "checks_phase3.csv"),
+        w_table=checks_table(RESULTS / "checks_phase3.csv", leave_out=("X5",)),
+        version_sentence=version_sentence(),
+        data_showed=data_showed(),
         limits_list=limits_list(),
         previous_release=TAG.lstrip("v"),
         version_page_link=f"[version {VERSION_PAGE[0]} page]({{{{url:{VERSION_PAGE[1]}}}}})",

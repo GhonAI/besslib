@@ -139,7 +139,7 @@ def status_short(text) -> str:
         return "no result file yet"
     if text == _core.STATUS_TEXT[_core.OK]:
         return "estimated"
-    return "not possible: " + SHORT.get(CODE.get(text, -1), text)
+    return "not possible: " + SHORT.get(CODE.get(text, -1), text.removeprefix("not possible from this data: "))
 
 
 def threshold(rule: str) -> float:
@@ -838,11 +838,11 @@ def checks_block(ctx: dict) -> list[str]:
             "",
         ]
     lines += [
-        "Rules fixed before the held-out run:",
+        "Rules fixed before the first held-out run (release 0.1.0):",
         "",
         "- A test without an estimate counts as an infinite error and as not held.",
         f"- All {len(lmo)} held-out LMO/NMC and NMC tests count in V2 and V4.",
-        f"- Tests {flag_text} had charge discharged in the hour before the test began (phase 1). They count, are flagged",
+        f"- Tests {flag_text} had charge discharged in the hour before the test began (reference page). They count, are flagged",
         "  in the tables, and get one information line without them.",
         "- Fade (V5) is judged per chemistry on the held-out systems against the paper's algorithm means;",
         f"  the mean over all {len(figgener.SYSTEM_IDS)} systems is an information line.",
@@ -1288,7 +1288,8 @@ def method_block(ctx: dict) -> list[str]:
         "   capacity, I_offset the current the meter does not see (BMS supply, balancing, self-discharge, sensor offset), Δt the",
         "   time between the rests. Each end of a pair adds its own kind's relaxed rest voltage minus a reference, because two",
         "   stops of one kind are not at the same state of charge; γF and γE (Ah per volt near full and near empty) turn that",
-        "   voltage into charge. The capacity is read at the forgetting-weighted mean full and empty rest voltages of the memory",
+        f"   voltage into charge. A voltage term is left out while its kind has fewer than {c.min_same:g} same-kind pairs in",
+        "   memory (`min_same`). The capacity is read at the forgetting-weighted mean full and empty rest voltages of the memory",
         "   time; the record gives both. All are fitted together by weighted least squares.",
         f"5. **Forgetting.** A pair of age s counts with weight exp(−s / {c.tau_days:g} days).",
         "6. **Trend.** The fit with forgetting also carries a linear trend, `C = c0 + r · years`. The value is read at the date,",
@@ -1353,10 +1354,11 @@ def settings_block(ctx: dict) -> list[str]:
                    + f"C/{1 / chosen['current_c_rate']:.0f}, {chosen['min_duration_min']:g} min, "
                    f"{chosen['tau_days']:g} days (coverage {chosen['coverage']:.0%}, median absolute error "
                    f"{num(chosen['median_abs_error_points'])} points)."
-                   + (f" So before the held-out run the {BAND} band was already known to hold only {chosen['coverage']:.0%} of the "
+                   + (f" So before the first held-out run the {BAND} band was already known to hold only {chosen['coverage']:.0%} of the "
                       "development tests." if chosen["coverage"] < c.level else ""))  # fmt: skip
     return [
-        "All settings were fixed on the development systems, by rules written before any estimate was compared with a test.",
+        "The settings of release 0.1.0 were fixed on the development systems, by rules written before any estimate was compared "
+        "with a test. What version 0.2 changed, and where each change was found: [version 0.2 page](04_version_0_2.md).",
         "",
         f"- **Grid search** ({len(tuning)} settings: {'; '.join(f'{k} {v}' for k, v in grid.items())}). Rule: the lowest median",
         f"  absolute error among the settings whose {BAND} band holds at least {MIN_COVERAGE:.0%} of the development tests;".replace("0%", "0 %"),
@@ -1568,7 +1570,8 @@ def findings_block(ctx: dict) -> list[str]:
         est = m[m["status"] == _core.STATUS_TEXT[_core.OK]]
         over = est[est["soh_capacity"] > 1]
         if len(over):
-            top = tests.loc[tests["system_id"] == sid, "soh_capacity"]
+            one = tests[tests["system_id"] == sid]
+            top = one["test_capacity_ah"] / one["reference_capacity_ah"]  # unrounded, as on the reference page
             if len(top) and top.max() <= 1:
                 below_tests.append(sid)
             above.append(f"{sid_text(sid)} ({len(over)} of {len(est)}, up to {100 * over['soh_capacity'].max():.1f} %; "
@@ -1624,7 +1627,11 @@ def system_notes(ctx: dict, months: pd.DataFrame) -> list[str]:
         text = (f"**System 19: high scatter.** Its median monthly band is {months.loc[19, 'median_band_points']:.1f} points wide, against "
                 f"{others.median():.1f} for the median of the other systems with results.")  # fmt: skip
         if r is not None and np.isfinite(r.get("birge", np.nan)):
-            text += f" The fade fit's reduced chi-square is {r['birge']:.1f}."
+            if r.get("status") != _core.STATUS_TEXT[_core.OK]:
+                text += (f" Version 0.2 gives it no fade rate (`{re.sub(r' [(][^)]*[)]$', '', str(r['status']))}`); "
+                         f"the fit's reduced chi-square is {r['birge']:.1f}.")
+            else:
+                text += f" The fade fit's reduced chi-square is {r['birge']:.1f}."
         if 19 in diag:
             lfp = {i: float(d["empty_cell"].median()) for i, d in diag.items() if chemistry_of(ctx, i) == "LFP" and i != 19}
             text += (f" Its median end-of-discharge level is {diag[19]['empty_cell'].median():.3f} V per cell; the other LFP systems: "
@@ -1666,12 +1673,12 @@ def rebuild_block(ctx: dict) -> list[str]:
 
 def document(ctx: dict, months: pd.DataFrame, system_figures: dict) -> str:
     parts = [
-        "# Phase 2 — capacity from operating data, checked against the field tests",
+        "# Capacity from operating data, checked against the field tests",
         "",
         "Written by `validation/make_capacity_doc.py` from `validation/results/`. No number on this page is typed by hand.",
         "",
-        f"besslib estimates the usable capacity of a home storage system from its daily operation, with a {BAND} band, and",
-        "compares it with the field capacity tests measured in phase 1 ([`01_reference.md`](01_reference.md)). The settings were",
+        f"besslib estimates the capacity between two stated rest voltages of a home storage system from its daily operation, with a {BAND} band, and",
+        "compares it with the field capacity tests measured again on the reference page ([`01_reference.md`](01_reference.md)). The settings were",
         f"tuned on the {len(DEVELOPMENT)} development systems, then frozen. The {len(HELD_OUT)} held-out systems were run once "
         "at the settings of release 0.1.0 and once at these ([what changed](04_version_0_2.md))"
         + ("." if all(i in ctx["summaries"].index for i in HELD_OUT) else
@@ -1718,8 +1725,8 @@ def document(ctx: dict, months: pd.DataFrame, system_figures: dict) -> str:
         *bias_block(ctx),
         "",
         "No rate correction is applied: a field test discharges at the system's maximum power and often deeper than daily",
-        "operation, and the estimate measures the capacity between the system's own end of charge and end of discharge",
-        "under its normal load.",
+        "operation, and the estimate measures the capacity between two stated rest voltages under normal load, not the charge",
+        "between the system's own stops that a field test runs to.",
         "",
         "## Fade rates",
         "",
@@ -1758,7 +1765,8 @@ def document(ctx: dict, months: pd.DataFrame, system_figures: dict) -> str:
         "",
         "Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in",
         "capacity estimation*, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.",
-        "Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9.",
+        "Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9,",
+        "licence CC BY-NC-ND 4.0: cited only; no figure or text of it is copied.",
         "The values on this page are computed by besslib from that data; only the fade means marked as the paper's are taken from it.",
         "besslib computes capacity figures; it does not certify them.",
         "",

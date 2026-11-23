@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "besslib"
-version = "0.1.0"
+version = "0.2.0"
 description = "State of health from battery storage operating data, with confidence bands, in the fields of EU Regulation 2023/1542 Annex VII."
 readme = "README.md"
 requires-python = ">=3.11"

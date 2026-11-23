@@ -24,6 +24,7 @@ import pandas as pd
 
 from besslib.io import figgener
 from besslib.soh import _core
+from besslib.soh.config import CapacityConfig
 
 from check_v02 import TAG, tag_file
 
@@ -32,6 +33,7 @@ RESULTS = ROOT / "validation" / "results"
 DOCS = ROOT / "docs"
 ALLOWED_NUMBERS = {"0", "1", "2", "100"}
 MISMATCH = "04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with"
+BAND = f"{CapacityConfig().level * 100:g} %"
 
 
 def check_r4() -> None:
@@ -190,16 +192,16 @@ def limit_band() -> dict:
     total, at_date = int(table["n_band"].sum()), int(table["n_held_at_date"].sum())
     ref_total, ref_held = int(table["n_reference"].sum()), int(table["n_held_reference"].sum())
     found = (
-        f"On {len(table)} synthetic packs the monthly 90 % band held the charge between the stops at the date in "
+        f"On {len(table)} synthetic packs the monthly {BAND} band held the charge between the stops at the date in "
         f"{at_date} of {total} month ends ({at_date / total * 100:.0f} %); the estimate reads "
         f"{table['mean_lag_points'].mean():+.2f} points of nominal capacity above it on average. Against the capacity "
         f"between the rest voltages it reports, the band held {ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %), "
         f"{table['mean_lag_reference_points'].mean():+.2f} points on average; that truth was chosen after the first results."
     )
     readme = (
-        f"On {len(table)} synthetic packs the monthly 90 % band held the charge between the stops at the date in {at_date} of "
+        f"On {len(table)} synthetic packs the monthly {BAND} band held the charge between the stops at the date in {at_date} of "
         f"{total} month ends ({at_date / total * 100:.0f} %). It held the capacity between the rest voltages it reports in "
-        f"{ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %)."
+        f"{ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %), against a truth chosen after the first results."
     )
     return {
         "title": "The capacity band does not hold the charge between the BMS stops",
@@ -237,10 +239,46 @@ def limit_partial_windows() -> dict:
     }
 
 
+def check_name(check: str, scope: str) -> str:
+    """A check as the limits list names it: V3 (LFP), V5 NMC, W2 (value) ..."""
+    if check == "V3":
+        return f"V3 ({scope.split()[-1]})"
+    if check == "V4":
+        return "V4 (the band)"
+    if check == "V5":
+        return f"V5 {scope.split()[1]}"
+    if check == "W2":
+        return "W2 (growth)" if "growth" in scope else "W2 (value)"
+    return check
+
+
+def joined(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def checks_with(file: str, result: str) -> list[str]:
+    """The checks of a results table with this result, in their order, each once."""
+    table = pd.read_csv(RESULTS / file)
+    names = [check_name(c, str(sc)) for c, sc, r in zip(table["check"], table["scope"], table["result"]) if r == result]
+    return list(dict.fromkeys(names))
+
+
+def failed_text() -> tuple[str, str]:
+    """The published failed checks, read from the check tables."""
+    v_fail = checks_with("checks_phase2.csv", "fail")
+    w_fail, w_none = checks_with("checks_phase3.csv", "fail"), checks_with("checks_phase3.csv", "not possible")
+    v = f"The capacity checks {joined(v_fail)} failed." if v_fail else "No capacity check failed."
+    w = (f"The checks {joined(w_fail)} failed" if w_fail else "No check of the other fields failed")
+    w += (f" and {joined(w_none)} {'was' if len(w_none) == 1 else 'were'} not possible." if w_none else ".")
+    return v, w
+
+
+V_FAILED, W_FAILED = failed_text()
+
 PUBLISHED = [
     ("The method needs regular full cycles, as in home storage; it does not suit mid-state-of-charge grid duty.",
-     "03_annex_vii.md#method-and-limits-per-field"),
-    ("The capacity checks V3 (LFP), V4 (the band), V5 NMC and V6 failed.", "02_capacity_validation.md#why-a-check-failed"),
+     "02_capacity_validation.md#limits"),
+    (V_FAILED, "02_capacity_validation.md#why-a-check-failed"),
     ("A4, the apparent charge loss, is an upper bound for self-discharge, not a measure of it.",
      "03_annex_vii.md#method-and-limits-per-field"),
     ("A3, the efficiency, is DC at the battery terminals, not the AC efficiency of a plant.",
@@ -249,7 +287,7 @@ PUBLISHED = [
      "03_annex_vii.md#method-and-limits-per-field"),
     ("The first year of a record gives no capacity estimate, because the full and empty levels need a year of history.",
      "02_capacity_validation.md#limits"),
-    ("The checks W2 (value) and W6 failed and W3 was not possible.", "03_annex_vii.md#result"),
+    (W_FAILED, "03_annex_vii.md#result"),
 ]
 
 
@@ -288,7 +326,16 @@ def main() -> None:
     lines += ["## Limits already published on the pages", ""]
     for text, link in PUBLISHED:
         lines.append(f"- {text} ([page]({link}))")
-    lines.append("")
+    lines += [
+        "",
+        "## Source and credit",
+        "",
+        "Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in capacity "
+        "estimation*, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.",
+        "Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9 "
+        "(CC BY-NC-ND 4.0): cited only; no figure or text of it is copied.",
+        "",
+    ]
     (DOCS / "limits.md").write_text("\n".join(lines), encoding="utf-8")
     print(f"docs/limits.md written: {len(still)} open, {len(fixed)} fixed")
 

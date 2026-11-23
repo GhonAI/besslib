@@ -1,9 +1,9 @@
-# Phase 2 — capacity from operating data, checked against the field tests
+# Capacity from operating data, checked against the field tests
 
 Written by `validation/make_capacity_doc.py` from `validation/results/`. No number on this page is typed by hand.
 
-besslib estimates the usable capacity of a home storage system from its daily operation, with a 90 % band, and
-compares it with the field capacity tests measured in phase 1 ([`01_reference.md`](01_reference.md)). The settings were
+besslib estimates the capacity between two stated rest voltages of a home storage system from its daily operation, with a 90 % band, and
+compares it with the field capacity tests measured again on the reference page ([`01_reference.md`](01_reference.md)). The settings were
 tuned on the 7 development systems, then frozen. The 14 held-out systems were run once at the settings of release 0.1.0 and once at these ([what changed](04_version_0_2.md)).
 The headline comes from held-out systems only.
 
@@ -33,9 +33,9 @@ The headline comes from held-out systems only.
 
 | Check | Scope | Value | Pass rule | Result |
 |---|---|---|---|---|
-| V2 | held-out LMO/NMC and NMC | median |error| 2.99 points (22/28 estimated) | <= 3 points | pass |
-| V2 info | same, without 03/3 and 08/1 | median |error| 3.25 points (26 tests) | information |  |
-| V3 | held-out LFP | median |error| inf points; median error +4.48 (5/10 estimated) | <= 5 points, bias shown | **fail** |
+| V2 | held-out LMO/NMC and NMC | median \|error\| 2.99 points (22/28 estimated) | <= 3 points | pass |
+| V2 info | same, without 03/3 and 08/1 | median \|error\| 3.25 points (26 tests) | information |  |
+| V3 | held-out LFP | median \|error\| inf points; median error +4.48 (5/10 estimated) | <= 5 points, bias shown | **fail** |
 | V4 | held-out LMO/NMC and NMC | band held the test in 29% of 28 | >= 80 % | **fail** |
 | V4 info | held-out LFP | band held the test in 10% of 10 | information |  |
 | V4 info | same as V4, without 03/3 and 08/1 | band held the test in 27% of 26 | information |  |
@@ -47,15 +47,15 @@ The headline comes from held-out systems only.
 | V5 info | all LFP (7 systems) | mean fade -1.07 points/year | information |  |
 | V6 | 200 synthetic packs | band held the true usable fade (-1.88) in 76.0% | 85-95 % | **fail** |
 | V7 | core against batch path, 90 daily estimates (months of tests 01/1, 07/1, 17/2) | max relative difference 2.0e-14 | <= 1e-6 | pass |
-| V8 | 21 systems | one command per system: python validation/run_capacity.py <id> | all 21 rebuilt with one hash | pass |
+| V8 | 21 systems | one command per system: python validation/run_capacity.py &lt;id> | all 21 rebuilt with one hash | pass |
 
 "inf" in V3: 5 of 10 tests have no estimate (half of the tests). A missing estimate counts as an infinite error, so the median absolute error is infinite.
 
-Rules fixed before the held-out run:
+Rules fixed before the first held-out run (release 0.1.0):
 
 - A test without an estimate counts as an infinite error and as not held.
 - All 28 held-out LMO/NMC and NMC tests count in V2 and V4.
-- Tests 03/3 (3.2 % of its capacity) and 08/1 (5.7 % of its capacity) had charge discharged in the hour before the test began (phase 1). They count, are flagged
+- Tests 03/3 (3.2 % of its capacity) and 08/1 (5.7 % of its capacity) had charge discharged in the hour before the test began (reference page). They count, are flagged
   in the tables, and get one information line without them.
 - Fade (V5) is judged per chemistry on the held-out systems against the paper's algorithm means;
   the mean over all 21 systems is an information line.
@@ -237,8 +237,8 @@ Error = estimate minus test, in points of nominal capacity.
 | LFP | development | 8 of 9 | +0.60 | 2 of 8 | 0.24 – 0.42 | +1.82 (n = 3) / +0.24 (n = 5); split at 0.41 C |
 
 No rate correction is applied: a field test discharges at the system's maximum power and often deeper than daily
-operation, and the estimate measures the capacity between the system's own end of charge and end of discharge
-under its normal load.
+operation, and the estimate measures the capacity between two stated rest voltages under normal load, not the charge
+between the system's own stops that a field test runs to.
 
 ## Fade rates
 
@@ -254,7 +254,7 @@ under its normal load.
 | 06 | held-out | LMO/NMC | -3.27 [-3.51, -3.02] | [-3.47, -2.95] | 1.09 | -2.21 [-2.38, -2.05] | 148 | 5.3 | 992 / 378 | estimated |
 | 07 | development | NMC | -0.73 [-1.26, -0.20] | [-1.33, -0.15] | 1.12 | -0.61 [-1.05, -0.17] | 119 | 6.0 | 71 / 770 | estimated |
 | 08 | held-out | NMC | -2.10 [-2.30, -1.91] | [-2.35, -1.77] | 1.46 | -1.47 [-1.61, -1.33] | 143 | 5.7 | 173 / 541 | estimated |
-| 09 | held-out | NMC | – [–, –] | [–, –] | – | – [–, –] | – | 6.1 | 85 / 356 | not possible: not possible from this data: the capacity is implausible at 2020-06-30 (a pair has the wrong sign) |
+| 09 | held-out | NMC | – [–, –] | [–, –] | – | – [–, –] | – | 6.1 | 85 / 356 | not possible: the capacity is implausible at 2020-06-30 (a pair has the wrong sign) |
 | 10 | held-out | NMC | +0.13 [-1.69, +1.94] | [-1.88, +2.68] | 1.26 | +0.13 [-1.75, +2.01] | 96 | 5.0 | 108 / 320 | estimated |
 | 11 | development | NMC | -1.47 [-1.75, -1.20] | [-1.76, -1.15] | 1.10 | -0.62 [-0.74, -0.51] | 237 | 2.7 | 183 / 540 | estimated |
 | 12 | held-out | NMC | -0.93 [-1.42, -0.44] | [-1.40, -0.65] | 0.77 | -0.70 [-1.07, -0.33] | 133 | 1.7 | 79 / 507 | estimated |
@@ -264,7 +264,7 @@ under its normal load.
 | 16 | held-out | LFP | -1.37 [-1.47, -1.28] | [-1.49, -1.27] | 1.15 | -0.73 [-0.78, -0.68] | 188 | 2.7 | 76 / 236 | estimated |
 | 17 | development | LFP | +2.74 [+2.24, +3.24] | [+1.34, +3.62] | 2.29 | +1.84 [+1.51, +2.18] | 149 | 2.6 | 88 / 151 | estimated |
 | 18 | held-out | LFP | +1.45 [-6.60, +9.49] | [-42.27, +14.29] | 3.51 | +8.77 [-39.94, +57.48] | 17 | 1.7 | 9 / 27 | estimated |
-| 19 | development | LFP | – [–, –] | [–, –] | – | – [–, –] | 65 | 4.0 | 153 / 235 | not possible: not possible from this data: the capacity is implausible at 2017-02-28 (the estimate is out of range) |
+| 19 | development | LFP | – [–, –] | [–, –] | – | – [–, –] | 65 | 4.0 | 153 / 235 | not possible: the capacity is implausible at 2017-02-28 (the estimate is out of range) |
 | 20 | held-out | LFP | -4.79 [-5.58, -3.99] | [-5.78, -3.39] | 1.51 | -2.88 [-3.36, -2.41] | 166 | 3.1 | 48 / 278 | estimated |
 | 21 | held-out | LFP | -2.40 [-3.93, -0.87] | [-4.85, -0.25] | 1.50 | -2.49 [-4.08, -0.90] | 96 | 3.9 | 59 / 225 | estimated |
 
@@ -351,7 +351,8 @@ Rest-anchored coulomb counting, after Figgener et al. (2024, Supplementary Metho
    capacity, I_offset the current the meter does not see (BMS supply, balancing, self-discharge, sensor offset), Δt the
    time between the rests. Each end of a pair adds its own kind's relaxed rest voltage minus a reference, because two
    stops of one kind are not at the same state of charge; γF and γE (Ah per volt near full and near empty) turn that
-   voltage into charge. The capacity is read at the forgetting-weighted mean full and empty rest voltages of the memory
+   voltage into charge. A voltage term is left out while its kind has fewer than 2 same-kind pairs in
+   memory (`min_same`). The capacity is read at the forgetting-weighted mean full and empty rest voltages of the memory
    time; the record gives both. All are fitted together by weighted least squares.
 5. **Forgetting.** A pair of age s counts with weight exp(−s / 180 days).
 6. **Trend.** The fit with forgetting also carries a linear trend, `C = c0 + r · years`. The value is read at the date,
@@ -408,11 +409,11 @@ Settings (`CapacityConfig()`, hash `b3959941c19b`):
 
 ## How the settings were fixed
 
-All settings were fixed on the development systems, by rules written before any estimate was compared with a test.
+The settings of release 0.1.0 were fixed on the development systems, by rules written before any estimate was compared with a test. What version 0.2 changed, and where each change was found: [version 0.2 page](04_version_0_2.md).
 
 - **Grid search** (27 settings: current threshold C/50, C/100, C/200; minimum rest duration, min 10, 20, 40; memory time, days 30, 90, 180). Rule: the lowest median
   absolute error among the settings whose 90 % band holds at least 80 % of the development tests;
-  if none does, the highest coverage. **No setting reached it**: the highest development coverage was 59%. The rule's fallback, the highest coverage, chose C/200, 20 min, 180 days (coverage 59%, median absolute error 2.35 points). So before the held-out run the 90 % band was already known to hold only 59% of the development tests.
+  if none does, the highest coverage. **No setting reached it**: the highest development coverage was 59%. The rule's fallback, the highest coverage, chose C/200, 20 min, 180 days (coverage 59%, median absolute error 2.35 points). So before the first held-out run the 90 % band was already known to hold only 59% of the development tests.
 - **Edge tolerance** 3% of the level span (`edge_tolerance.py`): the widest tolerance at which the
   median full-to-empty charge falls by at most 2% in every bin, each bin with at least 10 pairs;
   from pair charges only, no test value. It is the value in `CapacityConfig()`.
@@ -511,7 +512,7 @@ reduced rest tables, test windows masked; the rebuilt pairs equal the run's in 2
 
 **Held because the band is wide:** the median band of the held-out estimates is 1.5 points; the widest bands among the held tests are 06/3 23.1 points (error -9.1); 08/2 20.9 points (error -6.1); 10/3 15.3 points (error -4.5). A test held by a wide band says little about accuracy.
 
-**Estimates above the nominal capacity** (month ends, highest value): 12 (18 of 23, up to 105.2 %; its highest field test 101.0 %); 19 (2 of 45, up to 102.8 %; its highest field test 93.9 %); 20 (4 of 25, up to 103.7 %; its highest field test 96.2 %); 21 (9 of 27, up to 106.8 %; its highest field test 96.5 %). On 19, 20 and 21 no field test reaches the nominal capacity.
+**Estimates above the nominal capacity** (month ends, highest value): 12 (18 of 23, up to 105.2 %; its highest field test 100.9 %); 19 (2 of 45, up to 102.8 %; its highest field test 93.9 %); 20 (4 of 25, up to 103.7 %; its highest field test 96.2 %); 21 (9 of 27, up to 106.8 %; its highest field test 96.5 %). On 19, 20 and 21 no field test reaches the nominal capacity.
 
 **Fade bands that include zero:** 10 (held-out, +0.13 [-1.69, +1.94]), 18 (held-out, +1.45 [-6.60, +9.49]). On these records the fade is not resolved.
 
@@ -519,7 +520,7 @@ reduced rest tables, test windows masked; the rebuilt pairs equal the run's in 2
 
 **System 17: a capacity step after a data gap.** The data stop on 25 Jan 2022 and resume on 11 Feb 2022 (17 days). The monthly estimate around the gap, % of nominal: 89.4 (Jan 2022), 94.1 (Feb 2022), 97.2 (Mar 2022). The field tests move the same way: 17/3 read 89.2 %, 17/4 96.7 %. A straight line through a record with a step reads positive here: +2.74 points per year [+2.24, +3.24]. Cells do not gain capacity, so the step is in the usable capacity the system gives; the fade model has no term for a step.
 
-**System 19: high scatter.** Its median monthly band is 11.5 points wide, against 1.6 for the median of the other systems with results. The fade fit's reduced chi-square is 8.9. Its median end-of-discharge level is 3.168 V per cell; the other LFP systems: 14 2.973, 15 2.990, 16 3.010, 17 2.907, 18 3.100, 20 3.144, 21 3.165. That this stop lies on the flat part of the LFP voltage curve, where the edge voltage says little about the state of charge, is an observation from the development work that this page does not back with a number.
+**System 19: high scatter.** Its median monthly band is 11.5 points wide, against 1.6 for the median of the other systems with results. Version 0.2 gives it no fade rate (`not possible from this data: the capacity is implausible at 2017-02-28`); the fit's reduced chi-square is 8.9. Its median end-of-discharge level is 3.168 V per cell; the other LFP systems: 14 2.973, 15 2.990, 16 3.010, 17 2.907, 18 3.100, 20 3.144, 21 3.165. That this stop lies on the flat part of the LFP voltage curve, where the edge voltage says little about the state of charge, is an observation from the development work that this page does not back with a number.
 
 **System 11: its end-of-discharge level moves.** Over the record it ranges from 3.241 to 3.295 V per cell; the largest step between two quarters is +44 mV per cell, into 2021Q1 (quarterly medians 2020Q4 3.244, 2021Q1 3.288, 2021Q2 3.281). That the system's own software made this change, and how the usable capacity responds to it, is an observation from the development work that this page does not back with a number.
 
@@ -541,6 +542,7 @@ Every result row carries the configuration hash; this page refuses to build from
 
 Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in
 capacity estimation*, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.
-Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9.
+Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9,
+licence CC BY-NC-ND 4.0: cited only; no figure or text of it is copied.
 The values on this page are computed by besslib from that data; only the fade means marked as the paper's are taken from it.
 besslib computes capacity figures; it does not certify them.

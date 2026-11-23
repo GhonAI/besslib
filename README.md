@@ -1,21 +1,28 @@
 # besslib
 
 State of health from battery storage operating data — with confidence bands, in the fields of the
-EU Battery Regulation (2023/1542, Annex VII).
+EU Battery Regulation (2023/1542, Annex VII). Checked so far on home storage that reaches full and empty regularly;
+not on grid-scale or mid-state-of-charge duty.
 
-**Version 0.1.0, 20 November 2026.** It computes the Annex VII parameters; it does not certify them. It is not a
+**Version 0.2.0, 23 November 2026.** It computes the Annex VII parameters; it does not certify them. It is not a
 compliance certificate and not legal advice.
 
-![Capacity of system 05 in Ah from August 2016 to August 2022: a line with its 90 % band from September 2017, and the 4 field capacity tests as dots.](https://raw.githubusercontent.com/GhonAI/besslib/v0.1.0/docs/img/00_readme_05.png)
+Author: Islam Ghonaiem, ghonaiem@vgtai.com — questions on the method and its failures are welcome.
+
+![Capacity of system 05 in Ah from August 2016 to August 2022: a line with its 90 % band from September 2017, and the 4 field capacity tests as dots.](https://raw.githubusercontent.com/GhonAI/besslib/v0.2.0/docs/img/00_readme_05.png)
 
 *System 05 (LMO/NMC, 15 Ah nominal): the capacity from operating data, at the end of each month, with its 90 % band, against the 4 field capacity tests (dots). 2 of the 4 tests have an estimate at their date, and the band holds the test value in 2 of them. The first estimate is at the end of September 2017: the first year gives none (grey). Hollow dots: tests without an estimate. 17 month ends without data are left blank.*
 
 Checked on open field data: 21 home storage systems, 1,269 months, 60 field capacity tests.
-On the 14 systems the method was not tuned on:
+On the 14 held-out systems (not used for tuning; seen once before, at release 0.1.0, where two of this version's rules were found):
 
-- LMO/NMC and NMC, 28 tests: median error 2.99 points of nominal capacity (target ≤ 3): **passed**.
-- LFP, 10 tests: 5 have no estimate (target ≤ 5 points): **failed**.
-- The 90 % band held the measured value in 29 % of 28 tests (target 80 %): **failed**. [Why →](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/limits.md)
+- LMO/NMC and NMC, 28 tests: median error 2.99 points of nominal capacity, a test without an estimate counted as infinite (target ≤ 3): **passed**; over the 22 tests with an estimate, 1.54 points.
+- LFP, 10 tests: 5 have no estimate (2 in the first year, 3 with too few full-to-empty pairs) and the other 5 read a median 4.48 points high (target: median error ≤ 5 points): **failed**.
+- The 90 % band held the measured value in 29 % of 28 tests (target 80 %): **failed**. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md)
+
+**Version 0.2** is closer to the held-out field tests where it gives an estimate (median error 2.13 → 1.54 points), but its band narrowed more (median width 2.90 → 1.30 points) and held fewer of them (43 % → 29 %): the band covers the capacity between two rest voltages, not the drift of the BMS stops the tests run to. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
+
+**What the data showed.** On the 6 LMO/NMC systems the relaxed voltage of the empty rests sank by 50 to 157 mV per cell over the record: the BMS discharged them further as they aged, so the capacity from operation and the capacity a field test measures came apart, and a band must carry that drift. [Data →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
 
 Every number on this page is written by `validation/make_readme.py` from a results file in `validation/results/`.
 
@@ -47,15 +54,17 @@ Output (the frame, as a table; resistance in ohm, efficiency and power capabilit
 | B4 | the tracking of harmful events, such as the number of deep discharge events, time spent in extreme temperatures, time spent charging in extreme temperatures | 566 | 566 | 566 | events | 566 | estimated |
 | B5 | the number of full equivalent charge-discharge cycles | 1242 | 1236 | 1247 | cycles | 1607 | estimated |
 
+Each band is the 90 % statistical band of its fit; on the held-out field tests the capacity band held 29 %, so it is not the whole uncertainty. "events" is a count weighted by the 180-day memory, hence the decimals. A2 is relative to the first day of the resistance fit (2017-03-16), not to the new pack (in service 2014-11-21).
+
 The sample is system 05, LMO/NMC, 15 Ah nominal, from August 2016 to September 2022: three reduced tables (one row per day, per current step and per rest candidate, not the raw samples), 6.8 MB in the package; the raw archive is 856 MB. The sample's data is CC BY 4.0, not BSD-3-Clause; its credit is in
-[`NOTICE.md`](https://github.com/GhonAI/besslib/blob/v0.1.0/src/besslib/data/sample_05/NOTICE.md) and in each file's metadata.
+[`NOTICE.md`](https://github.com/GhonAI/besslib/blob/v0.2.0/src/besslib/data/sample_05/NOTICE.md) and in each file's metadata.
 
 The quickstart runs without the capacity-test mask, as a user would. The published record of the same system leaves
-the test windows out ([Annex VII page](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/03_annex_vii.md)); a test checks that the sample with that mask
+the test windows out ([Annex VII page](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/03_annex_vii.md)); a test checks that the sample with that mask
 gives the published record exactly.
 
 **Your own data:** a pandas DataFrame in the frame format of
-[`besslib/frames.py`](https://github.com/GhonAI/besslib/blob/v0.1.0/src/besslib/frames.py) (columns, units, sign convention) and a `besslib.PackSpec`;
+[`besslib/frames.py`](https://github.com/GhonAI/besslib/blob/v0.2.0/src/besslib/frames.py) (columns, units, sign convention) and a `besslib.PackSpec`;
 then `besslib.soh.annex_vii(frame, spec)`. **The full field data** of one system, from the Zenodo archive:
 
 ```
@@ -74,7 +83,7 @@ filled in silently.
 
 | Code | Annex VII (quoted) | What besslib reports | Method and source |
 |---|---|---|---|
-| A1 | "the remaining capacity" | remaining capacity between the system's own end of charge and end of discharge | capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed voltage of each rest (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); read at the mean full and empty rest voltages of the memory time, which the record gives |
+| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops | capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed voltage of each rest (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); read at the mean full and empty rest voltages of the memory time, which the record gives |
 | A2 | "where possible, the remaining power capability" | power capability share, derived from the 1-second resistance, not measured | ratio of the resistance on the first day to the resistance at the date, from dV/dI of current steps between consecutive samples (Barai et al., Sci. Rep. 8, 21 (2018), doi:10.1038/s41598-017-18424-5; Schweiger et al., Sensors 10, 5604 (2010), doi:10.3390/s100605604); no power test |
 | A3 | "where possible, the remaining round trip efficiency" | round-trip efficiency (DC, at the battery terminals) over full-to-full loops | energy out / energy in, summed over closed loops from one full rest to the next (Regulation (EU) 2023/1542, Annex IV (6)); band: how far that ratio can be off because a loop does not end at exactly the state of charge it started from; the size of that error is learnt from the loops themselves (mean lag-2 product of the loop scores minus the mean lag-1 product) |
 | A4 | "the evolution of self-discharging rates" | apparent charge loss (an upper bound for self-discharge) | minus the offset current of the capacity fit (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); band with the current sensor's gain error |
@@ -91,11 +100,11 @@ Thresholds were tuned on 7 development systems and frozen. The results below com
 14 held-out systems and from synthetic packs with a known truth. The held-out systems were run once at the
 settings of release 0.1.0 and once more at the settings of this version. The capacity plausibility
 rules and the power-capability rule of this version were found on them. What changed, with every check before and
-after: [version 0.2 page](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/04_version_0_2.md). A failed check is published as failed, with its reason.
+after: [version 0.2 page](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md). A failed check is published as failed, with its reason.
 
 Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every result file carries them.
 
-**Capacity** ([page](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/02_capacity_validation.md); the reference tests: [page](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/01_reference.md))
+**Capacity** ([page](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/02_capacity_validation.md); the reference tests: [page](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/01_reference.md))
 
 | Check | Scope | Value | Pass if | Result |
 |---|---|---|---|---|
@@ -113,9 +122,9 @@ Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every resu
 | V5 info | all LFP (7 systems) | mean fade -1.07 points/year | information | – |
 | V6 | 200 synthetic packs | band held the true usable fade (-1.88) in 76.0% | 85-95 % | failed |
 | V7 | core against batch path, 90 daily estimates (months of tests 01/1, 07/1, 17/2) | max relative difference 2.0e-14 | <= 1e-6 | passed |
-| V8 | 21 systems | one command per system: python validation/run_capacity.py <id> | all 21 rebuilt with one hash | passed |
+| V8 | 21 systems | one command per system: python validation/run_capacity.py &lt;id> | all 21 rebuilt with one hash | passed |
 
-**The other Annex VII fields** ([page](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/03_annex_vii.md))
+**The other Annex VII fields** ([page](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/03_annex_vii.md))
 
 | Check | Scope | Value | Pass if | Result |
 |---|---|---|---|---|
@@ -129,13 +138,9 @@ Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every resu
 | W8 info | 200 synthetic packs: the same on pack B with current and voltage noise | largest relative error 0.498%; events exact on 189 of 200; 189 of 200 packs within the rule | information | – |
 | W3 info | development capacity tests | median \|difference\| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry {'LFP': 64.1, 'LMO/NMC': -8.2, 'NMC': -11.5} | information | – |
 | W3 | held-out capacity tests | 18 of 38 tests have a reference: not possible | >= 30 references, then <= 20 % | not possible |
-| X5 | development: W4 table, system-days with more than one row | 0 | 0 | passed |
 | W4 info | development: neighbouring 5-degree bands: the colder reads higher | 50 of 58 (86%) | information | – |
-| X5 | development: W6 table, system-days with more than one row | 0 | 0 | passed |
 | W6 info | development: full-to-full against empty-to-empty loop ratios within 1 point (no band needed) | 21 of 31 (68%) | information | – |
-| X5 | held-out: W4 table, system-days with more than one row | 0 | 0 | passed |
 | W4 | held-out: neighbouring 5-degree bands: the colder reads higher | 94 of 101 (93%) | >= 80% | passed |
-| X5 | held-out: W6 table, system-days with more than one row | 0 | 0 | passed |
 | W6 | held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed) | 39 of 55 (71%) | >= 80% | failed |
 | W9 | core against batch, resistance: 240 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06)) | max relative difference 3.6e-14 (64-bit); 2.6e-06 (32-bit, information) | <= 1e-6 | passed |
 | W9 | core against batch, efficiency: 10 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06)) | max relative difference 0.0e+00 (64-bit); 1.3e-06 (32-bit, information) | <= 1e-6 | passed |
@@ -146,13 +151,13 @@ Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every resu
 
 ## Limits
 
-1. **The capacity band does not hold the charge between the BMS stops.** On 200 synthetic packs the monthly 90 % band held the charge between the stops at the date in 2278 of 4782 month ends (48 %). It held the capacity between the rest voltages it reports in 4248 of 4562 (93 %).
+1. **The capacity band does not hold the charge between the BMS stops.** On 200 synthetic packs the monthly 90 % band held the charge between the stops at the date in 2278 of 4782 month ends (48 %). It held the capacity between the rest voltages it reports in 4248 of 4562 (93 %), against a truth chosen after the first results.
 2. **Partial windows are not covered.** Storage that works at a middle state of charge gives no full-to-empty pairs and so no capacity. This comes after the pack simulator (besslib.sim).
 3. Already published on the pages: the method needs regular full cycles; the first year of a record gives no capacity estimate; apparent charge loss is an upper bound for self-discharge; efficiency is DC at the battery terminals; resistance is a short-pulse value, not the impedance-spectroscopy one.
 
-Fixed in version 0.2, by the same rules: A4 bias, capacity at or below zero, power capability without resistance ([limits](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/limits.md)).
+Fixed in version 0.2, by the same rules: A4 bias, capacity at or below zero, power capability without resistance ([limits](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md)).
 
-All limits, with their numbers and pages: [`docs/limits.md`](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/limits.md).
+All limits, with their numbers and pages: [`docs/limits.md`](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md).
 
 ## Rebuild every number
 
@@ -169,7 +174,7 @@ The scripts download the archives one at a time and delete them after reducing.
 
 ## Cite
 
-Use GitHub's "Cite this repository" ([`CITATION.cff`](https://github.com/GhonAI/besslib/blob/v0.1.0/CITATION.cff)), and cite the data.
+Use GitHub's "Cite this repository" ([`CITATION.cff`](https://github.com/GhonAI/besslib/blob/v0.2.0/CITATION.cff)), and cite the data.
 
 ## Data and credit
 
@@ -183,4 +188,4 @@ Islam Ghonaiem, ghonaiem@vgtai.com. Issues: [GitHub](https://github.com/GhonAI/b
 
 ## Licence
 
-Code: BSD-3-Clause, see [`LICENSE`](https://github.com/GhonAI/besslib/blob/v0.1.0/LICENSE). The shipped sample: CC BY 4.0 (see above).
+Code: BSD-3-Clause, see [`LICENSE`](https://github.com/GhonAI/besslib/blob/v0.2.0/LICENSE). The shipped sample: CC BY 4.0 (see above).

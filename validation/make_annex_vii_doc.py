@@ -38,12 +38,12 @@ from besslib.soh import efficiency as eff
 from besslib.soh.charge_loss import HOURS_PER_MONTH
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
-from check_annex_vii import ONSET_MIN_REFERENCES, w4_pairs
+from check_annex_vii import ONSET_MIN_REFERENCES, one_row_per_day, w4_pairs
 from make_capacity_doc import DASH, ids_text, num, plural, sid_text, threshold
 from make_reference_doc import AXIS, COLOUR, INK, INK2, MUTED, ORDER, SURFACE, table
 from onset_resistance import AFTER, BEFORE
 from synthetic_phase3 import packs_for
-from tune_capacity import DEVELOPMENT
+from tune_capacity import DEVELOPMENT, masks_for
 from tune_resistance import MAD_TO_SD, MIN_SHARE, WINDOW
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -277,8 +277,18 @@ def headline_band(ctx: dict) -> float | None:
 
 
 def yearly_all(ctx: dict) -> pd.DataFrame:
+    """The year-end tables of all systems, one date per system and day, as the checks W4 and W6 count them."""
     frames = [ctx["yearly"][sid] for sid in sorted(ctx["yearly"])]
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    return one_row_per_day(pd.concat(frames, ignore_index=True)) if frames else pd.DataFrame()
+
+
+def mask_text() -> str:
+    """The test window that is masked, read from ``tune_capacity.masks_for`` on a made-up test."""
+    sample = pd.DataFrame({"system_id": [0], "onset": [pd.Timestamp("2020-01-02")], "end": [pd.Timestamp("2020-01-02 03:00")],
+                           "documented_start": [pd.Timestamp("2020-01-02")]})  # fmt: skip
+    (a, b), = masks_for(sample, 0)
+    before, after = (sample["onset"].iloc[0] - a).days, (b - sample["end"].iloc[0]).days
+    return f"{plural(before, 'day')} before to {plural(after, 'day')} after"
 
 
 def series(ctx: dict, sid: int, quantity: str) -> pd.DataFrame:
@@ -668,8 +678,8 @@ def chosen_after_block(ctx: dict) -> list[str]:
     at_origin = f"; median {s['w2_growth_truth_param'].median():.2f} % per year at the fit's origin" if s is not None else ""
     cfg = RecordConfig()
     return [
-        "Three readings of the checks were chosen after the development results were seen, and before any held-out "
-        "data was read. They are stated here because they were not fixed with the pass numbers.",
+        "Three readings of the checks were chosen after the development results were seen, and before the first "
+        "held-out run (release 0.1.0). They are stated here because they were not fixed with the pass numbers.",
         "",
         f"1. **W2, the growth.** The resistance growth on the synthetic packs is judged against the simulator's known "
         f"growth, {growth:.0f} % of the start value per year{at_origin}. The same-days truth is shown next to it as "
@@ -812,9 +822,10 @@ def record_details(r: dict, f: dict) -> list[str]:
     width = float(np.diff(sorted(pd.DataFrame(b4["hours_per_temperature_band"])["temp_band_c"]))[0])
     out += [
         f"**B4.** {b4['temperature_measured'].capitalize()}. Discharges that reached the system's own end-of-discharge "
-        f"level: {events_text(f['B4']['value'])}. Lowest and highest voltage: {b4['voltage_min_v']:.1f} and "
+        f"level: {events_text(f['B4']['value'])}. Lowest and highest logged sample: {b4['voltage_min_v']:.1f} and "
         f"{b4['voltage_max_v']:.1f} V for the pack, {b4['voltage_min_cell_v']:.3f} and {b4['voltage_max_cell_v']:.3f} V "
-        f"per cell in series ({b4['cell_voltage_note']}). Hours without a temperature: {b4['hours_no_temperature']:.0f}. "
+        f"per cell in series (pack voltage / cells in series). These are raw single samples, not filtered"
+        f"{'; 0 V is not a cell state but a logging fault (cause not verified)' if b4['voltage_min_v'] == 0 else ''}. Hours without a temperature: {b4['hours_no_temperature']:.0f}. "
         f"Counts against limits (deep discharges, hours beyond the temperature limits, hours charging beyond them): "
         f"`{b4['limits_status']}`.",
         "",
@@ -924,7 +935,7 @@ def over_time_block(ctx: dict, band_c: float, figures: dict) -> list[str]:
         ]
     if "efficiency" in figures:
         lines += [f"![Efficiency over time](img/{figures['efficiency']})", ""]
-    yearly = yearly_all(ctx)
+    yearly = pd.concat([ctx["yearly"][sid] for sid in sorted(ctx["yearly"])], ignore_index=True) if ctx["yearly"] else pd.DataFrame()
     if len(yearly):
         e = yearly[yearly["quantity"] == "efficiency_full_loops"].copy()
         e = e.groupby(["system_id", e["date"].dt.normalize()]).tail(1)
@@ -1117,7 +1128,7 @@ def method_block(ctx: dict) -> list[str]:
         "efficiency band is described above.",
         f"4. Sensor accuracies (Figgener et al. 2024, Supplementary Table 2): current {cfg.current_accuracy:.1%}, "
         f"voltage {cfg.voltage_accuracy:.2%}, each read as a rectangular half-width (JCGM 100:2008, 4.3.7).",
-        "5. Capacity-test windows (one day before to one day after) are masked from every estimate; the counts (B2–B5) "
+        f"5. Capacity-test windows ({mask_text()}) are masked from every estimate; the counts (B2–B5) "
         "include them.",
         "",
         "Sources:",
@@ -1203,7 +1214,7 @@ def rebuild_block(ctx: dict) -> list[str]:
 
 def document(ctx: dict, figures: dict, pairs: pd.DataFrame, band_c: float, w3_rule: float, w6_zone: float) -> str:
     parts = [
-        "# Phase 3 — the Annex VII record from operating data",
+        "# The Annex VII record from operating data",
         "",
         "Written by `validation/make_annex_vii_doc.py` from `validation/results/`. No number on this page is typed by hand.",
         "",

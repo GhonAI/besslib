@@ -41,8 +41,8 @@ def test_page_holds_the_record(sample, tmp_path):
 def test_page_escapes_record_text(sample, tmp_path):
     _, _, record = sample
     page = report(record, tmp_path / "record.html").read_text(encoding="utf-8")
-    assert "system&#x27;s own end of charge" in page
-    assert "system's own end of charge" not in page
+    assert "system&#x27;s own end-of-discharge level" in page
+    assert "system's own end-of-discharge level" not in page
 
 
 def test_page_is_deterministic(sample, tmp_path):

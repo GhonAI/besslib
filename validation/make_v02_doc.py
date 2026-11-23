@@ -46,7 +46,8 @@ RELEASE = TAG.lstrip("v")
 
 
 def cell(value) -> str:
-    return str(value).replace("|", "\\|").replace("\n", " ")
+    """A Markdown table cell: "|" escaped, and a "<" that opens a tag-like word (``<id>``) so GitHub shows it."""
+    return re.sub(r"<(?=[A-Za-z/!?])", "&lt;", str(value).replace("|", "\\|").replace("\n", " "))
 
 
 def table(frame: pd.DataFrame) -> str:
@@ -169,7 +170,8 @@ def seen_block(ctx: dict) -> list[str]:
         f"The {len(HELD_OUT)} held-out systems were seen once before, at the settings of release {RELEASE}{when}. Two faults "
         f"this version fixes were found in those results: a capacity at or below zero marked `estimated` "
         f"({by_set(zero)}) and power capability `estimated` without a resistance ({by_set(power)}). The 0.2 "
-        f"settings were fixed on synthetic packs and the {len(DEVELOPMENT)} development systems; then the held-out "
+        f"settings were fixed on synthetic packs and the {len(DEVELOPMENT)} development systems, except the plausibility "
+        "rule and the power-capability rule, which answer the two faults found in the held-out results; then the held-out "
         "systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**",
     ]
 
@@ -200,7 +202,7 @@ def changes_block(ctx: dict) -> list[str]:
         ("The capacity band used the forgetting weight once",
          "the weight entered the band's sums once", "squared, as for a weighted least-squares fit",
          setting_text(C, "band_forgetting"), "synthetic chains"),
-        ("The gain error in the capacity band", "0.5 % added as it is",
+        ("The gain error in the capacity band", f"{CapacityConfig().v0_1().gain_error * 100:g} % added as it is",
          "read as a rectangular half-width, ÷ √3 (JCGM 100:2008, 4.3.7), as A4 already did",
          setting_text(C, "gain_rectangular"), "synthetic chains (X7), before any 0.2 held-out run"),
         ("A capacity at or below zero said `estimated`", "no plausibility rule",
@@ -229,6 +231,20 @@ def changes_block(ctx: dict) -> list[str]:
         "Not in version 0.2: partial windows (Plett's form), for systems without regular full cycles. They come after the "
         "pack simulator (besslib.sim), which tests them at middle state of charge.",
     ]
+
+
+TESTS = {  # what each check of version 0.2 tests, in plain words
+    "X0": f"the 0.2 code at the release {RELEASE} settings gives release {RELEASE} exactly",
+    "X1": "the cause of the A4 bias",
+    "X2": "no capacity at or below zero, with crossed levels or with a wrong-sign pair is marked `estimated`",
+    "X3": "the monthly capacity band holds the true capacity at the date",
+    "X4": "no power capability without a resistance",
+    "X5": "each system and day is counted once in W4 and W6",
+    "X7": "the capacity band holds the truth on simulated chains of pairs",
+    "X8": "no warnings from the rest search",
+    "X9": "the new A3 method text is the one published (record, README, report)",
+    "X10": "no warnings on the lowest supported library versions",
+}
 
 
 def x_rows(ctx: dict) -> pd.DataFrame:
@@ -266,6 +282,7 @@ def x_rows(ctx: dict) -> pd.DataFrame:
             rows.append((r["check"], DASH, r["value"] if not r["value"].strip().startswith(".") else "tests passed",
                          r["pass_if"], r["result"]))  # fmt: skip
     frame = pd.DataFrame(rows, columns=["Check", "Scope", "Value", "Pass rule", "Result"])
+    frame.insert(1, "What it tests", [TESTS.get(c.split()[0], DASH) for c in frame["Check"]])
     frame["Result"] = frame["Result"].map(lambda v: f"**{v}**" if v == "fail" else v)
     return frame
 
@@ -277,20 +294,32 @@ def x_block(ctx: dict) -> list[str]:
     cause = ctx["cause"]
     exact = cause["exact_error_ma"].dropna()
     return [
-        "The pass rules were fixed with the 0.2 plan, before any result.",
+        "The pass rules were fixed before any 0.2 result was computed.",
         "",
         table(frame),
         "",
         f"Failed: {', '.join(failed) or 'none'}.",
         "",
-        f"- **X1** failed by its number: with the true change of state of charge the bias falls from "
-        f"{cause['labels_error_ma'].mean():+.2f} to {cause['true_error_ma'].mean():+.2f} mA. With the exact charge in place of "
-        f"the measured one it is {exact.mean():+.2f} mA, so the rest does not come from the sampling. The fix was built as "
-        "planned; W7 is its test.",
+        *x1_text(cause, exact),
         f"- **X3** and **X7** fail against truths built from the BMS stops. Against the capacity between the rest voltages "
         f"the fit reports, {reference_verdict(ctx)}; see "
         "[what the capacity measures](#what-the-capacity-measures-and-what-the-checks-compare-it-with).",
     ] + ([f"- **X10**, the check's note: {x10['note'].iloc[0]}."] if len(x10) and x10["note"].iloc[0] else [])
+
+
+def x1_text(cause: pd.DataFrame, exact: pd.Series) -> list[str]:
+    """X1 in plain words, from ``w7_cause.csv``."""
+    true_err = cause["true_error_ma"].dropna()
+    lim = 2 * true_err.std(ddof=1) / math.sqrt(len(true_err))
+    old, new, ex = f"{cause['labels_error_ma'].mean():+.2f}", f"{true_err.mean():+.2f}", f"{exact.mean():+.2f}"
+    if abs(true_err.mean()) <= lim:
+        return [f"- **X1** tested the cause of the A4 bias. With the true change of state of charge in place of the full and "
+                f"empty labels, the bias falls from {old} to {new} mA, within the pre-set ±{lim:.3f} mA, so X1 passes. W7 tests the fix."]
+    same = f"the same {ex} mA" if ex == new else f"{ex} mA"
+    return [f"- **X1** tested the cause of the A4 bias. With the true change of state of charge in place of the full and empty "
+            f"labels, the bias falls from {old} to {new} mA, so the labels cause almost all of it. The {new} mA left is outside "
+            f"the pre-set ±{lim:.3f} mA, so X1 fails; it does not come from the sampling, because the exact charge gives "
+            f"{same}. W7 tests the fix."]
 
 
 def reference_verdict(ctx: dict) -> str:
@@ -336,18 +365,50 @@ def vw_block(ctx: dict) -> list[str]:
     return out
 
 
-def dev_block(ctx: dict) -> list[str]:
+def test_rows(ctx: dict, pick) -> list[dict]:
+    """One row per version over the field tests that ``pick`` keeps, from ``phase2_tests.csv`` now and at the tag."""
     rows = []
     for label, t in ((RELEASE, ctx["tests_tag"]), ("0.2", ctx["tests"])):
-        d = t[t["set"] == "development"].copy()
+        d = pick(t).copy()
         for col in ("capacity_ah", "error_points", "band_points"):
             d[col] = pd.to_numeric(d[col], errors="coerce")
         est = d[d["capacity_ah"].notna()]
         held = d["held"].astype(str).str.lower().eq("true")
         rows.append({"Version": label, "Tests": len(d), "With an estimate": len(est),
-                     "Median abs. error, points (estimated tests)": num(est["error_points"].abs().median()),
-                     "Band held the test": f"{int(held.sum())} of {len(d)}", "Median band width, points": num(est["band_points"].median())})  # fmt: skip
-    return ["The tests of the development systems, where the settings were tuned; not a result.", "", table(pd.DataFrame(rows))]
+                     "Median abs. error, points (estimated tests)": est["error_points"].abs().median(),
+                     "Median abs. error, points (all tests; no estimate = infinite)": d["error_points"].abs().fillna(np.inf).median(),
+                     "Band held the test": f"{int(held.sum())} of {len(d)}", "Median band width, points": est["band_points"].median()})  # fmt: skip
+    return rows
+
+
+def shown_rows(rows: list[dict]) -> pd.DataFrame:
+    frame = pd.DataFrame(rows)
+    for col in ("Median abs. error, points (estimated tests)", "Median abs. error, points (all tests; no estimate = infinite)",
+                "Median band width, points"):
+        frame[col] = frame[col].map(lambda v: "infinite" if v == np.inf else num(v))
+    return frame
+
+
+def dev_block(ctx: dict) -> list[str]:
+    rows = test_rows(ctx, lambda t: t[t["set"] == "development"])
+    return ["The tests of the development systems, where the settings were tuned; not a result.", "", table(shown_rows(rows))]
+
+
+def held_block(ctx: dict) -> list[str]:
+    rows = test_rows(ctx, lambda t: t[(t["set"] == "held-out") & (t["chemistry"] != "LFP")])
+    old, new = rows
+    w, e = "Median band width, points", "Median abs. error, points (estimated tests)"
+    verb = "narrowed" if new[w] < old[w] else "widened"
+    return [
+        "The held-out LMO/NMC and NMC tests of checks V2 and V4.",
+        "",
+        table(shown_rows(rows)),
+        "",
+        f"Version 0.2 {verb} the band: on these tests its median width {'fell' if new[w] < old[w] else 'rose'} from "
+        f"{num(old[w])} to {num(new[w])} points while the median error of the estimated tests "
+        f"{'fell' if new[e] < old[e] else 'rose'} from {num(old[e])} to {num(new[e])}. Which of the band changes "
+        f"{verb} it most is not separated.",
+    ]
 
 
 def drift_rows(ctx: dict) -> pd.DataFrame:
@@ -389,7 +450,7 @@ def mismatch_block(ctx: dict) -> list[str]:
     lim = 2 * lag["mean_lag_points"].std(ddof=1) / math.sqrt(len(lag))
     rlim = 2 * lag["mean_lag_reference_points"].std(ddof=1) / math.sqrt(len(lag))
     synth = [{
-        "Check": "X3, band at the date", f"Truth fixed with the plan: charge between the stops": (
+        "Check": "X3, band at the date", "Truth fixed before the results: charge between the stops": (
             f"{held} of {tot} month ends ({held / tot:.1%}); mean lag {lag['mean_lag_points'].mean():+.3f} points (limit ±{lim:.3f})"),
         "Capacity between the rest voltages (information)": (
             f"{rheld} of {rtot} ({rheld / rtot:.1%}); mean lag {lag['mean_lag_reference_points'].mean():+.3f} (limit ±{rlim:.3f})"),
@@ -399,10 +460,10 @@ def mismatch_block(ctx: dict) -> list[str]:
         h = g[g["tau_days"] == tau]
         a, b = h["held"].astype(bool), h["held_reference"].astype(bool)
         synth.append({"Check": f"X7, {f'{tau:g} days of memory' if tau > 0 else 'no memory'}",
-                      "Truth fixed with the plan: charge between the stops": f"{int(a.sum())} of {len(h)} ({a.mean():.1%})",
+                      "Truth fixed before the results: charge between the stops": f"{int(a.sum())} of {len(h)} ({a.mean():.1%})",
                       "Capacity between the rest voltages (information)": f"{int(b.sum())} of {len(h)} ({b.mean():.1%})"})  # fmt: skip
     synth.append({"Check": "V6, fade rate",
-                  "Truth fixed with the plan: charge between the stops": f"{int(cov['held'].sum())} of {len(cov)} ({cov['held'].mean():.1%})",
+                  "Truth fixed before the results: charge between the stops": f"{int(cov['held'].sum())} of {len(cov)} ({cov['held'].mean():.1%})",
                   "Capacity between the rest voltages (information)": f"{int(cov['held_window'].sum())} of {len(cov)} ({cov['held_window'].mean():.1%})"})  # fmt: skip
 
     d = drift_rows(ctx)
@@ -413,7 +474,7 @@ def mismatch_block(ctx: dict) -> list[str]:
     lower = bool((lmo["empty_mv"] < 0).all())
     shown = pd.DataFrame({
         "System": d["sid"].map(sid_text), "Set": d["sid"].map(set_of), "Chemistry": d["chem"], "Cells in series": d["n"],
-        "First and last estimated month end": [f"{a:%b %Y} – {b:%b %Y}" if pd.notna(a) else DASH for a, b in zip(d["first"], d["last"])],
+        "First and last month end with an empty rest voltage": [f"{a:%b %Y} – {b:%b %Y}" if pd.notna(a) else DASH for a, b in zip(d["first"], d["last"])],
         "Empty rest voltage, V per cell (first → last)": [f"{a:.3f} → {b:.3f}" if np.isfinite(a) else DASH for a, b in zip(d["empty_first"], d["empty_last"])],
         "Change, mV per cell": d["empty_mv"].map(lambda v: num(v, "{:+.0f}")),
         "Full rest voltage change, mV per cell": d["full_mv"].map(lambda v: num(v, "{:+.0f}")),
@@ -422,6 +483,9 @@ def mismatch_block(ctx: dict) -> list[str]:
     })  # fmt: skip
     pairs = ", ".join(f"{sid_text(r.sid)} {num(r.fade_old, '{:+.2f}')} → {num(r.fade_new, '{:+.2f}')}" for r in lmo.itertuples())
     p2, p2t = ctx["p2"], ctx["p2_tag"]
+    both = lmo.dropna(subset=["fade_old", "fade_new"])
+    steeper = int((both["fade_new"] < both["fade_old"]).sum())
+    v6_rule = p2.loc[p2["check"] == "V6", "pass_if"].iloc[0]
     v5 = r"mean fade (-?[\d.]+)"
     v4 = r"held the test in (\d+)%"
     v2 = r"median \|error\| ([\d.]+)"
@@ -438,7 +502,7 @@ def mismatch_block(ctx: dict) -> list[str]:
         "",
         table(pd.DataFrame(synth)),
         "",
-        "**In the field the stops move.** The mean empty rest voltage at the first and the last estimated month end, per "
+        "**In the field the stops move.** The mean empty rest voltage at the first and the last month end that has one, per "
         "cell (`ref_empty_v` of the monthly capacity files ÷ cells in series): on the LMO/NMC systems it changes by "
         + ", ".join(f"{sid_text(r.sid)} {r.empty_mv:+.0f}" for r in lmo.itertuples())
         + f" mV; on {rest_chems} by at most {rest_max:.0f} mV."
@@ -446,7 +510,8 @@ def mismatch_block(ctx: dict) -> list[str]:
         "",
         table(shown),
         "",
-        "So the capacity between fixed voltages and the charge between the stops part. LMO/NMC fade, "
+        "So the capacity between fixed voltages and the charge between the stops drift apart: on the LMO/NMC systems the "
+        f"0.2 fade is steeper on {steeper} of {len(both)}. LMO/NMC fade, "
         f"{RELEASE} → 0.2, points per year: {pairs}; held-out mean {num(v_value(p2t, 'V5', 'held-out LMO/NMC', v5))} → "
         f"{num(v_value(p2, 'V5', 'held-out LMO/NMC', v5))} (V5 {v_word(p2t, 'V5', 'held-out LMO/NMC')} in {RELEASE}, "
         f"{v_word(p2, 'V5', 'held-out LMO/NMC')} in 0.2). On the field tests the band held "
@@ -456,8 +521,9 @@ def mismatch_block(ctx: dict) -> list[str]:
         f"{num(v_value(p2, 'V2', 'held-out LMO/NMC', v2))} points (V2 {v_word(p2t, 'V2', 'held-out LMO/NMC')} in {RELEASE}, "
         f"{v_word(p2, 'V2', 'held-out LMO/NMC')} in 0.2).",
         "",
-        "Neither number is wrong: they are two quantities. The 0.2 band holds the first and leaves out the drift of the "
-        "stops. A band term for that drift is planned; it will be tested first on the pack simulator (besslib.sim), where "
+        f"They are two quantities. Against the capacity between the rest voltages, a truth chosen after the first results, the "
+        f"monthly band held {100 * rheld / rtot:.0f} % of month ends (X3) and the fade-rate band {100 * cov['held_window'].mean():.1f} % "
+        f"(V6, rule {v6_rule}); neither band includes the drift of the stops. A band term for that drift is planned; it will be tested first on the pack simulator (besslib.sim), where "
         "the true drift is known, before it touches field data.",
     ]
 
@@ -489,6 +555,10 @@ def document(ctx: dict) -> str:
         f"## Development tests, {RELEASE} against 0.2",
         "",
         *dev_block(ctx),
+        "",
+        f"## Held-out tests, {RELEASE} against 0.2",
+        "",
+        *held_block(ctx),
         "",
         "## What the capacity measures, and what the checks compare it with",
         "",

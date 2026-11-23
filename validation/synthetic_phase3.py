@@ -189,7 +189,7 @@ def run_part(name: str, run: Run) -> dict:
     if name == "w8noise":
         out = function(replace(run, pack_plain=run.pack_noisy, reduced_plain=run.reduced_noisy))
         return {part.prefix + key[len("w8_"):]: value for key, value in out.items()}
-    if name == "w7bf1":  # the same packs with the forgetting weight once in the band's sums (D51)
+    if name == "w7bf1":  # the same packs with the forgetting weight once in the band's sums
         out = function(run, RecordConfig(), CapacityConfig().with_(band_forgetting=1))
         return {part.prefix + key[len("w7_"):]: value for key, value in out.items()}
     if part.function in ("check_w5", "check_w7"):

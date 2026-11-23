@@ -1,4 +1,4 @@
-# Phase 3 — the Annex VII record from operating data
+# The Annex VII record from operating data
 
 Written by `validation/make_annex_vii_doc.py` from `validation/results/`. No number on this page is typed by hand.
 
@@ -27,7 +27,7 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 | W7 | 200 synthetic packs: apparent charge loss (hidden drain) | band held the truth in 188 of 200 (94.0%) | 85-95 % | pass |
 | W8 | 200 synthetic packs: Ah, kWh, cycles; planted events (pack B: current gain error only) | largest relative error 0.498%; events exact on 200 of 200; 200 of 200 packs within the rule | <= 0.6 % and exact, every pack | pass |
 | W8 info | 200 synthetic packs: the same on pack B with current and voltage noise | largest relative error 0.498%; events exact on 189 of 200; 189 of 200 packs within the rule | information | information |
-| W3 info | development capacity tests | median |difference| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry {'LFP': 64.1, 'LMO/NMC': -8.2, 'NMC': -11.5} | information | information |
+| W3 info | development capacity tests | median \|difference\| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry {'LFP': 64.1, 'LMO/NMC': -8.2, 'NMC': -11.5} | information | information |
 | W3 | held-out capacity tests | 18 of 38 tests have a reference: not possible | >= 30 references, then <= 20 % | not possible |
 | X5 | development: W4 table, system-days with more than one row | 0 | 0 | pass |
 | W4 info | development: neighbouring 5-degree bands: the colder reads higher | 50 of 58 (86%) | >= 80% | information |
@@ -48,7 +48,7 @@ W1, W3, W4 and W6 pass or fail on the held-out systems; their development and al
 
 ### Readings chosen after the development results
 
-Three readings of the checks were chosen after the development results were seen, and before any held-out data was read. They are stated here because they were not fixed with the pass numbers.
+Three readings of the checks were chosen after the development results were seen, and before the first held-out run (release 0.1.0). They are stated here because they were not fixed with the pass numbers.
 
 1. **W2, the growth.** The resistance growth on the synthetic packs is judged against the simulator's known growth, 5 % of the start value per year; median 4.93 % per year at the fit's origin. The same-days truth is shown next to it as information.
 2. **W6, the two loop kinds.** W6 compares the full-to-full and the empty-to-empty loop ratios themselves; no band is needed. The ratio is Σ λ·E_out ÷ Σ λ·E_in over the loops in memory, with the estimator's weights; it exists once the full and empty levels are set and at least 5 loops are in memory, and it equals the record's value wherever the record has one (the check stops otherwise).
@@ -66,7 +66,7 @@ System 05 is a held-out system; it was named for this page before any result exi
 
 | Code | Annex VII field | What is computed | Value [band] | Unit | Events | Status |
 |---|---|---|---|---|---|---|
-| A1 | "the remaining capacity" | remaining capacity between the system's own end of charge and end of discharge | 11.37 [11.32, 11.43] | Ah (75.8 % of 15 Ah) | 207.4 | `estimated` |
+| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops | 11.37 [11.32, 11.43] | Ah (75.8 % of 15 Ah) | 207.4 | `estimated` |
 | A2 | "where possible, the remaining power capability" | power capability share, derived from the 1-second resistance, not measured | 72.7 [65.6, 79.8] | % of the first day | 282 | `estimated` |
 | A3 | "where possible, the remaining round trip efficiency" | round-trip efficiency (DC, at the battery terminals) over full-to-full loops | 96.07 [96.04, 96.10] | % | 96.1 | `estimated` |
 | A4 | "the evolution of self-discharging rates" | apparent charge loss (an upper bound for self-discharge) | 5.7 [4.9, 6.4] | mA | 207.4 | `estimated` |
@@ -129,7 +129,7 @@ Resistance increase (Annex VII Part A asks for it in %): +6.84 % of the start va
 
 **B2, B3, B5.** Counted from 2016-08-17 to 2022-09-12: since the first day of data, not a lifetime total. Energy in 2901 kWh, out 2745 kWh; charge in 18873 Ah, out 18373 Ah. Days with data 1607; hours measured 37699, hours missing 15533; share of samples interpolated 5.23e-05.
 
-**B4.** Pack temperature, not cell temperature. Discharges that reached the system's own end-of-discharge level: 566. Lowest and highest voltage: 0.0 and 185.6 V for the pack, 0.000 and 4.640 V per cell in series (pack voltage / cells in series: an average, one cell can be lower or higher). Hours without a temperature: 0. Counts against limits (deep discharges, hours beyond the temperature limits, hours charging beyond them): `not possible from this data: no limits given`.
+**B4.** Pack temperature, not cell temperature. Discharges that reached the system's own end-of-discharge level: 566. Lowest and highest logged sample: 0.0 and 185.6 V for the pack, 0.000 and 4.640 V per cell in series (pack voltage / cells in series). These are raw single samples, not filtered; 0 V is not a cell state but a logging fault (cause not verified). Hours without a temperature: 0. Counts against limits (deep discharges, hours beyond the temperature limits, hours charging beyond them): `not possible from this data: no limits given`.
 
 | Pack temperature, °C | Hours charging | Hours discharging | Hours idle |
 |---|---|---|---|
@@ -308,23 +308,23 @@ At every year end, every two neighbouring temperature bands of one system that b
 
 | System | Set | Chemistry | Pairs | Colder reads higher | Share |
 |---|---|---|---|---|---|
-| 01 | development | LMO/NMC | 12 | 12 | 100% |
-| 02 | held-out | LMO/NMC | 12 | 11 | 92% |
-| 03 | held-out | LMO/NMC | 12 | 12 | 100% |
-| 04 | development | LMO/NMC | 7 | 7 | 100% |
+| 01 | development | LMO/NMC | 10 | 10 | 100% |
+| 02 | held-out | LMO/NMC | 10 | 9 | 90% |
+| 03 | held-out | LMO/NMC | 9 | 9 | 100% |
+| 04 | development | LMO/NMC | 5 | 5 | 100% |
 | 05 | held-out | LMO/NMC | 9 | 8 | 89% |
-| 06 | held-out | LMO/NMC | 7 | 7 | 100% |
-| 07 | development | NMC | 13 | 13 | 100% |
+| 06 | held-out | LMO/NMC | 5 | 5 | 100% |
+| 07 | development | NMC | 12 | 12 | 100% |
 | 08 | held-out | NMC | 6 | 5 | 83% |
 | 09 | held-out | NMC | 10 | 10 | 100% |
-| 10 | held-out | NMC | 7 | 7 | 100% |
-| 11 | development | NMC | 14 | 14 | 100% |
-| 12 | held-out | NMC | 14 | 14 | 100% |
-| 13 | held-out | NMC | 5 | 5 | 100% |
+| 10 | held-out | NMC | 5 | 5 | 100% |
+| 11 | development | NMC | 11 | 11 | 100% |
+| 12 | held-out | NMC | 11 | 11 | 100% |
+| 13 | held-out | NMC | 4 | 4 | 100% |
 | 14 | development | LFP | 12 | 8 | 67% |
-| 15 | held-out | LFP | 9 | 6 | 67% |
-| 16 | held-out | LFP | 14 | 14 | 100% |
-| 17 | development | LFP | 9 | 4 | 44% |
+| 15 | held-out | LFP | 6 | 4 | 67% |
+| 16 | held-out | LFP | 11 | 11 | 100% |
+| 17 | development | LFP | 7 | 3 | 43% |
 | 19 | development | LFP | 1 | 1 | 100% |
 | 20 | held-out | LFP | 8 | 6 | 75% |
 | 21 | held-out | LFP | 7 | 7 | 100% |
@@ -378,7 +378,7 @@ Annex IV of the Regulation ([consolidated text](https://eur-lex.europa.eu/legal-
 
 | Code | Annex VII field | besslib computes | Annex IV definition | Limits |
 |---|---|---|---|---|
-| A1 | "the remaining capacity" | remaining capacity between the system's own end of charge and end of discharge | – | The capacity estimator of the capacity page: no value in the first year (the full and empty levels need a year of history). It is the capacity between the mean full and empty rest voltages of the memory time, which the record gives. The band does not hold the drift of the BMS stops against those voltages ([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)). |
+| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops | – | The capacity estimator of the capacity page: no value in the first year (the full and empty levels need a year of history). It is the capacity between the mean full and empty rest voltages of the memory time, which the record gives. The band does not hold the drift of the BMS stops against those voltages ([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)). |
 | A2 | "where possible, the remaining power capability" | power capability share, derived from the 1-second resistance, not measured | (4) "'Power fade' means the decrease over time and upon usage in the amount of power that a battery can deliver at the rated voltage." | Derived from the 1-second resistance, not measured: no power test. With an ohmic model the power at a fixed voltage limit goes as 1 ÷ R. The resistance grows with the length of the pulse (Barai 2018; Schweiger 2010), so the power of a pulse longer than one sample is lower than this share suggests. Watts need the pack's voltage limits, which the dataset does not give. Since version 0.2 it is `estimated` only when A5 is `estimated` at the same date. |
 | A3 | "where possible, the remaining round trip efficiency" | round-trip efficiency (DC, at the battery terminals) over full-to-full loops | (6) "'Energy round trip efficiency' means the ratio of the net energy delivered by a battery during a discharge test to the total energy required to restore the initial state of charge by a standard charge." | DC at the battery terminals, not the AC efficiency of the plant: Schimpe et al. (2018) give AC system figures well below the battery's, and are cited for that scale only. It depends on the use. The energy in also restores the charge the meter does not see. A sensor gain error cancels in the ratio; a zero offset does not, and is not in the band. No value in the first year. |
 | A4 | "the evolution of self-discharging rates" | apparent charge loss (an upper bound for self-discharge) | – | "Apparent charge loss": an upper bound for self-discharge. It holds cell self-discharge, BMS supply, balancing and the current sensor's zero offset, so it is mostly not cell self-discharge. |
@@ -395,7 +395,7 @@ Shared rules:
 2. Forgetting: an event of age s counts with weight λ = exp(−s ÷ 180 days), the capacity estimator's memory time, not tuned again.
 3. Resistance and efficiency share one small core: a fit through the origin, R = Σ λ·b ÷ Σ λ·a, one update per event, fixed-size state, plain floats. The resistance band is the sandwich on the day scores (days share no sample, so no lag term; Newey and West 1987) plus the sensors' gain errors as a systematic term. The efficiency band is described above.
 4. Sensor accuracies (Figgener et al. 2024, Supplementary Table 2): current 0.5%, voltage 0.25%, each read as a rectangular half-width (JCGM 100:2008, 4.3.7).
-5. Capacity-test windows (one day before to one day after) are masked from every estimate; the counts (B2–B5) include them.
+5. Capacity-test windows (1 day before to 1 day after) are masked from every estimate; the counts (B2–B5) include them.
 
 Sources:
 

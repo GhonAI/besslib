@@ -23,6 +23,14 @@ from besslib.soh.capacity import _solve, capacity_state_at, run_core
 from besslib.soh.config import CapacityConfig
 
 VECTORS = Path(__file__).parent / "vectors"
+
+
+def _read_vectors(path: Path) -> pd.DataFrame:
+    """The saved vectors, read exactly: before pandas 3 the default CSV parser can be a last
+    bit off, which the fit's rho amplifies."""
+    if int(pd.__version__.split(".")[0]) < 3:
+        return pd.read_csv(path, float_precision="round_trip")
+    return pd.read_csv(path)
 Z90 = 1.6448536269514722
 SPEC = PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.0, cells_in_series=14)
 EPOCH = pd.Timestamp("2000-01-01")
@@ -245,8 +253,8 @@ def write_vectors() -> None:
 
 
 def test_saved_vectors():
-    inputs = pd.read_csv(VECTORS / "capacity_core_pairs.csv")
-    expected = pd.read_csv(VECTORS / "capacity_core_expected.csv")
+    inputs = _read_vectors(VECTORS / "capacity_core_pairs.csv")
+    expected = _read_vectors(VECTORS / "capacity_core_expected.csv")
     got = _vector_outputs(inputs, expected[["tau_days", "t_days"]])
     assert (got["status"].to_numpy() == expected["status"].to_numpy()).all()
     for col in _OUT[1:]:
@@ -799,8 +807,8 @@ def write_v02_vectors() -> None:
 
 
 def test_saved_v02_vectors():
-    inputs = pd.read_csv(VECTORS / "capacity_core_v02_pairs.csv")
-    expected = pd.read_csv(VECTORS / "capacity_core_v02_expected.csv")
+    inputs = _read_vectors(VECTORS / "capacity_core_v02_pairs.csv")
+    expected = _read_vectors(VECTORS / "capacity_core_v02_expected.csv")
     got = _v02_vector_outputs(inputs, expected[["chain", "c_weight", *_SETTINGS_V02, "t_days"]])
     for col in ("status", "terms", "p"):
         assert (got[col].to_numpy() == expected[col].to_numpy()).all(), col
@@ -1188,8 +1196,8 @@ def write_ratio_vectors() -> None:
 
 
 def test_saved_ratio_vectors():
-    events = pd.read_csv(VECTORS / "ratio_core_events.csv")
-    expected = pd.read_csv(VECTORS / "ratio_core_expected.csv")
+    events = _read_vectors(VECTORS / "ratio_core_events.csv")
+    expected = _read_vectors(VECTORS / "ratio_core_expected.csv")
     got = _ratio_vector_outputs(events, expected[["fit", "tau_days", "t0_days", "t_days", "z", "min_events", "min_span_years", "lower", "upper"]])
     assert (got["status"].to_numpy() == expected["status"].to_numpy()).all()
     assert set(expected["status"]) >= {_core.OK, _core.TOO_FEW_EVENTS, _core.SHORT_SPAN}
@@ -1503,8 +1511,8 @@ def write_loop_vectors() -> None:
 
 
 def test_saved_loop_vectors():
-    events = pd.read_csv(VECTORS / "loop_core_events.csv")
-    expected = pd.read_csv(VECTORS / "loop_core_expected.csv")
+    events = _read_vectors(VECTORS / "loop_core_events.csv")
+    expected = _read_vectors(VECTORS / "loop_core_expected.csv")
     got = _loop_vector_outputs(events, expected[["tau_days", "t_days", "z", "min_events", "lower", "upper"]])
     assert (got["status"].to_numpy() == expected["status"].to_numpy()).all()
     assert set(expected["status"]) >= {_core.OK, _core.TOO_FEW_EVENTS}

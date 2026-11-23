@@ -49,10 +49,15 @@ Found in release 0.1.0 and fixed in version 0.2: the same rule, applied to the 0
 
 ## Limits already published on the pages
 
-- The method needs regular full cycles, as in home storage; it does not suit mid-state-of-charge grid duty. ([page](03_annex_vii.md#method-and-limits-per-field))
+- The method needs regular full cycles, as in home storage; it does not suit mid-state-of-charge grid duty. ([page](02_capacity_validation.md#limits))
 - The capacity checks V3 (LFP), V4 (the band), V5 NMC and V6 failed. ([page](02_capacity_validation.md#why-a-check-failed))
 - A4, the apparent charge loss, is an upper bound for self-discharge, not a measure of it. ([page](03_annex_vii.md#method-and-limits-per-field))
 - A3, the efficiency, is DC at the battery terminals, not the AC efficiency of a plant. ([page](03_annex_vii.md#method-and-limits-per-field))
 - A5 is a 1-second resistance, not the ohmic value of impedance spectroscopy. ([page](03_annex_vii.md#method-and-limits-per-field))
 - The first year of a record gives no capacity estimate, because the full and empty levels need a year of history. ([page](02_capacity_validation.md#limits))
 - The checks W2 (value) and W6 failed and W3 was not possible. ([page](03_annex_vii.md#result))
+
+## Source and credit
+
+Data: Figgener, J. et al., *Data for: Multi-year field measurements of home storage systems and their use in capacity estimation*, Zenodo (2024), https://doi.org/10.5281/zenodo.12091223, licence CC BY 4.0.
+Paper: Figgener, J. et al., Nature Energy 9, 1438–1447 (2024), https://doi.org/10.1038/s41560-024-01620-9 (CC BY-NC-ND 4.0): cited only; no figure or text of it is copied.

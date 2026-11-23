@@ -5,10 +5,12 @@ Method: rest-anchored coulomb counting as in Figgener et al., Nature Energy 9, 1
 offset current are fitted together over many pairs (``besslib.soh._core``), so each
 estimate carries a band and a count of the pairs it rests on.
 
-The estimate at a time uses only pairs that end before it (causal, as in a BMS). It
-measures the capacity between the system's own end of charge and end of discharge under
-its normal load. A field capacity test at full power may read lower; besslib does not
-correct for that.
+The estimate at a time uses only pairs that end before it (causal, as in a BMS). Without
+voltage terms (the release 0.1.0 settings) it measures the capacity between the system's
+own end of charge and end of discharge under its normal load; with them (version 0.2) it
+measures the capacity between a full and an empty rest at two stated relaxed voltages,
+not the charge between the BMS stops, which move as the cells age. A field capacity test
+at full power may read lower; besslib does not correct for that.
 
 The fit (version 0.2; each part has its setting in ``CapacityConfig``): with
 ``local_trend`` the fit with memory time ``tau_days`` carries a linear trend in the

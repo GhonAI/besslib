@@ -73,9 +73,17 @@ _RESISTANCE = (
     "dV/dI of current steps between consecutive samples (Barai et al., Sci. Rep. 8, 21 (2018), "
     "doi:10.1038/s41598-017-18424-5; Schweiger et al., Sensors 10, 5604 (2010), doi:10.3390/s100605604)"
 )
+# What A1 is: with the voltage terms (version 0.2) the capacity is read at two rest voltages, not between the stops.
+_A1_LABELS = {
+    "none": "remaining capacity between the system's own end of charge and end of discharge",
+    "voltage": (
+        "remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives "
+        "both); not the charge between the BMS stops"
+    ),
+}
 _METHODS = {
     "A1": f"capacity between full and empty rests by coulomb counting, fitted with the offset current ({_FIGGENER})",
-    "A1 voltage": (  # version 0.2, voltage_terms = "every_pair" (owner's wording, D55 Q3)
+    "A1 voltage": (  # version 0.2, voltage_terms = "every_pair"
         "capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed "
         f"voltage of each rest ({_FIGGENER}); read at the mean full and empty rest voltages of the memory time, "
         "which the record gives"
@@ -252,7 +260,7 @@ def _capacity_fields(reduced, spec, at, mask, level, config, capacity_config) ->
     value, low, high = _row_value(now, "capacity_ah")
     ref = float(spec.reference_capacity_ah)
     a1 = Field(
-        "A1", _LEGAL["A1"], "remaining capacity between the system's own end of charge and end of discharge",
+        "A1", _LEGAL["A1"], _A1_LABELS["none" if capacity_config.voltage_terms == "none" else "voltage"],
         value, low, high, "Ah", _METHODS["A1" if capacity_config.voltage_terms == "none" else "A1 voltage"],
         float(now["n_pairs"]), now["status"],
         {

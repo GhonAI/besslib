@@ -1,21 +1,28 @@
 # besslib
 
 State of health from battery storage operating data — with confidence bands, in the fields of the
-EU Battery Regulation (2023/1542, Annex VII).
+EU Battery Regulation (2023/1542, Annex VII). Checked so far on home storage that reaches full and empty regularly;
+not on grid-scale or mid-state-of-charge duty.
 
 **Version {{version}}, {{release_date}}.** It computes the Annex VII parameters; it does not certify them. It is not a
 compliance certificate and not legal advice.
+
+Author: Islam Ghonaiem, ghonaiem@vgtai.com — questions on the method and its failures are welcome.
 
 ![{{figure_alt}}]({{raw:docs/img/00_readme_05.png}})
 
 *{{figure_caption}}*
 
 Checked on open field data: {{n_systems}} home storage systems, {{n_months}} months, {{n_tests}} field capacity tests.
-On the {{n_heldout}} systems the method was not tuned on:
+On the {{n_heldout}} held-out systems (not used for tuning; seen once before, at release {{previous_release}}, where two of this version's rules were found):
 
-- LMO/NMC and NMC, {{v2_tests}} tests: median error {{v2_value}} points of nominal capacity (target ≤ {{v2_target}}): **{{v2_result}}**.
-- LFP, {{v3_tests}} tests: {{v3_missing}} have no estimate (target ≤ {{v3_target}} points): **{{v3_result}}**.
+- LMO/NMC and NMC, {{v2_tests}} tests: median error {{v2_value}} points of nominal capacity, a test without an estimate counted as infinite (target ≤ {{v2_target}}): **{{v2_result}}**; over the {{v2_have}} tests with an estimate, {{v2_est_error}} points.
+- LFP, {{v3_tests}} tests: {{v3_missing}} have no estimate ({{v3_reasons}}) and the other {{v3_have}} read a median {{v3_bias}} points {{v3_direction}} (target: median error ≤ {{v3_target}} points): **{{v3_result}}**.
 - The {{band_level}} % band held the measured value in {{v4_share}} % of {{v4_tests}} tests (target {{v4_target}} %): **{{v4_result}}**. [Why →]({{url:docs/limits.md}})
+
+{{version_sentence}}
+
+{{data_showed}}
 
 Every number on this page is written by `validation/make_readme.py` from a results file in `validation/results/`.
 

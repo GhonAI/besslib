@@ -4,7 +4,7 @@ Written by `validation/make_v02_doc.py` from `validation/results/` and from the 
 
 ## Seen once
 
-The 14 held-out systems were seen once before, at the settings of release 0.1.0 (tagged 20 November 2026). Two faults this version fixes were found in those results: a capacity at or below zero marked `estimated` (held-out 09) and power capability `estimated` without a resistance (held-out 08, 18 and 20; development 19). The 0.2 settings were fixed on synthetic packs and the 7 development systems; then the held-out systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**
+The 14 held-out systems were seen once before, at the settings of release 0.1.0 (tagged 20 November 2026). Two faults this version fixes were found in those results: a capacity at or below zero marked `estimated` (held-out 09) and power capability `estimated` without a resistance (held-out 08, 18 and 20; development 19). The 0.2 settings were fixed on synthetic packs and the 7 development systems, except the plausibility rule and the power-capability rule, which answer the two faults found in the held-out results; then the held-out systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**
 
 ## What changed and why
 
@@ -27,35 +27,35 @@ Not in version 0.2: partial windows (Plett's form), for systems without regular 
 
 ## The checks of version 0.2
 
-The pass rules were fixed with the 0.2 plan, before any result.
+The pass rules were fixed before any 0.2 result was computed.
 
-| Check | Scope | Value | Pass rule | Result |
-|---|---|---|---|---|
-| X1 | cause check, 200 W7 packs, true change of state of charge in place of the labels | mean error -0.11 mA (sd 0.53); with the labels +4.43 mA | mean within ±0.075 mA (2 sd/√200) | **fail** |
-| X0 files | – | 0 of 102 files differ | 0 differences, except the A3 text and the W4/W6 rows | pass |
-| X0 vectors | – | 0 of 6 0.1 vector files differ | 0 differences | pass |
-| X2 month ends | – | 0 of 847 estimated month ends (value or low <= 0: 0; crossed levels: 0; wrong-sign pair: 0); systems [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21] | 0 estimated month ends with value or low <= 0, crossed levels or a wrong-sign pair | pass |
-| X2 records | – | 0 of 96 | 0 estimated A1 values with value or low <= 0 in the yearly tables | pass |
-| X2 synthetic case | – | not possible from this data: the empty level has reached the full level, so full and empty no longer mark the two ends of the charge window | levels crossed gives status 12 | pass |
-| X4 | – | 0 of 21 records | 0 records with A2 estimated while A5 is not | pass |
-| X3 | band at the date, 200 synthetic packs, against the charge between the stops | 2278 of 4782 month ends (47.6%); mean lag +0.473 points | 85-95 %; mean lag within ±0.040 (2 sd/√200) | **fail** |
-| X5 | development: W4 table, system-days with more than one row | 0 | 0 | pass |
-| X5 | development: W6 table, system-days with more than one row | 0 | 0 | pass |
-| X5 | held-out: W4 table, system-days with more than one row | 0 | 0 | pass |
-| X5 | held-out: W6 table, system-days with more than one row | 0 | 0 | pass |
-| X7 | capacity band on simulated pair chains without fade, gain term 0 | 116 of 300 (38.7%) with 180 days of memory; 134 of 300 (44.7%) without memory | 85-95 % each | **fail** |
-| X8 | – | tests passed | test_rests.py passes under -W error::RuntimeWarning | pass |
-| X9 record code | – | tests passed | the A3 method equals the approved wording | pass |
-| X9 record files | – | 0 of 21 0.2 records differ | exact | pass |
-| X9 README | – | wording found | exact | pass |
-| X9 report | – | wording found | exact | pass |
-| X10 | – | tests passed | test_report.py passes under -W error::FutureWarning | pass |
+| Check | What it tests | Scope | Value | Pass rule | Result |
+|---|---|---|---|---|---|
+| X1 | the cause of the A4 bias | cause check, 200 W7 packs, true change of state of charge in place of the labels | mean error -0.11 mA (sd 0.53); with the labels +4.43 mA | mean within ±0.075 mA (2 sd/√200) | **fail** |
+| X0 files | the 0.2 code at the release 0.1.0 settings gives release 0.1.0 exactly | – | 0 of 102 files differ | 0 differences, except the A3 text and the W4/W6 rows | pass |
+| X0 vectors | the 0.2 code at the release 0.1.0 settings gives release 0.1.0 exactly | – | 0 of 6 release 0.1.0 test-vector files differ | 0 differences | pass |
+| X2 month ends | no capacity at or below zero, with crossed levels or with a wrong-sign pair is marked `estimated` | – | 0 of 847 estimated month ends (value or low <= 0: 0; crossed levels: 0; wrong-sign pair: 0); systems [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21] | 0 estimated month ends with value or low <= 0, crossed levels or a wrong-sign pair | pass |
+| X2 records | no capacity at or below zero, with crossed levels or with a wrong-sign pair is marked `estimated` | – | 0 of 96 | 0 estimated A1 values with value or low <= 0 in the yearly tables | pass |
+| X2 synthetic case | no capacity at or below zero, with crossed levels or with a wrong-sign pair is marked `estimated` | – | not possible from this data: the empty level has reached the full level, so full and empty no longer mark the two ends of the charge window | a pack with crossed levels gives `not possible from this data` | pass |
+| X4 | no power capability without a resistance | – | 0 of 21 records | 0 records with A2 estimated while A5 is not | pass |
+| X3 | the monthly capacity band holds the true capacity at the date | band at the date, 200 synthetic packs, against the charge between the stops | 2278 of 4782 month ends (47.6%); mean lag +0.473 points | 85-95 %; mean lag within ±0.040 (2 sd/√200) | **fail** |
+| X5 | each system and day is counted once in W4 and W6 | development: W4 table, system-days with more than one row | 0 | 0 | pass |
+| X5 | each system and day is counted once in W4 and W6 | development: W6 table, system-days with more than one row | 0 | 0 | pass |
+| X5 | each system and day is counted once in W4 and W6 | held-out: W4 table, system-days with more than one row | 0 | 0 | pass |
+| X5 | each system and day is counted once in W4 and W6 | held-out: W6 table, system-days with more than one row | 0 | 0 | pass |
+| X7 | the capacity band holds the truth on simulated chains of pairs | capacity band on simulated pair chains without fade, gain term 0 | 116 of 300 (38.7%) with 180 days of memory; 134 of 300 (44.7%) without memory | 85-95 % each | **fail** |
+| X8 | no warnings from the rest search | – | tests passed | test_rests.py passes under -W error::RuntimeWarning | pass |
+| X9 record code | the new A3 method text is the one published (record, README, report) | – | tests passed | the A3 method text equals the wording on the version 0.2 page | pass |
+| X9 record files | the new A3 method text is the one published (record, README, report) | – | 0 of 21 0.2 records differ | exact | pass |
+| X9 README | the new A3 method text is the one published (record, README, report) | – | wording found | exact | pass |
+| X9 report | the new A3 method text is the one published (record, README, report) | – | wording found | exact | pass |
+| X10 | no warnings on the lowest supported library versions | – | tests passed | test_report.py passes under -W error::FutureWarning | pass |
 
 Failed: X1, X3, X7.
 
-- **X1** failed by its number: with the true change of state of charge the bias falls from +4.43 to -0.11 mA. With the exact charge in place of the measured one it is -0.11 mA, so the rest does not come from the sampling. The fix was built as planned; W7 is its test.
+- **X1** tested the cause of the A4 bias. With the true change of state of charge in place of the full and empty labels, the bias falls from +4.43 to -0.11 mA, so the labels cause almost all of it. The -0.11 mA left is outside the pre-set ±0.075 mA, so X1 fails; it does not come from the sampling, because the exact charge gives the same -0.11 mA. W7 tests the fix.
 - **X3** and **X7** fail against truths built from the BMS stops. Against the capacity between the rest voltages the fit reports, X3 would pass and X7 would pass by their own pass numbers (information, not a result); see [what the capacity measures](#what-the-capacity-measures-and-what-the-checks-compare-it-with).
-- **X10**, the check's note: with the interpreter and library versions of this environment; run it from the environment with numpy 2.0, pandas 2.2.2, pyarrow 16 for the check as planned.
+- **X10**, the check's note: run with numpy 2.0.0, pandas 2.2.2, pyarrow 16.0.0.
 
 ## Every V and W check, 0.1.0 against 0.2
 
@@ -79,7 +79,7 @@ The same checks with the same pass rules; the held-out systems as above.
 | V5 info | all LFP (7 systems) (0.1.0: all LFP (8 systems)) | mean fade -0.80 points/year | information | mean fade -1.07 points/year | information |
 | V6 | 200 synthetic packs | band held the true usable fade (-1.88) in 89.5% | pass | band held the true usable fade (-1.88) in 76.0% | **fail** |
 | V7 | core against batch path, 90 daily estimates (months of tests 01/1, 07/1, 17/2) | max relative difference 2.0e-15 | pass | max relative difference 2.0e-14 | pass |
-| V8 | 21 systems | one command per system: python validation/run_capacity.py <id> | pass | one command per system: python validation/run_capacity.py <id> | pass |
+| V8 | 21 systems | one command per system: python validation/run_capacity.py &lt;id> | pass | one command per system: python validation/run_capacity.py &lt;id> | pass |
 
 Result changed: V5 (held-out LFP (5 systems)); V6 (200 synthetic packs). A dash: the check has no such row in that version.
 
@@ -115,10 +115,21 @@ Result changed: W7 (200 synthetic packs: apparent charge loss (hidden drain)). A
 
 The tests of the development systems, where the settings were tuned; not a result.
 
-| Version | Tests | With an estimate | Median abs. error, points (estimated tests) | Band held the test | Median band width, points |
-|---|---|---|---|---|---|
-| 0.1.0 | 22 | 18 | 1.81 | 13 of 22 | 4.49 |
-| 0.2 | 22 | 18 | 1.71 | 8 of 22 | 1.85 |
+| Version | Tests | With an estimate | Median abs. error, points (estimated tests) | Median abs. error, points (all tests; no estimate = infinite) | Band held the test | Median band width, points |
+|---|---|---|---|---|---|---|
+| 0.1.0 | 22 | 18 | 1.81 | 2.35 | 13 of 22 | 4.49 |
+| 0.2 | 22 | 18 | 1.71 | 1.89 | 8 of 22 | 1.85 |
+
+## Held-out tests, 0.1.0 against 0.2
+
+The held-out LMO/NMC and NMC tests of checks V2 and V4.
+
+| Version | Tests | With an estimate | Median abs. error, points (estimated tests) | Median abs. error, points (all tests; no estimate = infinite) | Band held the test | Median band width, points |
+|---|---|---|---|---|---|---|
+| 0.1.0 | 28 | 22 | 2.13 | 2.62 | 12 of 28 | 2.90 |
+| 0.2 | 28 | 22 | 1.54 | 2.99 | 8 of 28 | 1.30 |
+
+Version 0.2 narrowed the band: on these tests its median width fell from 2.90 to 1.30 points while the median error of the estimated tests fell from 2.13 to 1.54. Which of the band changes narrowed it most is not separated.
 
 ## What the capacity measures, and what the checks compare it with
 
@@ -126,16 +137,16 @@ Version 0.2 gives each rest a voltage term. The capacity it reports is then the 
 
 The checks' truths are charges between BMS stops. In the simulator these are the stops at its voltage limits; in the field, the stops of the capacity test, at the system's maximum power. The truths were fixed before version 0.2 and are kept: no truth is changed after the results. The second truth below was chosen after the first 0.2 results and is information only.
 
-| Check | Truth fixed with the plan: charge between the stops | Capacity between the rest voltages (information) |
+| Check | Truth fixed before the results: charge between the stops | Capacity between the rest voltages (information) |
 |---|---|---|
 | X3, band at the date | 2278 of 4782 month ends (47.6%); mean lag +0.473 points (limit ±0.040) | 4248 of 4562 (93.1%); mean lag -0.037 (limit ±0.038) |
 | X7, 180 days of memory | 116 of 300 (38.7%) | 270 of 300 (90.0%) |
 | X7, no memory | 134 of 300 (44.7%) | 264 of 300 (88.0%) |
 | V6, fade rate | 152 of 200 (76.0%) | 167 of 200 (83.5%) |
 
-**In the field the stops move.** The mean empty rest voltage at the first and the last estimated month end, per cell (`ref_empty_v` of the monthly capacity files ÷ cells in series): on the LMO/NMC systems it changes by 01 -145, 02 -142, 03 -132, 04 -157, 05 -50, 06 -93 mV; on NMC 07, 08, 09, 10, 11, 12 and 13 and LFP 14, 15, 16, 17, 18, 19, 20 and 21 by at most 37 mV. The LMO/NMC systems are discharged to a lower relaxed voltage as they age.
+**In the field the stops move.** The mean empty rest voltage at the first and the last month end that has one, per cell (`ref_empty_v` of the monthly capacity files ÷ cells in series): on the LMO/NMC systems it changes by 01 -145, 02 -142, 03 -132, 04 -157, 05 -50, 06 -93 mV; on NMC 07, 08, 09, 10, 11, 12 and 13 and LFP 14, 15, 16, 17, 18, 19, 20 and 21 by at most 37 mV. The LMO/NMC systems are discharged to a lower relaxed voltage as they age.
 
-| System | Set | Chemistry | Cells in series | First and last estimated month end | Empty rest voltage, V per cell (first → last) | Change, mV per cell | Full rest voltage change, mV per cell | Fade 0.1.0, points/year | Fade 0.2, points/year |
+| System | Set | Chemistry | Cells in series | First and last month end with an empty rest voltage | Empty rest voltage, V per cell (first → last) | Change, mV per cell | Full rest voltage change, mV per cell | Fade 0.1.0, points/year | Fade 0.2, points/year |
 |---|---|---|---|---|---|---|---|---|---|
 | 01 | development | LMO/NMC | 40 | Jul 2016 – Oct 2022 | 3.424 → 3.278 | -145 | +1 | -1.80 | -2.76 |
 | 02 | held-out | LMO/NMC | 40 | Jan 2017 – Dec 2022 | 3.411 → 3.269 | -142 | -15 | -4.10 | -3.55 |
@@ -159,9 +170,9 @@ The checks' truths are charges between BMS stops. In the simulator these are the
 | 20 | held-out | LFP | 14 | Oct 2017 – Aug 2020 | 3.220 → 3.225 | +6 | +14 | -4.23 | -4.79 |
 | 21 | held-out | LFP | 14 | Apr 2017 – Nov 2020 | 3.209 → 3.224 | +15 | +20 | -3.39 | -2.40 |
 
-So the capacity between fixed voltages and the charge between the stops part. LMO/NMC fade, 0.1.0 → 0.2, points per year: 01 -1.80 → -2.76, 02 -4.10 → -3.55, 03 -3.19 → -3.76, 04 -1.80 → -4.13, 05 -2.50 → -3.39, 06 -2.76 → -3.27; held-out mean -3.14 → -3.49 (V5 passes in 0.1.0, passes in 0.2). On the field tests the band held 43 % of the held-out LMO/NMC and NMC tests in 0.1.0 and 29 % in 0.2 (V4 fails); their median error is 2.62 and 2.99 points (V2 passes in 0.1.0, passes in 0.2).
+So the capacity between fixed voltages and the charge between the stops drift apart: on the LMO/NMC systems the 0.2 fade is steeper on 5 of 6. LMO/NMC fade, 0.1.0 → 0.2, points per year: 01 -1.80 → -2.76, 02 -4.10 → -3.55, 03 -3.19 → -3.76, 04 -1.80 → -4.13, 05 -2.50 → -3.39, 06 -2.76 → -3.27; held-out mean -3.14 → -3.49 (V5 passes in 0.1.0, passes in 0.2). On the field tests the band held 43 % of the held-out LMO/NMC and NMC tests in 0.1.0 and 29 % in 0.2 (V4 fails); their median error is 2.62 and 2.99 points (V2 passes in 0.1.0, passes in 0.2).
 
-Neither number is wrong: they are two quantities. The 0.2 band holds the first and leaves out the drift of the stops. A band term for that drift is planned; it will be tested first on the pack simulator (besslib.sim), where the true drift is known, before it touches field data.
+They are two quantities. Against the capacity between the rest voltages, a truth chosen after the first results, the monthly band held 93 % of month ends (X3) and the fade-rate band 83.5 % (V6, rule 85-95 %); neither band includes the drift of the stops. A band term for that drift is planned; it will be tested first on the pack simulator (besslib.sim), where the true drift is known, before it touches field data.
 
 ## Rebuild
 

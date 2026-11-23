@@ -17,9 +17,9 @@
   memory; plus the synthetic crossing case, which must give status 12.
 * X4: records whose A2 is ``estimated`` while A5 is not.
 * X8, X9, X10: pytest runs (and, for X9, the text in the README and in a report page).
-  X10 runs ``test_report.py`` under ``-W error::FutureWarning`` with the interpreter that
-  runs this script; the run at the lowest direct versions (numpy 2.0, pandas 2.2.2,
-  pyarrow 16) is made by starting this script from that environment.
+  X10 runs ``test_report.py`` under ``-W error::FutureWarning`` with the interpreter given
+  by ``--x10-python`` (default: the one that runs this script), for the run at the lowest
+  direct versions (numpy 2.0, pandas 2.2.2, pyarrow 16); its note names the versions used.
 
 A check whose inputs are missing is written as ``not run`` with the reason. Writes
 ``validation/results/checks_v02.csv``.
@@ -27,14 +27,16 @@ A check whose inputs are missing is written as ``not run`` with the reason. Writ
 Usage:
     python validation/check_v02.py                   # the development systems
     python validation/check_v02.py --systems 1 4 7   # some systems
-    python validation/check_v02.py --systems all     # all 21 (X2 and X4 on held-out 0.2 results need the owner's word)
+    python validation/check_v02.py --systems all     # all 21 (X2 and X4 read the held-out 0.2 results, run once)
     python validation/check_v02.py --x0 DIR          # where the 0.1 results are (default data/x0)
+    python validation/check_v02.py --systems all --x10-python PATH   # X10 with another interpreter (lowest versions)
 """
 
 from __future__ import annotations
 
 import json
 import subprocess
+import itertools
 import sys
 import tempfile
 from html import escape
@@ -55,7 +57,7 @@ TAG = "v0.1.0"
 NOT_RUN = "not run"
 COLUMNS = ["check", "pass_if", "value", "result", "note"]
 
-#: The approved wording of the A3 method (version 0.2): typed here on purpose, since X9 checks the library against it.
+#: The wording of the A3 method (version 0.2): typed here on purpose, since X9 checks the library against it.
 A3_TEXT = (
     "energy out / energy in, summed over closed loops from one full rest to the next (Regulation (EU) "
     "2023/1542, Annex IV (6)); band: how far that ratio can be off because a loop does not end at exactly the "
@@ -94,7 +96,7 @@ def _record_without_a3_method(text: str) -> dict:
 
 
 def _tag_keys_only(mine, tag, path: str, added: set):
-    """``mine`` cut to the keys the tag has, at every depth (D53 b); the keys 0.2 adds are put in ``added``."""
+    """``mine`` cut to the keys the tag has, at every depth; the keys 0.2 adds are put in ``added``."""
     if isinstance(mine, dict) and isinstance(tag, dict):
         added.update(f"{path}{k}" for k in mine if k not in tag)
         return {k: _tag_keys_only(mine[k], tag[k], f"{path}{k}.", added) if k in mine else _MISSING for k in tag}
@@ -200,7 +202,7 @@ def x0(ids, folder: Path) -> list[dict]:
         seen += 1
         if path.read_bytes() != old:
             bad.append(name)
-    out.append(row("X0 vectors", "0 differences", f"{len(bad)} of {len(VECTORS)} 0.1 vector files differ" + (f": {bad}" if bad else ""),
+    out.append(row("X0 vectors", "0 differences", f"{len(bad)} of {len(VECTORS)} release 0.1.0 test-vector files differ" + (f": {bad}" if bad else ""),
                    not bad, "byte for byte against the tag; the core's agreement with them is test_core.py"))
     return out
 
@@ -308,7 +310,7 @@ def x2(ids) -> list[dict]:
                    f"{len(bad_rows)} of {n}" + (f": {bad_rows}" if bad_rows else "") if found else "no 0.2 yearly tables",
                    (not bad_rows) if found else None, f"systems {found}" if found else ""))
     case = crossing_case()
-    out.append(row("X2 synthetic case", "levels crossed gives status 12", case["status"], case["ok"]))
+    out.append(row("X2 synthetic case", "a pack with crossed levels gives `not possible from this data`", case["status"], case["ok"]))
     return out
 
 
@@ -338,8 +340,8 @@ def x4(ids) -> dict:
 # --- X8, X9, X10 -------------------------------------------------------------------------------
 
 
-def pytest_run(args: list[str]) -> tuple[bool, str]:
-    done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *args], cwd=ROOT,
+def pytest_run(args: list[str], python: str = sys.executable) -> tuple[bool, str]:
+    done = subprocess.run([python, "-m", "pytest", "-q", "-p", "no:cacheprovider", *args], cwd=ROOT,
                           capture_output=True, text=True)
     tail = (done.stdout.strip().splitlines() or [""])[-1]
     return done.returncode == 0, tail
@@ -356,7 +358,7 @@ def x9() -> list[dict]:
 
     out = []
     ok, tail = pytest_run(["tests/test_record.py", "-k", "a3_method"])
-    out.append(row("X9 record code", "the A3 method equals the approved wording", tail,
+    out.append(row("X9 record code", "the A3 method text equals the wording on the version 0.2 page", tail,
                    ok and record_module._METHODS["A3"] == A3_TEXT))
     # the 0.2 record files, the README, a report page
     digest = config_hash(RecordConfig())
@@ -383,11 +385,14 @@ def x9() -> list[dict]:
     return out
 
 
-def x10() -> dict:
-    ok, tail = pytest_run(["tests/test_report.py", "-W", "error::FutureWarning"])
-    return row("X10", "test_report.py passes under -W error::FutureWarning", tail, ok,
-               "with the interpreter and library versions of this environment; run it from the environment with numpy 2.0, "
-               "pandas 2.2.2, pyarrow 16 for the check as planned")
+def x10(python: str = sys.executable) -> dict:
+    """X10 with the interpreter ``python`` (``--x10-python``); the note gives the library versions it ran with."""
+    ok, tail = pytest_run(["tests/test_report.py", "-W", "error::FutureWarning"], python)
+    found = subprocess.run([python, "-c", "import numpy, pandas, pyarrow; "
+                            "print(f'numpy {numpy.__version__}, pandas {pandas.__version__}, pyarrow {pyarrow.__version__}')"],
+                           capture_output=True, text=True)  # fmt: skip
+    versions = found.stdout.strip() or "library versions unknown"
+    return row("X10", "test_report.py passes under -W error::FutureWarning", tail, ok, f"run with {versions}")
 
 
 def main(argv: list[str]) -> None:
@@ -395,12 +400,13 @@ def main(argv: list[str]) -> None:
     folder = ROOT / "data" / "x0"
     if "--systems" in argv:
         k = argv.index("--systems")
-        rest = [a for a in argv[k + 1 :] if not a.startswith("--")]
+        rest = list(itertools.takewhile(lambda a: not a.startswith("--"), argv[k + 1 :]))
         ids = list(figgener.SYSTEM_IDS) if rest == ["all"] else [int(a) for a in rest]
     if "--x0" in argv:
         folder = Path(argv[argv.index("--x0") + 1])
+    x10_python = argv[argv.index("--x10-python") + 1] if "--x10-python" in argv else sys.executable
     rows = []
-    for make in (lambda: x0(ids, folder), lambda: x2(ids), lambda: [x4(ids)], lambda: [x8()], x9, lambda: [x10()]):
+    for make in (lambda: x0(ids, folder), lambda: x2(ids), lambda: [x4(ids)], lambda: [x8()], x9, lambda: [x10(x10_python)]):
         try:
             rows += make()
         except Exception as err:  # noqa: BLE001  a missing input never crashes the table

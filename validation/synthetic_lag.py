@@ -25,7 +25,7 @@ Definitions (all from the simulator's own state of charge, without sensor errors
   The truth at the mean age is the line at ``t - age``.
 * The lag is the estimate minus the truth at the date, in points of nominal capacity.
 
-Information, chosen after the first results (D54 b): with the voltage terms the estimate
+Information, chosen after the first results: with the voltage terms the estimate
 is the capacity between a full rest at ``ref_full_v`` and an empty rest at
 ``ref_empty_v`` (the forgetting-weighted mean rest voltages at the date), not the charge
 between every pair of stops. Its truth at a month end is the pack's capacity then times

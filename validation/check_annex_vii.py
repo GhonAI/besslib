@@ -219,7 +219,7 @@ def synthetic_rows(record_hash: str) -> list[tuple]:
 
 
 def one_row_per_day(table: pd.DataFrame) -> pd.DataFrame:
-    """One date per system and day (D47): of two dates on one day (31 December 00:00 and a last sample
+    """One date per system and day: of two dates on one day (31 December 00:00 and a last sample
     later that day) the earlier one stays, with all its rows."""
     first = table.groupby(["system_id", table["date"].dt.normalize()])["date"].transform("min")
     return table[table["date"] == first].reset_index(drop=True)
@@ -316,7 +316,7 @@ def loop_ratios(system_id: int) -> pd.DataFrame:
         out[kind] = ratio
         out[f"n_{kind}"] = est["n_loops"].to_numpy(float)
     table = pd.DataFrame(out)
-    table = table[~table["date"].dt.normalize().duplicated(keep="first")].reset_index(drop=True)  # D47: one row per day
+    table = table[~table["date"].dt.normalize().duplicated(keep="first")].reset_index(drop=True)  # one row per day
     table["difference_points"] = 100.0 * (table["full"] - table["empty"])
     table["within_1_point"] = table["difference_points"].abs() <= 1.0
     return table[W6_COLUMNS]
