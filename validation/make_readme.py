@@ -41,6 +41,7 @@ from besslib.soh import annex_vii
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
 from make_reference_doc import GRID, INK, INK2, MUTED, SURFACE  # noqa: F401  (also sets the plot style)
+from check_v02 import TAG
 from tune_capacity import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,7 @@ IMG = ROOT / "docs" / "img"
 TEMPLATE = ROOT / "validation" / "readme_template.md"
 PNG = {"Software": None}  # no version stamp: two runs give the same bytes
 SAMPLE_SYSTEM = 5
+VERSION_PAGE = ("0.2", "docs/04_version_0_2.md")  # the version page: what this version changed, every check before and after
 BLUE = "#2a78d6"
 RAW = "https://raw.githubusercontent.com/GhonAI/besslib"
 
@@ -194,16 +196,17 @@ def annex_table() -> str:
 
 
 def limits_list() -> str:
-    limits = pd.read_csv(RESULTS / "limits.csv")
-    lines = []
-    for k, row in enumerate(limits.itertuples(), start=1):
-        first = re.split(r"(?<=[a-z`)]\.) ", row.found)[0]
-        lines.append(f"{k}. **{row.title}.** {first}")
+    limits = pd.read_csv(RESULTS / "limits.csv", keep_default_na=False)
+    still, fixed = limits[limits["status"] == "open"], limits[limits["status"] == "fixed"]
+    lines = [f"{k}. **{row.title}.** {row.readme}" for k, row in enumerate(still.itertuples(), start=1)]
     lines.append(
-        f"{len(limits) + 1}. Already published on the pages: the method needs regular full cycles, the first year of a "
-        "record gives no capacity estimate, apparent charge loss is an upper bound for self-discharge, efficiency is DC "
-        "at the battery terminals, and resistance is a short-pulse value, not the impedance-spectroscopy one."
+        f"{len(still) + 1}. Already published on the pages: the method needs regular full cycles; the first year of a "
+        "record gives no capacity estimate; apparent charge loss is an upper bound for self-discharge; efficiency is DC "
+        "at the battery terminals; resistance is a short-pulse value, not the impedance-spectroscopy one."
     )
+    if len(fixed):
+        lines += ["", f"Fixed in version {VERSION_PAGE[0]}, by the same rules: " + ", ".join(fixed["short"])
+                  + " ([limits]({{url:docs/limits.md}}))."]  # fmt: skip
     return "\n".join(lines)
 
 
@@ -344,10 +347,12 @@ def figure() -> dict:
 
 def fill(template: str, values: dict, project_values: dict) -> str:
     version = project_values["version"]
-    text = re.sub(r"\{\{url:([^}]+)\}\}", lambda m: f"{project_values['source']}/blob/v{version}/{m.group(1)}", template)
-    text = re.sub(r"\{\{raw:([^}]+)\}\}", lambda m: f"{RAW}/v{version}/{m.group(1)}", text)
+    text = template
     for name, value in values.items():
         text = text.replace("{{" + name + "}}", value)
+    # Links last, so a filled value may carry a {{url:PATH}} of its own.
+    text = re.sub(r"\{\{url:([^}]+)\}\}", lambda m: f"{project_values['source']}/blob/v{version}/{m.group(1)}", text)
+    text = re.sub(r"\{\{raw:([^}]+)\}\}", lambda m: f"{RAW}/v{version}/{m.group(1)}", text)
     left = re.findall(r"\{\{[^}]*\}\}", text)
     if left:
         refuse(f"placeholders left unfilled: {sorted(set(left))}")
@@ -367,6 +372,8 @@ def main() -> None:
         v_table=checks_table(RESULTS / "checks_phase2.csv"),
         w_table=checks_table(RESULTS / "checks_phase3.csv"),
         limits_list=limits_list(),
+        previous_release=TAG.lstrip("v"),
+        version_page_link=f"[version {VERSION_PAGE[0]} page]({{{{url:{VERSION_PAGE[1]}}}}})",
         data_credit=figgener.CREDIT,
         paper_credit=figgener.PAPER,
     )

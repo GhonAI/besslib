@@ -52,9 +52,11 @@ filled in silently.
 
 ## How it was checked
 
-Thresholds were tuned on {{n_development}} development systems and frozen; the results below come from the
-{{n_heldout}} held-out systems, run once, and from synthetic packs with a known truth. A failed check is published as
-failed, with its reason.
+Thresholds were tuned on {{n_development}} development systems and frozen. The results below come from the
+{{n_heldout}} held-out systems and from synthetic packs with a known truth. The held-out systems were run once at the
+settings of release {{previous_release}} and once more at the settings of this version. The capacity plausibility
+rules and the power-capability rule of this version were found on them. What changed, with every check before and
+after: {{version_page_link}}. A failed check is published as failed, with its reason.
 
 Configuration hashes: capacity `{{capacity_hash}}`, record `{{record_hash}}`. Every result file carries them.
 

@@ -4,12 +4,12 @@ Written by `validation/make_capacity_doc.py` from `validation/results/`. No numb
 
 besslib estimates the usable capacity of a home storage system from its daily operation, with a 90 % band, and
 compares it with the field capacity tests measured in phase 1 ([`01_reference.md`](01_reference.md)). The settings were
-tuned on the 7 development systems, then frozen; the 14 held-out systems were run once with them.
+tuned on the 7 development systems, then frozen. The 14 held-out systems were run once at the settings of release 0.1.0 and once at these ([what changed](04_version_0_2.md)).
 The headline comes from held-out systems only.
 
 ## Result
 
-- **Configuration:** `b3959941c19b`, frozen on the development systems 01, 04, 07, 11, 14, 17 and 19 before any held-out system was run.
+- **Configuration:** `b3959941c19b`, frozen on the development systems 01, 04, 07, 11, 14, 17 and 19 and on synthetic packs before the held-out systems were run at it. They had been run once before, at the release 0.1.0 settings `109e9eb1efa5`.
 - **Held-out systems with results:** 14 of 14.
 - **Checks passed:** V2, V5 LMO/NMC, V5 LFP, V7, V8. **Failed:** V3, V4, V5 NMC, V6.
   - V3 failed: median absolute error infinite (5 of 10 tests without an estimate) (rule <= 5 points, bias shown); median error +4.48 points; 5 of the 5 estimates read above the test.
@@ -86,7 +86,7 @@ Value: median |error| inf points; median error +4.48 (5/10 estimated). Pass rule
 - System 21: its end-of-discharge level (quarterly median) is 3.141 V per cell in 2018Q1 and 3.178 in 2019Q3, the quarters of 21/2 and 21/3: +38 mV per cell between the two tests.
 - System 20: its end-of-discharge level (quarterly median) is 3.126 V per cell in 2018Q1 and 3.191 in 2019Q3, the quarters of 20/2 and 20/3: +65 mV per cell between the two tests.
 
-The numbers show two parts: 5 of 10 tests have no estimate, and 5 of the 5 estimates read above their test. Among the possible reasons for the high readings — the estimate's lag behind a falling capacity, a change of the end-of-discharge level, the difference between a maximum-power test and daily operation — the share of each is not separated.
+The numbers show two parts: 5 of 10 tests have no estimate, and 5 of the 5 estimates read above their test. Among the possible reasons for the high readings — the drift of the stops against the rest voltages, a change of the end-of-discharge level, the difference between a maximum-power test and daily operation — the share of each is not separated.
 
 ### V4: held-out LMO/NMC and NMC
 
@@ -95,15 +95,15 @@ Value: band held the test in 29% of 28. Pass rule: >= 80 %.
 - Tests without an estimate: 6 of 28; they count as not held. Over the 22 tests with an estimate the band held 8 (36%).
 - Misses: 14; the estimate was above the test in 5 and below it in 9.
 - Median half-width of the band: 0.65 points. Median absolute error of the estimated tests: 1.54 points.
-- Lag: at the median held-out fade of these systems (3.27 points per year) the estimate trails a steady fade by about 1.61 points (180 days of memory).
+- Lag: the fit reads the value at the date. On synthetic packs it still reads +0.47 points above the charge between the stops (X3, [version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)).
 - Field tests of the same system, consecutive pairs (these 8 systems): 20; the later test reads higher in 3 (median rise +2.2, largest +3.8 points). Over all systems: 7 of 42 (median rise +2.2, largest +7.5 points).
 
 A battery does not gain capacity, so where a later test reads higher by d, at least one of the two tests is off the
 capacity by d/2 or more, and a band whose half-width is below d/2 cannot hold both.
-The band is built from the scatter of the pairs only. It holds none of: the lag behind a falling capacity, the
-difference between a maximum-power test and daily operation, the test's own repeatability.
+The band is built from the scatter of the pairs only. It holds none of: the drift of the BMS stops against the rest
+voltages it reads at, the difference between a maximum-power test and daily operation, the test's own repeatability.
 
-The numbers show that 6 of 28 tests had no estimate and that the median band half-width is smaller than the median error. How much of the misses comes from the lag, from the test conditions and from the tests' own repeatability is not separated.
+The numbers show that 6 of 28 tests had no estimate and that the median band half-width is smaller than the median error. How much of the misses comes from the drift of the stops, from the test conditions and from the tests' own repeatability is not separated.
 
 ### V5 NMC: held-out NMC (4 systems)
 
@@ -127,6 +127,10 @@ The held-out NMC rates range over 2.23 points per year across 4 systems; the mea
 
 Value: band held the true usable fade (-1.88) in 76.0%. Pass rule: 85-95 %.
 
+- Truth: the expected fade of the charge between the BMS stops, -1.88 points per year. Mean estimate -1.89.
+- Held: 152 of 200 (76.0%). Against the fade of the capacity between the rest voltages the fit reads at (mean -1.90; chosen after the first results, information): 167 of 200 (83.5%).
+
+The two truths differ because the fit reads the capacity at rest voltages, not at the BMS stops ([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)).
 
 
 ## Development systems (tuning, not a result)
@@ -139,7 +143,7 @@ These are the systems the settings were tuned on. They are not a result and are 
 | Development LFP | 9 of 9 | 8 | 0.99 | +0.60 | 5 of 9 (56%) | 2.12 |
 | Development, all | 22 of 22 | 18 | 1.89 | +0.60 | 8 of 22 (36%) | 1.85 |
 
-The tuning run chose configuration `109e9eb1efa5` (not the same as the frozen `b3959941c19b`): on its 22 development tests a median absolute error of 2.35 points, 18 with an estimate, band coverage 59%. **The frozen run does not give the same numbers.**
+The rest search and the memory time were chosen in version 0.1 (`109e9eb1efa5`) and kept. Version 0.2 tuned one setting on these 22 tests, the trend gate (`validation/tune_trend.py`). It chose `b3959941c19b`, the frozen configuration: median absolute error 1.89 points, 18 with an estimate, band coverage 36%. The frozen run gives the same numbers.
 
 ## Every system over time
 
@@ -343,19 +347,29 @@ Rest-anchored coulomb counting, after Figgener et al. (2024, Supplementary Metho
 3. **Pairs.** Two consecutive full or empty rests form a pair when they are at most 10 days apart with at
    most 600 s of missing data between them. Kinds: full-to-empty, empty-to-full (x = ∓1), full-to-full and
    empty-to-empty (x = 0).
-4. **Model.** The charge measured over a pair is `q = C · x − I_offset · Δt`: C the usable capacity, I_offset the current
-   the meter does not see (BMS supply, balancing, self-discharge, sensor offset), Δt the time between the rests.
-   Same-kind pairs fix the offset, full-to-empty pairs the capacity. Both are fitted together, by weighted least squares.
+4. **Model.** The charge measured over a pair is `q = C · x − I_offset · Δt + γF · ΔuF + γE · ΔuE`: C the usable
+   capacity, I_offset the current the meter does not see (BMS supply, balancing, self-discharge, sensor offset), Δt the
+   time between the rests. Each end of a pair adds its own kind's relaxed rest voltage minus a reference, because two
+   stops of one kind are not at the same state of charge; γF and γE (Ah per volt near full and near empty) turn that
+   voltage into charge. The capacity is read at the forgetting-weighted mean full and empty rest voltages of the memory
+   time; the record gives both. All are fitted together by weighted least squares.
 5. **Forgetting.** A pair of age s counts with weight exp(−s / 180 days).
-6. **Band.** 90 %, from the scatter of the pairs themselves: a lag-1 sandwich covariance of the residuals (consecutive
-   pairs share a rest, so their errors are correlated at lag 1) and a Student-t quantile. The current sensor's gain
-   error (0.5%, Figgener et al. 2024, Supplementary Table 2) is added as a systematic term.
-7. **Causal.** The estimate at a date uses only pairs that end before it, as a BMS would.
-8. **Tests masked.** From 1 day before each field test begins to 1 day after it ends, the
+6. **Trend.** The fit with forgetting also carries a linear trend, `C = c0 + r · years`. The value is read at the date,
+   so a steady fade does not lag (`trend_min_cross` = 0: always on).
+7. **Band.** 90 %, from the scatter of the pairs themselves: a lag-1 sandwich covariance of the residuals (consecutive
+   pairs share a rest, so their errors are correlated at lag 1) and a Student-t quantile. The forgetting weight enters
+   the band's sums squared, as for a weighted fit. The current sensor's gain error (0.5%, Figgener et al.
+   2024, Supplementary Table 2) is read as a rectangular half-width, 0.5%/√3 (JCGM 100:2008, 4.3.7), and
+   added as a systematic term.
+8. **Causal.** The estimate at a date uses only pairs that end before it, as a BMS would.
+9. **Tests masked.** From 1 day before each field test begins to 1 day after it ends, the
    rests are removed and no pair spans the window. The estimate compared with a test is the one at the start of
    its masked window.
-9. **Fade rate.** The same fit with `C = c0 + r · years`, no forgetting, over the whole record; it needs full-to-empty
-   pairs spanning at least 1 year.
+10. **Fade rate.** The same fit without forgetting, over the whole record: the fade of the capacity between fixed rest
+   voltages, the record's mean. It needs full-to-empty pairs spanning at least 1 year.
+11. **Plausibility.** An estimate is `not possible from this data` when its levels have crossed, its value or band
+   reaches zero, or its memory holds a full-to-empty or empty-to-full pair of the wrong sign. These rules were found on
+   held-out system 09.
 
 When a step is not possible, the output says `not possible from this data` with the reason, and gives no value.
 
@@ -385,12 +399,12 @@ Settings (`CapacityConfig()`, hash `b3959941c19b`):
 | `min_cross` | 3 | fewest full-to-empty or empty-to-full pairs in memory (decayed count) |
 | `min_same` | 2 | fewest full-to-full or empty-to-empty pairs in memory (decayed count) |
 | `fade_min_span_years` | 1 | fade rate: shortest span of full-to-empty pairs, years |
-| `voltage_terms` | every_pair |  |
-| `local_trend` | True |  |
-| `band_forgetting` | 2 |  |
-| `plausibility` | True |  |
-| `trend_min_cross` | 0 |  |
-| `gain_rectangular` | True |  |
+| `voltage_terms` | every_pair | relaxed rest-voltage terms: `every_pair` (each end its own kind's voltage minus a reference); `none` as in 0.1 |
+| `local_trend` | True | the fit with forgetting carries a linear trend and reads the value at the date |
+| `band_forgetting` | 2 | how often the forgetting weight enters the band's sums (2: weighted least squares; 1: as in 0.1) |
+| `plausibility` | True | crossed levels, a value or band at or below zero, or a wrong-sign pair give `not possible` |
+| `trend_min_cross` | 0 | fewest full-to-empty or empty-to-full pairs in memory for the trend (decayed count); tuned on the development systems |
+| `gain_rectangular` | True | the gain error is read as a rectangular half-width (÷ √3) |
 
 ## How the settings were fixed
 
@@ -450,10 +464,11 @@ This is the designed answer: where the operation gives too few full and empty re
 This version covers home storage that reaches full and empty regularly. Storage that works at a middle state of
 charge, or only in partial windows, gives no full-to-empty pairs and therefore no estimate.
 
-**The band is on the weighted capacity of the pairs behind it, not on the capacity at the date.** Old pairs fade
-with the memory time of 180 days; when pairs come evenly, their weighted mean age is that memory time, so
-the estimate lags a steady fade by about 180 days. At the median fade of the 13 held-out systems with a rate, 2.10 points per year, that is 1.04 points. The band does not include this lag, nor a
-systematic difference between the usable capacity in daily operation and a field test at the system's maximum power.
+**The band is on the capacity between two rest voltages, not on the charge between the BMS stops.** The trend term
+reads the value at the date. On 200 synthetic packs the band held the capacity between the rest voltages at
+4248 of 4562 month ends (93%), but the charge between the stops only at 2278 of
+4782 (48%). The stops move as the system ages ([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)). The band does not
+include that drift, nor a systematic difference between daily operation and a field test at maximum power.
 
 **The paper's interval is not this band.** In Figgener et al. (2024, Fig. 4) the shaded interval contains a fixed share of all
 estimates: it is the spread of the estimates. besslib's 90 % band is a band on the capacity, and V4 tests how often it
@@ -463,8 +478,7 @@ holds the field test.
 daily operation. No rate correction is applied; the estimate is compared as it is. The bias table above shows the
 median signed error per chemistry next to the test C-rates.
 
-**Impossible values marked `estimated`.** This version has no plausibility check on its own output.
-No month end of the 21 systems has an estimate at or below zero or a band below zero.
+**Plausibility.** Month ends that are `not possible` by the plausibility rules: 29 (system 09: 27 crossed levels, 1 wrong-sign pair; system 19: 1 value or band at or below zero). Estimated month ends with a value or band at or below zero: 0.
 
 **The levels that decide full and empty**, per system, as the run builds them (the library's own functions on the
 reduced rest tables, test windows masked; the rebuilt pairs equal the run's in 21 of 21 systems):

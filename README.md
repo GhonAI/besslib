@@ -87,9 +87,11 @@ filled in silently.
 
 ## How it was checked
 
-Thresholds were tuned on 7 development systems and frozen; the results below come from the
-14 held-out systems, run once, and from synthetic packs with a known truth. A failed check is published as
-failed, with its reason.
+Thresholds were tuned on 7 development systems and frozen. The results below come from the
+14 held-out systems and from synthetic packs with a known truth. The held-out systems were run once at the
+settings of release 0.1.0 and once more at the settings of this version. The capacity plausibility
+rules and the power-capability rule of this version were found on them. What changed, with every check before and
+after: [version 0.2 page](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/04_version_0_2.md). A failed check is published as failed, with its reason.
 
 Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every result file carries them.
 
@@ -144,11 +146,11 @@ Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every resu
 
 ## Limits
 
-1. **Apparent charge loss (A4) is biased.** The band held the true drain in 188 of 200 packs (94 %).
-2. **Capacity at or below zero still says estimated.** Records with a capacity at or below zero and the status `estimated`: no record.
-3. **The capacity band leaves out the lag.** On 200 synthetic packs the monthly 90 % band held the true usable capacity at the date in 2278 of 4782 month ends (48 %), and at the weighted mean age of the pairs in memory in 3311 (69 %).
-4. **Power capability estimated while resistance is not possible.** Power capability `estimated` while the resistance is `not possible`: .
-5. Already published on the pages: the method needs regular full cycles, the first year of a record gives no capacity estimate, apparent charge loss is an upper bound for self-discharge, efficiency is DC at the battery terminals, and resistance is a short-pulse value, not the impedance-spectroscopy one.
+1. **The capacity band does not hold the charge between the BMS stops.** On 200 synthetic packs the monthly 90 % band held the charge between the stops at the date in 2278 of 4782 month ends (48 %). It held the capacity between the rest voltages it reports in 4248 of 4562 (93 %).
+2. **Partial windows are not covered.** Storage that works at a middle state of charge gives no full-to-empty pairs and so no capacity. This comes after the pack simulator (besslib.sim).
+3. Already published on the pages: the method needs regular full cycles; the first year of a record gives no capacity estimate; apparent charge loss is an upper bound for self-discharge; efficiency is DC at the battery terminals; resistance is a short-pulse value, not the impedance-spectroscopy one.
+
+Fixed in version 0.2, by the same rules: A4 bias, capacity at or below zero, power capability without resistance ([limits](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/limits.md)).
 
 All limits, with their numbers and pages: [`docs/limits.md`](https://github.com/GhonAI/besslib/blob/v0.1.0/docs/limits.md).
 

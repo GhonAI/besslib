@@ -55,6 +55,7 @@ PAGE = "03_annex_vii.md"
 HELD_OUT = tuple(i for i in figgener.SYSTEM_IDS if i not in DEVELOPMENT)
 RECORD_SYSTEM = 5  # the system whose full record is shown: held-out, named before any result
 FROZEN = {"capacity": config_hash(CapacityConfig()), "record": config_hash(RecordConfig())}  # read from the settings
+V0_1 = {"capacity": config_hash(CapacityConfig().v0_1()), "record": config_hash(RecordConfig().v0_1())}  # release 0.1.0
 NOT_RUN = "not run"
 NOT_POSSIBLE_CHECK = "not possible"  # a check whose rule says so when its references are too few (W3)
 NOT_POSSIBLE = "not possible from this data: "
@@ -103,13 +104,14 @@ REGULATION = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02023R15
 
 #: The limits of each field, in words (the numbers behind them are on this page or in the record).
 LIMITS = {
-    "A1": "The capacity estimator of the capacity page, unchanged: no value in the first year (the full and empty "
-          "levels need a year of history); it lags a falling capacity by about the memory time; the band does not hold "
-          "that lag.",
+    "A1": "The capacity estimator of the capacity page: no value in the first year (the full and empty levels need a "
+          "year of history). It is the capacity between the mean full and empty rest voltages of the memory time, "
+          "which the record gives. The band does not hold the drift of the BMS stops against those voltages "
+          "([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)).",
     "A2": "Derived from the 1-second resistance, not measured: no power test. With an ohmic model the power at a fixed "
           "voltage limit goes as 1 ÷ R. The resistance grows with the length of the pulse (Barai 2018; "
           "Schweiger 2010), so the power of a pulse longer than one sample is lower than this share suggests. Watts need the pack's voltage limits, which the dataset "
-          "does not give.",
+          "does not give. Since version 0.2 it is `estimated` only when A5 is `estimated` at the same date.",
     "A3": "DC at the battery terminals, not the AC efficiency of the plant: Schimpe et al. (2018) give AC system "
           "figures well below the battery's, and are cited for that scale only. It depends on the use. The energy in "
           "also restores the charge the meter does not see. A sensor gain error cancels in the ratio; a zero offset "
@@ -147,6 +149,7 @@ MEANING = {
     "current_accuracy": "current sensor accuracy, read as a rectangular half-width",
     "voltage_accuracy": "voltage sensor accuracy, read as a rectangular half-width",
     "charge_loss_min_years": "apparent charge loss trend: fewest year-end values",
+    "a2_needs_a5": "power capability (A2) only where the resistance (A5) is estimated at the same date",
 }
 
 
@@ -230,7 +233,16 @@ def load() -> dict:
     path = RESULTS / "tuning_resistance.csv"
     tuning = pd.read_csv(path, dtype={"capacity_config_hash": str, "record_config_hash": str})
     selected = tuning[tuning["selected"].astype(bool)]
-    if set(tuning["capacity_config_hash"]) != {FROZEN["capacity"]} or list(selected["record_config_hash"]) != [FROZEN["record"]]:
+    # The current-step filter was tuned in version 0.1 and kept frozen: this one file may carry the 0.1 hashes
+    # (read from the settings, not typed), as long as the chosen row holds today's two step settings.
+    cfg = RecordConfig()
+    accepted = [FROZEN, V0_1]
+    same_steps = len(selected) == 1 and np.isclose(selected["min_step_c_rate"].iloc[0], cfg.min_step_c_rate) and (
+        np.isclose(selected["steady_s"].iloc[0], cfg.steady_s))
+    if not same_steps or not any(
+        set(tuning["capacity_config_hash"]) == {h["capacity"]} and list(selected["record_config_hash"]) == [h["record"]]
+        for h in accepted
+    ):
         _refuse(path, set(tuning["capacity_config_hash"]) | set(selected["record_config_hash"]))
 
     return {
@@ -599,8 +611,9 @@ def verdict_block(ctx: dict) -> list[str]:
     held = [sid for sid in HELD_OUT if sid in ctx["records"]]
     lines = [
         f"- **Configuration:** capacity `{ctx['hashes']['capacity']}` (unchanged from the capacity page), record "
-        f"`{ctx['hashes']['record']}`, frozen on the development systems {ids_text(DEVELOPMENT)} before any held-out "
-        "system was run.",
+        f"`{ctx['hashes']['record']}`, frozen on the development systems {ids_text(DEVELOPMENT)} and on synthetic packs "
+        f"before the held-out systems were run at them. They had been run once before, at the release 0.1.0 settings "
+        f"(capacity `{V0_1['capacity']}`, record `{V0_1['record']}`).",
         f"- **Held-out records:** {len(held)} of {len(HELD_OUT)}"
         + (f" (not run: {ids_text([s for s in HELD_OUT if s not in held])})." if len(held) < len(HELD_OUT) else "."),
         f"- **Passed:** {', '.join(k for k in order if word[k] == 'pass') or 'none'}. "
@@ -613,8 +626,9 @@ def verdict_block(ctx: dict) -> list[str]:
         lines += [f"    {text}" for text in failure_note(ctx, row)]
     for _, row in judged[judged["result"] == NOT_POSSIBLE_CHECK].iterrows():
         lines.append(f"  - {row['key']} not possible ({row['scope']}): {row['value']} (rule {row['pass_if']}). "
-                     "The rule, fixed before the held-out run, publishes this case as `not possible`; the check "
-                     "script first wrote it as `fail`, and that label was corrected after the run, with no result changed.")
+                     "The rule, fixed before the held-out run, publishes this case as `not possible`. In version 0.1 "
+                     "the check script first wrote it as `fail`, and that label was corrected after that run, with no "
+                     "result changed.")
     for _, row in judged[judged["result"] == NOT_RUN].iterrows():
         lines.append(f"  - {row['key']} not run ({row['scope']}): {row['value']}.")
     return lines
@@ -628,9 +642,7 @@ def failure_note(ctx: dict, row: pd.Series) -> list[str]:
         above = int((err > 0).sum())
         return [
             f"The estimate reads a mean {err.mean():+.2f} mA (standard deviation {err.std():.2f}) against a hidden drain of "
-            f"{truth.median():.0f} mA; {above} of {len(err)} packs read above it. Cause, found in development work and "
-            "not backed by a number on this page: the frozen capacity fit, which gives the offset current, treats two "
-            "rests of the same kind as the same state of charge. Not fixed in version 0.1; planned for version 0.2 (see below)."
+            f"{truth.median():.0f} mA; {above} of {len(err)} packs read above it."
         ]
     return []
 
@@ -855,7 +867,7 @@ def fleet_block(ctx: dict, band_c: float) -> list[str]:
     made = sorted({fields(r)["B1"]["details"]["date_of_manufacture_status"] for r in ctx["records"].values()})
     n = len(ctx["records"])
     frame = pd.DataFrame(rows).rename(columns={"A5, mΩ": f"A5 at {band_c:g} °C, mΩ"})
-    # A1 comes from the capacity estimator unchanged, which has no plausibility check yet (version 0.2):
+    # A1 comes from the capacity estimator; its plausibility rules (version 0.2) should leave none, but
     # name every record whose capacity is estimated at or below zero, or whose band reaches zero.
     impossible_a1 = []
     for sid, r in sorted(ctx["records"].items()):
@@ -867,11 +879,9 @@ def fleet_block(ctx: dict, band_c: float) -> list[str]:
         if not impossible_a1
         else [
             "",
-            "**A1 is not checked for plausibility in version 0.1.** It comes from the capacity estimator unchanged, "
-            "so W1 counts impossible values in A2–A5 and B2–B5 only. These records say `estimated` for a capacity at "
-            "or below zero, or a band that reaches zero: " + ", ".join(impossible_a1) + ". The capacity page "
-            "([02_capacity_validation.md](02_capacity_validation.md)) shows the cause. The status for this case is "
-            "planned for version 0.2.",
+            "**A1 says `estimated` for a capacity at or below zero, or a band that reaches zero:** "
+            + ", ".join(impossible_a1) + ". W1 counts impossible values in A2–A5 and B2–B5 only. The capacity page "
+            "([02_capacity_validation.md](02_capacity_validation.md)) shows the cause.",
         ]
     )
     return [
@@ -1033,8 +1043,10 @@ def w6_block(ctx: dict, zone: float, figures: dict) -> list[str]:
         "",
         f"Full-to-full reads higher than empty-to-empty in {int((w6['difference_points'] > 0).sum())} of {len(w6)} "
         "system-years. A system-year is a year end (31 December at 00:00, or the last sample) where both loop kinds "
-        f"have a ratio. In {plural(same_day, 'system')} the last sample falls on a 31 December, so that day gives two "
-        "rows; they are counted as the check counts them. Where the two kinds differ, at least one of them does not "
+        "have a ratio. "
+        + (f"In {plural(same_day, 'system')} the last sample falls on a 31 December, so that day gives two "
+           "rows; they are counted as the check counts them. " if same_day else "")
+        + "Where the two kinds differ, at least one of them does not "
         "close at the same state of charge each time; which one is not separated here.",
     ]
 
@@ -1095,7 +1107,8 @@ def method_block(ctx: dict) -> list[str]:
         "",
         "1. Every estimate has a status: `estimated`, or `not possible from this data` with the reason and no value. An "
         "impossible value (an efficiency above 100 % or at or below zero, a resistance at or below zero) is never "
-        "`estimated`.",
+        "`estimated`. Since version 0.2 a capacity whose levels have crossed, whose value or band reaches zero, or whose "
+        "memory holds a full-to-empty or empty-to-full pair of the wrong sign is not `estimated` either.",
         f"2. Forgetting: an event of age s counts with weight λ = exp(−s ÷ {cfg.tau_days:g} days), the capacity "
         "estimator's memory time, not tuned again.",
         "3. Resistance and efficiency share one small core: a fit through the origin, R = Σ λ·b ÷ Σ λ·a, one update "
@@ -1131,7 +1144,8 @@ def method_block(ctx: dict) -> list[str]:
 
 def settings_block(ctx: dict) -> list[str]:
     cfg = RecordConfig()
-    rows = [{"Setting": f"`{k}`", "Value": f"{v:g}", "Meaning": MEANING.get(k, DASH)} for k, v in asdict(cfg).items()]
+    rows = [{"Setting": f"`{k}`", "Value": str(v) if isinstance(v, bool) else f"{v:g}", "Meaning": MEANING.get(k, DASH)}
+            for k, v in asdict(cfg).items()]
     t = ctx["tuning"]
     tune = pd.DataFrame({
         "Smallest step, x C": t["min_step_c_rate"].map("{:g}".format),
@@ -1154,23 +1168,17 @@ def settings_block(ctx: dict) -> list[str]:
         f"median share of days with a value is at least {MIN_SHARE:g}; if none reaches it, the highest share.",
         "",
         table(tune),
+        "",
+        "The current-step filter was tuned in version 0.1 (the record hashes above) and kept frozen in version 0.2; "
+        "its two settings are unchanged.",
     ]
 
 
 def version_block(ctx: dict) -> list[str]:
-    seen = any(sid in ctx["records"] for sid in HELD_OUT)
     return [
-        "Not done in version 0.1; planned for version 0.2:",
-        "",
-        "1. **W7, apparent charge loss.** The frozen capacity fit treats two rests of the same kind as the same state "
-        "of charge, so its offset current, and with it A4, is biased on the synthetic packs.",
-        "2. **Capacity: a `not possible from this data` status** when the end-of-discharge level reaches the "
-        "end-of-charge level, or the capacity comes out at or below zero (carried from the capacity page).",
-        "3. **Capacity: a band that holds the lag** behind a falling capacity (carried from the capacity page).",
-        "",
-        ("The held-out systems have now been seen. A change made after this page is tested on them knowingly, so "
-         "their results for version 0.2 will not be held-out results." if seen else
-         "The held-out systems have not been run yet."),
+        "Version 0.2 changes the capacity fit (rest-voltage terms, a trend, the band's forgetting, plausibility rules) "
+        "and makes A2 follow A5. The held-out systems were seen once before, at the release 0.1.0 settings. What "
+        "changed, and every check before and after, is on the [version 0.2 page](04_version_0_2.md).",
     ]
 
 
@@ -1202,8 +1210,9 @@ def document(ctx: dict, figures: dict, pairs: pd.DataFrame, band_c: float, w3_ru
         "besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 lists for the state of health "
         "and the expected lifetime of a stationary battery energy storage system, from operating data only: each with a "
         f"value, a {BAND} band and the number of events it rests on, or `not possible from this data` with the reason. "
-        f"The settings were tuned on the {len(DEVELOPMENT)} development systems, then frozen; the {len(HELD_OUT)} "
-        "held-out systems are run once with them.",
+        f"The settings were tuned on the {len(DEVELOPMENT)} development systems, then frozen. The {len(HELD_OUT)} "
+        "held-out systems were run once at the settings of release 0.1.0 and once at these "
+        "([what changed](04_version_0_2.md)).",
         "",
         "**Not a compliance certificate, not legal advice: it computes the Annex VII parameters; it does not certify "
         "them.**",

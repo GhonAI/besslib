@@ -8,7 +8,7 @@ Reads ``validation/results/phase2/system_XX_{tests,monthly}.csv`` and
 ``system_XX_summary.json``, ``checks_phase2.csv``, ``phase2_tests.csv``,
 ``capacity_tests.csv``, ``coverage.csv``, ``quality_development.csv``,
 ``tuning_development.csv``, ``edge_tolerance.csv``, ``level_window.csv``,
-``synthetic_coverage.csv`` and ``zenodo_files.json``; for the level diagnostics also the
+``synthetic_coverage.csv``, ``synthetic_lag.csv``, ``tuning_trend.csv`` and ``zenodo_files.json``; for the level diagnostics also the
 reduced rest tables ``data/reduced/rests/`` (read only, with the library's own
 ``classify_rests``, ``rest_chain`` and ``rest_pairs`` and the test windows masked as in the run).
 
@@ -44,6 +44,9 @@ from level_window import LOW_SHARE
 from reduce_events import rest_file
 from make_reference_doc import AXIS, COLOUR, INK, INK2, LABEL, MUTED, ORDER, SURFACE, table
 from tune_capacity import DEVELOPMENT, MIN_COVERAGE, masks_for
+
+V0_1 = config_hash(CapacityConfig().v0_1())  # release 0.1.0, read from the settings
+MISMATCH = "04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with"
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "validation" / "results"
@@ -92,6 +95,14 @@ MEANING = {
     "min_cross": "fewest full-to-empty or empty-to-full pairs in memory (decayed count)",
     "min_same": "fewest full-to-full or empty-to-empty pairs in memory (decayed count)",
     "fade_min_span_years": "fade rate: shortest span of full-to-empty pairs, years",
+    "voltage_terms": "relaxed rest-voltage terms: `every_pair` (each end its own kind's voltage minus a reference); "
+                     "`none` as in 0.1",
+    "local_trend": "the fit with forgetting carries a linear trend and reads the value at the date",
+    "band_forgetting": "how often the forgetting weight enters the band's sums (2: weighted least squares; 1: as in 0.1)",
+    "plausibility": "crossed levels, a value or band at or below zero, or a wrong-sign pair give `not possible`",
+    "trend_min_cross": "fewest full-to-empty or empty-to-full pairs in memory for the trend (decayed count); tuned on "
+                       "the development systems",
+    "gain_rectangular": "the gain error is read as a rectangular half-width (÷ √3)",
 }
 
 
@@ -165,7 +176,10 @@ def load() -> dict:
     checks = pd.read_csv(RESULTS / "checks_phase2.csv", keep_default_na=False)
     checked = pd.read_csv(RESULTS / "phase2_tests.csv") if (RESULTS / "phase2_tests.csv").exists() else pd.DataFrame()
 
+    lag = pd.read_csv(RESULTS / "synthetic_lag.csv", dtype={"capacity_config_hash": str})
+    trend_tuning = pd.read_csv(RESULTS / "tuning_trend.csv", dtype={"config_hash": str})
     hashes = set(summaries["config_hash"]) | set(per_test["config_hash"]) | set(checks["config_hash"])
+    hashes |= set(lag["capacity_config_hash"])
     for frame in monthly.values():
         hashes |= set(frame["config_hash"])
     if hashes - {digest}:
@@ -198,6 +212,8 @@ def load() -> dict:
         "edge": pd.read_csv(RESULTS / "edge_tolerance.csv"),
         "levels": pd.read_csv(RESULTS / "level_window.csv"),
         "synth": pd.read_csv(RESULTS / "synthetic_coverage.csv"),
+        "lag": lag,
+        "trend_tuning": trend_tuning,
         "zenodo": json.loads((RESULTS / "zenodo_files.json").read_text()),
     }
 
@@ -722,7 +738,8 @@ def headline(ctx: dict) -> list[str]:
     held = tests[(tests["set"] == "held-out") & tests["run"]]
     all_held = tests[tests["set"] == "held-out"]
     lines = [f"- **Configuration:** `{ctx['hash']}`, frozen on the development systems {ids_text(DEVELOPMENT)} "
-             f"before any held-out system was run."]  # fmt: skip
+             f"and on synthetic packs before the held-out systems were run at it. They had been run once before, at "
+             f"the release 0.1.0 settings `{V0_1}`."]  # fmt: skip
     lines.append(f"- **Held-out systems with results:** {len(held_ids)} of {len(HELD_OUT)}"
                  + (f" (missing: {ids_text([i for i in HELD_OUT if i not in s.index])})." if len(held_ids) < len(HELD_OUT) else "."))  # fmt: skip
     lines += verdict(ctx)
@@ -765,7 +782,9 @@ def development_block(ctx: dict) -> list[str]:
         part = dev[dev["chemistry"].isin(chems)]
         rows.append(accuracy_row(name, part[part["run"]], len(part)))
     tuning = ctx["tuning"]
-    chosen = tuning[tuning["selected"]].iloc[0]
+    rest_search = tuning[tuning["selected"]].iloc[0]
+    trend = ctx["trend_tuning"]
+    chosen = trend[trend["selected"].astype(bool)].iloc[0]
     same = chosen["config_hash"] == ctx["hash"]
     now = dev[dev["run"]]
     a = accuracy(now) if len(now) else None
@@ -781,9 +800,11 @@ def development_block(ctx: dict) -> list[str]:
         "",
         table(pd.DataFrame(rows)),
         "",
-        f"The tuning run chose configuration `{chosen['config_hash']}` "
-        f"({'the same as' if same else 'not the same as'} the frozen `{ctx['hash']}`): on its "
-        f"{int(chosen['n_tests'])} development tests a median absolute error of {num(chosen['median_abs_error_points'])} points, "
+        f"The rest search and the memory time were chosen in version 0.1 (`{rest_search['config_hash']}`) and kept. "
+        f"Version 0.2 tuned one setting on these {int(chosen['n_tests'])} tests, the trend gate (`validation/tune_trend.py`). "
+        f"It chose `{chosen['config_hash']}`, "
+        + ("the frozen configuration" if same else f"not the frozen `{ctx['hash']}`")
+        + f": median absolute error {num(chosen['median_abs_error_points'])} points, "
         f"{int(chosen['n_estimated'])} with an estimate, band coverage {chosen['coverage']:.0%}. "
         + ("The frozen run gives the same numbers." if matches else "**The frozen run does not give the same numbers.**"),
     ]
@@ -869,11 +890,6 @@ def consecutive_tests(ctx: dict, ids=None) -> pd.DataFrame:
     return t[t["change"].notna()]
 
 
-def lag_points(ctx: dict, rates: pd.Series) -> float:
-    """The lag of an exponentially weighted estimate behind a steady fade, at the median rate."""
-    return float(np.median(np.abs(rates)) * ctx["config"].tau_days / 365.25) if len(rates) else np.nan
-
-
 def evidence_v3(ctx: dict) -> list[str]:
     rows = held_group(ctx, ["LFP"])
     if rows.empty:
@@ -911,11 +927,27 @@ def evidence_v3(ctx: dict) -> list[str]:
     out += [
         "",
         f"The numbers show two parts: {len(rows) - len(est)} of {len(rows)} tests have no estimate, and {above} of the {len(est)} "
-        "estimates read above their test. Among the possible reasons for the high readings — the estimate's lag behind a "
-        "falling capacity, a change of the end-of-discharge level, the difference between a maximum-power test and daily "
+        "estimates read above their test. Among the possible reasons for the high readings — the drift of the stops against "
+        "the rest voltages, a change of the end-of-discharge level, the difference between a maximum-power test and daily "
         "operation — the share of each is not separated.",
     ]  # fmt: skip
     return out
+
+
+def evidence_v6(ctx: dict) -> list[str]:
+    synth = ctx["synth"]
+    est = synth[synth["status"] == _core.STATUS_TEXT[_core.OK]]
+    truth = float(synth["truth_points_per_year"].iloc[0])
+    return [
+        f"- Truth: the expected fade of the charge between the BMS stops, {truth:+.2f} points per year. Mean estimate "
+        f"{est['rate_points_per_year'].mean():+.2f}.",
+        f"- Held: {int(synth['held'].sum())} of {len(synth)} ({synth['held'].mean():.1%}). Against the fade of the capacity "
+        f"between the rest voltages the fit reads at (mean {synth['window_fade_points_per_year'].mean():+.2f}; chosen after "
+        f"the first results, information): {int(synth['held_window'].sum())} of {len(synth)} ({synth['held_window'].mean():.1%}).",
+        "",
+        "The two truths differ because the fit reads the capacity at rest voltages, not at the BMS stops "
+        f"([version 0.2 page]({MISMATCH})).",
+    ]
 
 
 def evidence_v4(ctx: dict) -> list[str]:
@@ -927,8 +959,6 @@ def evidence_v4(ctx: dict) -> list[str]:
     above = int((missed["error_points"] > 0).sum())
     half = est["band_points"] / 2
     systems = rows["system_id"].unique()
-    rates = pd.concat([held_rates(ctx, c) for c in ("LMO/NMC", "NMC")])
-    rates = rates[rates.index.isin(systems)]
     steps = consecutive_tests(ctx, systems)
     rises = steps[steps["change"] > 0]
     every = consecutive_tests(ctx)
@@ -939,8 +969,9 @@ def evidence_v4(ctx: dict) -> list[str]:
         f"- Misses: {len(missed)}; the estimate was above the test in {above} and below it in {len(missed) - above}.",
         f"- Median half-width of the band: {num(half.median())} points. Median absolute error of the estimated tests: "
         f"{num(np.median(np.abs(est['error_points'])))} points.",
-        f"- Lag: at the median held-out fade of these systems ({num(np.median(np.abs(rates)) if len(rates) else np.nan)} points per year) "
-        f"the estimate trails a steady fade by about {num(lag_points(ctx, rates))} points ({ctx['config'].tau_days:g} days of memory).",
+        "- Lag: the fit reads the value at the date. On synthetic packs it still reads "
+        f"{ctx['lag']['mean_lag_points'].mean():+.2f} points above the charge between the stops (X3, "
+        f"[version 0.2 page]({MISMATCH})).",
         f"- Field tests of the same system, consecutive pairs (these {len(systems)} systems): {len(steps)}; the later test reads "
         f"higher in {len(rises)}"
         + (f" (median rise {rises['change'].median():+.1f}, largest {rises['change'].max():+.1f} points)" if len(rises) else "")
@@ -949,14 +980,14 @@ def evidence_v4(ctx: dict) -> list[str]:
         "",
         "A battery does not gain capacity, so where a later test reads higher by d, at least one of the two tests is off the",
         "capacity by d/2 or more, and a band whose half-width is below d/2 cannot hold both.",
-        "The band is built from the scatter of the pairs only. It holds none of: the lag behind a falling capacity, the",
-        "difference between a maximum-power test and daily operation, the test's own repeatability.",
+        "The band is built from the scatter of the pairs only. It holds none of: the drift of the BMS stops against the rest",
+        "voltages it reads at, the difference between a maximum-power test and daily operation, the test's own repeatability.",
     ]  # fmt: skip
     narrower = half.median() < np.median(np.abs(est["error_points"]))
     out += [
         "",
         f"The numbers show that {len(rows) - len(est)} of {len(rows)} tests had no estimate and that the median band half-width is "
-        f"{'smaller' if narrower else 'not smaller'} than the median error. How much of the misses comes from the lag, from the "
+        f"{'smaller' if narrower else 'not smaller'} than the median error. How much of the misses comes from the drift of the stops, from the "
         "test conditions and from the tests' own repeatability is not separated.",
     ]  # fmt: skip
     return out
@@ -1032,6 +1063,8 @@ def failures_block(ctx: dict) -> list[str]:
             found = re.match(r"held-out (\S+)", row["scope"])
             if found and found.group(1) in PAPER_FADE:
                 out += evidence_v5(ctx, found.group(1), row["pass_if"])
+        elif row["check"] == "V6":
+            out += evidence_v6(ctx)
         elif row["check"] == "V8":
             s = ctx["summaries"]
             out.append(f"- Systems with a summary: {len(s)} of {len(figgener.SYSTEM_IDS)}; missing: "
@@ -1251,19 +1284,30 @@ def method_block(ctx: dict) -> list[str]:
         f"3. **Pairs.** Two consecutive full or empty rests form a pair when they are at most {c.max_link_days:g} days apart with at",
         f"   most {c.max_missing_s:g} s of missing data between them. Kinds: full-to-empty, empty-to-full (x = ∓1), full-to-full and",
         "   empty-to-empty (x = 0).",
-        "4. **Model.** The charge measured over a pair is `q = C · x − I_offset · Δt`: C the usable capacity, I_offset the current",
-        "   the meter does not see (BMS supply, balancing, self-discharge, sensor offset), Δt the time between the rests.",
-        "   Same-kind pairs fix the offset, full-to-empty pairs the capacity. Both are fitted together, by weighted least squares.",
+        "4. **Model.** The charge measured over a pair is `q = C · x − I_offset · Δt + γF · ΔuF + γE · ΔuE`: C the usable",
+        "   capacity, I_offset the current the meter does not see (BMS supply, balancing, self-discharge, sensor offset), Δt the",
+        "   time between the rests. Each end of a pair adds its own kind's relaxed rest voltage minus a reference, because two",
+        "   stops of one kind are not at the same state of charge; γF and γE (Ah per volt near full and near empty) turn that",
+        "   voltage into charge. The capacity is read at the forgetting-weighted mean full and empty rest voltages of the memory",
+        "   time; the record gives both. All are fitted together by weighted least squares.",
         f"5. **Forgetting.** A pair of age s counts with weight exp(−s / {c.tau_days:g} days).",
-        f"6. **Band.** {BAND}, from the scatter of the pairs themselves: a lag-1 sandwich covariance of the residuals (consecutive",
-        "   pairs share a rest, so their errors are correlated at lag 1) and a Student-t quantile. The current sensor's gain",
-        f"   error ({c.gain_error:.1%}, Figgener et al. 2024, Supplementary Table 2) is added as a systematic term.",
-        "7. **Causal.** The estimate at a date uses only pairs that end before it, as a BMS would.",
-        f"8. **Tests masked.** From {plural(before, 'day')} before each field test begins to {plural(after, 'day')} after it ends, the",
+        "6. **Trend.** The fit with forgetting also carries a linear trend, `C = c0 + r · years`. The value is read at the date,",
+        f"   so a steady fade does not lag (`trend_min_cross` = {c.trend_min_cross:g}"
+        + (": always on)." if c.trend_min_cross == 0 else ")."),
+        f"7. **Band.** {BAND}, from the scatter of the pairs themselves: a lag-1 sandwich covariance of the residuals (consecutive",
+        "   pairs share a rest, so their errors are correlated at lag 1) and a Student-t quantile. The forgetting weight enters",
+        f"   the band's sums squared, as for a weighted fit. The current sensor's gain error ({c.gain_error:.1%}, Figgener et al.",
+        f"   2024, Supplementary Table 2) is read as a rectangular half-width, {c.gain_error:.1%}/√3 (JCGM 100:2008, 4.3.7), and",
+        "   added as a systematic term.",
+        "8. **Causal.** The estimate at a date uses only pairs that end before it, as a BMS would.",
+        f"9. **Tests masked.** From {plural(before, 'day')} before each field test begins to {plural(after, 'day')} after it ends, the",
         "   rests are removed and no pair spans the window. The estimate compared with a test is the one at the start of",
         "   its masked window.",
-        f"9. **Fade rate.** The same fit with `C = c0 + r · years`, no forgetting, over the whole record; it needs full-to-empty",
-        f"   pairs spanning at least {c.fade_min_span_years:g} year.",
+        "10. **Fade rate.** The same fit without forgetting, over the whole record: the fade of the capacity between fixed rest",
+        f"   voltages, the record's mean. It needs full-to-empty pairs spanning at least {c.fade_min_span_years:g} year.",
+        "11. **Plausibility.** An estimate is `not possible from this data` when its levels have crossed, its value or band",
+        "   reaches zero, or its memory holds a full-to-empty or empty-to-full pair of the wrong sign. These rules were found on",
+        "   held-out system 09.",
         "",
         "When a step is not possible, the output says `not possible from this data` with the reason, and gives no value.",
         "",
@@ -1379,21 +1423,15 @@ def limits_block(ctx: dict, months: pd.DataFrame) -> list[str]:
         "charge, or only in partial windows, gives no full-to-empty pairs and therefore no estimate.",
         "",
     ]
-    # The lag of the estimate behind a fading capacity.
-    rates = s[(s["set"] == "held-out")]["rate_points_per_year"].dropna() if len(s) else pd.Series(dtype=float)
-    which = "held-out"
-    if not len(rates) and len(s):
-        rates, which = s["rate_points_per_year"].dropna(), "development"
-    lag_line = ""
-    if len(rates):
-        r = float(np.median(np.abs(rates)))
-        lag_line = (f" At the median fade of the {len(rates)} {which} systems with a rate, {r:.2f} points per year, that is "
-                    f"{r * c.tau_days / 365.25:.2f} points.")  # fmt: skip
+    lag = ctx["lag"]
+    total, at_date = int(lag["n_band"].sum()), int(lag["n_held_at_date"].sum())
+    ref_total, ref_held = int(lag["n_reference"].sum()), int(lag["n_held_reference"].sum())
     lines += [
-        "**The band is on the weighted capacity of the pairs behind it, not on the capacity at the date.** Old pairs fade",
-        f"with the memory time of {c.tau_days:g} days; when pairs come evenly, their weighted mean age is that memory time, so",
-        f"the estimate lags a steady fade by about {c.tau_days:g} days.{lag_line} The band does not include this lag, nor a",
-        "systematic difference between the usable capacity in daily operation and a field test at the system's maximum power.",
+        "**The band is on the capacity between two rest voltages, not on the charge between the BMS stops.** The trend term",
+        f"reads the value at the date. On {len(lag)} synthetic packs the band held the capacity between the rest voltages at",
+        f"{ref_held} of {ref_total} month ends ({ref_held / ref_total:.0%}), but the charge between the stops only at {at_date} of",
+        f"{total} ({at_date / total:.0%}). The stops move as the system ages ([version 0.2 page]({MISMATCH})). The band does not",
+        "include that drift, nor a systematic difference between daily operation and a field test at maximum power.",
         "",
         "**The paper's interval is not this band.** In Figgener et al. (2024, Fig. 4) the shaded interval contains a fixed share of all",
         f"estimates: it is the spread of the estimates. besslib's {BAND} band is a band on the capacity, and V4 tests how often it",
@@ -1411,9 +1449,22 @@ def limits_block(ctx: dict, months: pd.DataFrame) -> list[str]:
 def plausibility_block(ctx: dict) -> list[str]:
     bad, s, diag = ctx["implausible"], ctx["summaries"], ctx["diag"]
     hit = bad[bad["bad"] > 0]
-    out = ["**Impossible values marked `estimated`.** This version has no plausibility check on its own output."]
+    rules = {_core.STATUS_TEXT[_core.LEVELS_CROSSED]: "crossed levels", _core.STATUS_TEXT[_core.WRONG_SIGN]: "wrong-sign pair",
+             _core.STATUS_TEXT[_core.OUT_OF_RANGE]: "value or band at or below zero"}
+    found = {}
+    for sid, m in sorted(ctx["monthly"].items()):
+        counts = m["status"].map(rules).value_counts()
+        if len(counts):
+            found[sid] = counts
+    total = int(sum(c.sum() for c in found.values()))
+    if found:
+        where = "; ".join(f"system {sid_text(sid)}: " + ", ".join(f"{int(n)} {k}" for k, n in c.items()) for sid, c in found.items())
+        rule_line = f"Month ends that are `not possible` by the plausibility rules: {total} ({where})."
+    else:
+        rule_line = "Month ends that are `not possible` by the plausibility rules: none."
+    out = [f"**Plausibility.** {rule_line} Estimated month ends with a value or band at or below zero: {int(bad['bad'].sum())}."]
     if hit.empty:
-        return out + [f"No month end of the {len(bad)} systems has an estimate at or below zero or a band below zero.", ""]
+        return out + [""]
     for sid, r in hit.iterrows():
         text = (f"System {sid_text(sid)}: {int(r['bad'])} of its {int(r['estimated'])} estimated month ends have an estimate at or "
                 f"below zero or a lower band edge below zero; the first is {r['first_bad']:%b %Y}. Its widest monthly band is "
@@ -1426,7 +1477,7 @@ def plausibility_block(ctx: dict) -> list[str]:
     others = bad.drop(index=hit.index)
     out += [
         f"Over the other {len(others)} systems: {int(others['bad'].sum())} such month ends. A value like this should have come out "
-        "as `not possible from this data`; this version lets it through, and its fade fit enters V5.",
+        "as `not possible from this data`; it was let through, and its fade fit enters V5.",
         "",
     ]
     for sid in hit.index:
@@ -1621,9 +1672,10 @@ def document(ctx: dict, months: pd.DataFrame, system_figures: dict) -> str:
         "",
         f"besslib estimates the usable capacity of a home storage system from its daily operation, with a {BAND} band, and",
         "compares it with the field capacity tests measured in phase 1 ([`01_reference.md`](01_reference.md)). The settings were",
-        f"tuned on the {len(DEVELOPMENT)} development systems, then frozen; the {len(HELD_OUT)} held-out systems "
-        + ("were run once with them." if all(i in ctx["summaries"].index for i in HELD_OUT) else
-           f"are run once with them ({sum(i in ctx['summaries'].index for i in HELD_OUT)} of {len(HELD_OUT)} have results)."),
+        f"tuned on the {len(DEVELOPMENT)} development systems, then frozen. The {len(HELD_OUT)} held-out systems were run once "
+        "at the settings of release 0.1.0 and once at these ([what changed](04_version_0_2.md))"
+        + ("." if all(i in ctx["summaries"].index for i in HELD_OUT) else
+           f" ({sum(i in ctx['summaries'].index for i in HELD_OUT)} of {len(HELD_OUT)} have results)."),
         "The headline comes from held-out systems only.",
         "",
         "## Result",
