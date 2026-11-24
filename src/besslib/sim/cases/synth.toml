@@ -1,0 +1,44 @@
+# The synthetic home-storage pack of tests/synth.py, as a besslib.sim case (check S0).
+# 14 identical cells (one group), 1RC, no heat balance, the synth.py stop rule.
+[case]
+name = "synth"
+description = "The pack of tests/synth.py: home duty, a known capacity fade, a hidden drain"
+start = "2020-01-01"
+months = 36
+step_s = 10
+chemistry = "synthetic"
+pack_name = "besslib synthetic pack"
+
+[cell]
+preset = "synth"
+
+[pack]
+groups = 1
+series = 14
+fade_points_per_year = 2.0
+resistance_law = "synth-day"
+
+[thermal]
+mode = "prescribed"
+
+[temperature.pack]
+mean_c = 25.0
+
+[temperature.ambient]
+mean_c = 20.0
+
+[bms]
+v_cell_max = 4.20
+v_cell_min = 3.30
+stop_sigma_v = 0.005
+stop_rule = "synth"
+supply_a = 0.05
+
+[duty]
+kind = "home"
+capacity_ah = 100.0
+
+[sensors]
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005

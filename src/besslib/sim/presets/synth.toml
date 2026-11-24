@@ -1,0 +1,12 @@
+# The cell of tests/synth.py, the synthetic pack besslib's 0.1 and 0.2 checks ran on.
+# Example values, not from a source: the curve and the resistances are plain and are not
+# fitted to any real cell. Resistances are per cell (the pack values divided by 14).
+name = "synth"
+source = "tests/synth.py (besslib 0.2.0); example values, not from a source"
+ocv_soc = [0.0, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 1.0, 1.1]
+ocv_v = [3.0, 3.40, 3.50, 3.60, 3.75, 3.95, 4.05, 4.15, 4.30]
+capacity_ah = 100.0
+r0_ohm = 0.0014285714285714286  # 0.02 / 14
+r1_ohm = 0.0007142857142857143  # 0.01 / 14
+tau1_s = 600.0
+rc_hold = "tau"

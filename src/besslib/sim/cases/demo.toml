@@ -1,0 +1,70 @@
+# A demo pack for besslib.sim: 14 groups of the `synth` cell with a thermal network,
+# balancing, the home duty and a capacity test on the 15th of every month.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "demo"
+description = "14 cell groups of the synth cell: spread, heat balance, balancing, a monthly capacity test"
+start = "2020-01-01"
+months = 12
+step_s = 10
+chemistry = "synthetic"
+pack_name = "besslib demo pack"
+
+[cell]
+preset = "synth"
+# Activation energies from Ecker et al. 2015 (doi:10.1149/2.0551509jes), measured on their 7.5 Ah
+# NMC/graphite cell, not on this one: R0 follows the electrolyte conductivity (Eq. 2, 17.12 kJ/mol),
+# R1 the graphite exchange current density (53.4 kJ/mol). Which resistance follows which is
+# besslib's reading, not Ecker's.
+ea_r0_j_mol = 17120.0
+ea_r1_j_mol = 53400.0
+rc_hold = "capacitance"  # tau scales with the resistance when it changes with temperature
+
+[pack]
+groups = 14
+series = 1
+capacity_spread_sd = 0.01  # example value, not from a source
+fade_points_per_year = 2.0  # example value, not from a source
+resistance_growth_per_year = 0.05  # example value, not from a source
+
+[thermal]
+mode = "network"
+c_group_j_k = 2000.0  # example value, not from a source
+c_housing_j_k = 20000.0  # example value, not from a source
+g_group_housing_w_k = 1.0  # example value, not from a source
+g_neighbour_w_k = 0.5  # example value, not from a source
+g_group_air_w_k = 0.2  # example value, not from a source
+g_housing_air_w_k = 2.0  # example value, not from a source
+sensor = "housing"
+
+[temperature.ambient]
+mean_c = 20.0  # example value, not from a source
+season_amp_c = 5.0  # example value, not from a source
+daily_amp_c = 3.0  # example value, not from a source
+
+[bms]
+v_cell_max = 4.20  # example value, not from a source
+v_cell_min = 3.30  # example value, not from a source
+stop_sigma_v = 0.005  # example value, not from a source
+stop_rule = "cells"
+supply_a = 0.05  # example value, not from a source
+balance = true
+balance_v = 4.0  # example value, not from a source
+balance_spread_v = 0.010  # example value, not from a source
+bleed_ohm = 50.0  # example value, not from a source
+
+[duty]
+kind = "home"
+capacity_ah = 100.0
+
+[[duty.overlay]]
+kind = "capacity_test"  # the field procedure of Figgener et al. 2024, Supplementary Note 6 (doi:10.1038/s41560-024-01620-9)
+day_of_month = 15
+start_h = 0.0
+c_charge = 0.25  # example value, not from a source
+c_discharge = 0.25  # example value, not from a source
+
+[sensors]
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005

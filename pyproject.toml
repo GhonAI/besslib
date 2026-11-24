@@ -46,6 +46,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "besslib.io" = ["figgener_meta/*.csv", "figgener_meta/*.md"]
 "besslib.data" = ["sample_05/*.parquet", "sample_05/NOTICE.md"]
+"besslib.sim" = ["cases/*.toml", "presets/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
