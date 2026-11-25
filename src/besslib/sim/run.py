@@ -236,7 +236,8 @@ def build(data: dict, seed: int) -> tuple[PackModel, dict]:
 
 
 def spec(data: dict, pack: PackModel) -> PackSpec:
-    """What a user of the frames would know from the pack's documents."""
+    """What a user of the frames would know from the pack's documents: among it the BMS's
+    voltage limits, without a planted drift of them."""
     run = data.get("case", {})
     nominal_v = float(run.get("nominal_cell_v", 3.7))
     return PackSpec(
@@ -245,6 +246,8 @@ def spec(data: dict, pack: PackModel) -> PackSpec:
         cells_in_series=pack.cells_in_series,
         cells_in_parallel=pack.parallel,
         chemistry=str(run.get("chemistry", pack.cell.name)),
+        voltage_max_v=pack.bms.v_cell_max * pack.cells_in_series,
+        voltage_min_v=pack.bms.v_cell_min * pack.cells_in_series,
         name=str(run.get("pack_name", f"besslib.sim {run.get('name', '')}".strip())),
     )
 

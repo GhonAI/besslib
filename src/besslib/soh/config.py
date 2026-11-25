@@ -16,7 +16,10 @@ from dataclasses import asdict, dataclass, replace
 
 
 #: The forms of ``CapacityConfig.voltage_terms``.
-VOLTAGE_TERMS = ("every_pair", "none")
+VOLTAGE_TERMS = ("every_pair_quadratic", "every_pair", "none")
+
+#: The forms of ``CapacityConfig.rest_time``.
+REST_TIMES = ("reading", "start")
 
 
 @dataclass(frozen=True)
@@ -73,6 +76,22 @@ class CapacityConfig:
     the weight of a weighted least-squares fit; 1: release 0.1.0). ``plausibility``: an
     estimate whose levels have crossed, whose value or band reaches zero, or whose memory
     holds a full-to-empty or empty-to-full pair of the wrong sign is ``not possible``.
+
+    Version 0.3 adds six settings and one form; each defaults to the 0.3 behaviour, and
+    ``v0_2()`` gives the settings of release 0.2.0. ``voltage_terms =
+    "every_pair_quadratic"`` adds a quadratic term at each end (``besslib.soh._core``), so
+    the reading at the mean rest voltage follows the curve of charge over voltage; each is
+    used while its kind has at least ``quad_min_rests`` rests in memory (decayed count).
+    ``rest_time``: ``"reading"`` takes the time of a pair between the moments its rest
+    voltages are read (``min(duration, ocv_fit_max_min)`` after the start of each rest),
+    ``"start"`` between the starts of its rests (release 0.2.0). Two rules say when full
+    and empty are not the pack's: with at least ``above_full_min_rests`` accepted rests
+    after a charge, in the trailing ``level_window_days``, whose edge voltage lies more
+    than ``above_full_share`` of the span between the levels above the full level, the
+    full level is not the pack's full (0 rests: the rule is off). With
+    ``PackSpec.voltage_max_v`` and ``voltage_min_v`` given, a full level more than
+    ``limits_share`` of the documented window below the maximum, or an empty level more
+    than that above the minimum, is not possible either (0: the rule is off).
     """
 
     current_c_rate: float = 0.005  # frozen: validation/tune_capacity.py
@@ -97,24 +116,35 @@ class CapacityConfig:
     min_cross: float = 3.0
     min_same: float = 2.0
     fade_min_span_years: float = 1.0
-    voltage_terms: str = "every_pair"  # version 0.2: "every_pair" or "none"
+    voltage_terms: str = "every_pair_quadratic"  # version 0.3; 0.2: "every_pair", 0.1: "none"
     local_trend: bool = True  # version 0.2
     band_forgetting: int = 2  # version 0.2
     plausibility: bool = True  # version 0.2
     trend_min_cross: float = 0.0  # version 0.2; frozen: validation/tune_trend.py (development systems)
     gain_rectangular: bool = True  # version 0.2: gain_error / sqrt(3) in the capacity's band
+    quad_min_rests: float = 2.0  # version 0.3; frozen: validation/tune_quadratic.py (development systems)
+    rest_time: str = "reading"  # version 0.3
+    above_full_min_rests: int = 5  # version 0.3
+    above_full_share: float = 0.10  # version 0.3
+    limits_share: float = 0.25  # version 0.3; chosen on the simulator's development packs
 
     def __post_init__(self) -> None:
         if self.voltage_terms not in VOLTAGE_TERMS:
             raise ValueError(f"voltage_terms must be one of {VOLTAGE_TERMS}, not {self.voltage_terms!r}")
+        if self.rest_time not in REST_TIMES:
+            raise ValueError(f"rest_time must be one of {REST_TIMES}, not {self.rest_time!r}")
 
     def with_(self, **changes) -> "CapacityConfig":
         """A copy with some settings changed."""
         return replace(self, **changes)
 
     def v0_1(self) -> "CapacityConfig":
-        """A copy with the version 0.2 settings at their release 0.1.0 values."""
-        return replace(self, **_V0_1["CapacityConfig"])
+        """A copy with the version 0.2 and 0.3 settings at their release 0.1.0 values."""
+        return replace(self, **{**_V0_2["CapacityConfig"], **_V0_1["CapacityConfig"]})
+
+    def v0_2(self) -> "CapacityConfig":
+        """A copy with the version 0.3 settings at their release 0.2.0 values."""
+        return replace(self, **_V0_2["CapacityConfig"])
 
 
 @dataclass(frozen=True)
@@ -176,6 +206,10 @@ class RecordConfig:
         """A copy with the version 0.2 settings at their release 0.1.0 values."""
         return replace(self, **_V0_1["RecordConfig"])
 
+    def v0_2(self) -> "RecordConfig":
+        """A copy with the settings of release 0.2.0 (version 0.3 adds none here)."""
+        return replace(self, **_V0_2["RecordConfig"])
+
     @property
     def charge_sigma(self) -> float:
         """Relative standard uncertainty of a charge (Ah) from the current sensor's gain."""
@@ -201,16 +235,28 @@ _V0_1 = {
     "RecordConfig": {"a2_needs_a5": False},
 }
 
+#: The settings added or given a new form in version 0.3, at their release 0.2.0 values.
+_V0_2 = {
+    "CapacityConfig": {
+        "voltage_terms": "every_pair", "quad_min_rests": 0.0, "rest_time": "start", "above_full_min_rests": 0,
+        "above_full_share": 0.0, "limits_share": 0.0,
+    },
+    "RecordConfig": {},
+}
+
 
 def config_hash(config: CapacityConfig | RecordConfig) -> str:
     """The first 12 hex digits of the SHA-256 of the settings, as sorted JSON.
 
-    A setting added in version 0.2 is left out while it holds its release 0.1.0 value,
-    so the 0.1.0 settings keep their 0.1.0 hash.
+    A setting added in version 0.2 is left out while it holds its release 0.1.0 value, and
+    one added in 0.3 while it holds its release 0.2.0 value, so the settings of a release
+    keep that release's hash.
     """
     settings = asdict(config)
-    for name, old in _V0_1[type(config).__name__].items():
-        if settings[name] == old:
-            del settings[name]
+    name = type(config).__name__
+    added = {k: v for k, v in _V0_2[name].items() if k not in _V0_1[name]}
+    for key, old in {**_V0_1[name], **added}.items():
+        if settings[key] == old:
+            del settings[key]
     text = json.dumps(settings, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode()).hexdigest()[:12]

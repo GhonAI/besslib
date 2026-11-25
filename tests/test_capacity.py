@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -204,3 +206,110 @@ def test_gain_term_is_a_rectangular_half_width(pairs):
     old = estimate_capacity(None, SPEC, pairs=pairs, at=at, config=CapacityConfig(gain_rectangular=False)).iloc[0]
     assert new["capacity_ah_high"] == pytest.approx(same["capacity_ah_high"], rel=1e-12)
     assert new["capacity_ah_high"] - new["capacity_ah"] < old["capacity_ah_high"] - old["capacity_ah"]
+
+
+# --- version 0.3: the range rules (full or empty is not the pack's) and the time between the readings ----------
+
+
+def _limits(v_max, v_min):
+    return replace(SPEC, voltage_max_v=v_max, voltage_min_v=v_min)
+
+
+def _last_levels(rests):
+    last = rests.dropna(subset=["level_full_v", "level_empty_v"]).iloc[-1]
+    return float(last["level_full_v"]), float(last["level_empty_v"])
+
+
+def test_levels_inside_the_documented_limits_are_refused(candidates):
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    rests = classify_rests(candidates, SPEC, config)
+    pairs = rest_pairs(rest_chain(rests, SPEC, config), config)
+    full, empty = _last_levels(rests)
+    span, at = full - empty, [rests["start"].iloc[-1]]
+
+    def status(spec, config=config, rests=rests):
+        return estimate_capacity(None, spec, rests=rests, pairs=pairs, config=config, at=at)["status"].iloc[0]
+
+    refused = _core.STATUS_TEXT[_core.INSIDE_LIMITS]
+    assert status(SPEC) == "estimated"  # no limits given: not checked
+    assert status(replace(SPEC, voltage_max_v=full + 10 * span)) == "estimated"  # one limit alone is no window
+    assert status(_limits(full, empty)) == "estimated"
+    # 25 % of the window: the window is span / (1 - g) when one end lies g inside it
+    for g, expected in ((0.24, "estimated"), (0.26, refused)):
+        assert status(_limits(empty + span / (1.0 - g), empty)) == expected
+        assert status(_limits(full, full - span / (1.0 - g))) == expected
+    far = _limits(empty + span / 0.5, empty)
+    assert status(far, config=config.v0_2()) == "estimated"  # release 0.2.0 has no such rule
+    assert status(far, config=config.with_(limits_share=0.6)) == "estimated"
+    alone = estimate_capacity(None, far, pairs=pairs, config=config, at=at)
+    assert alone["status"].iloc[0] == "estimated"  # with pairs alone the levels are not known
+    with pytest.raises(ValueError, match="voltage_max_v"):
+        status(_limits(empty, full))
+
+
+def test_charges_above_the_full_level_are_refused(candidates):
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    rests = classify_rests(candidates, SPEC, config)
+    pairs = rest_pairs(rest_chain(rests, SPEC, config), config)
+    full, empty = _last_levels(rests)
+    at = rests["start"].iloc[-1]
+    charges = rests.index[rests["accepted"] & (rests["direction"] == "charge") & (rests["start"] > at - pd.Timedelta(days=60))]
+
+    def status(n, share=0.12, config=config, direction=None, when=at):
+        changed = rests.copy()
+        changed.loc[charges[-n:] if n else [], "edge_v"] = full + share * (full - empty)
+        if direction:
+            changed.loc[charges[-n:], "direction"] = direction
+        return estimate_capacity(None, SPEC, rests=changed, pairs=pairs, config=config, at=[when])["status"].iloc[0]
+
+    refused = _core.STATUS_TEXT[_core.ABOVE_FULL]
+    assert status(0) == "estimated" and status(4) == "estimated"
+    assert status(5) == refused
+    assert status(5, share=0.08) == "estimated"
+    assert status(5, direction="discharge") == "estimated"  # only rests after a charge count
+    assert status(5, config=config.v0_2()) == "estimated"
+    # causal: before those rests the rule does not hold
+    assert status(5, when=rests["start"].loc[charges[-5]] - pd.Timedelta(hours=1)) == "estimated"
+    # the trailing level window, not the whole record
+    assert status(5, config=config.with_(level_window_days=0.001)) == "estimated"
+
+
+def test_fade_rate_is_refused_with_the_range_rules(candidates):
+    from besslib.soh.capacity import fade_rate_checked
+
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    rests = classify_rests(candidates, SPEC, config)
+    pairs = rest_pairs(rest_chain(rests, SPEC, config), config)
+    full, empty = _last_levels(rests)
+    spec = _limits(empty + (full - empty) / 0.5, empty)
+    table = estimate_capacity(None, spec, rests=rests, pairs=pairs, config=config)
+    out = fade_rate_checked(table, pairs, spec, config, n_boot=0)
+    assert out["status"].startswith("not possible from this data: the capacity is implausible at ")
+    assert out["first_implausible_rule"] == 5 and np.isnan(out["rate_points_per_year"])
+
+
+def test_the_time_of_a_pair_is_between_the_readings(candidates):
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    chain = rest_chain(classify_rests(candidates, SPEC, config), SPEC, config)
+    new, old = rest_pairs(chain, config), rest_pairs(chain, config.v0_2())
+    wait = chain["duration_min"].clip(upper=config.ocv_fit_max_min).to_numpy() / 1440.0
+    keep = (chain["new_segment"] == 0).to_numpy()[1:]
+    np.testing.assert_allclose(new["dt_days"] - old["dt_days"], np.diff(wait)[keep], atol=1e-12)
+    start = (chain["time"].diff().dt.total_seconds() / 86400.0).to_numpy()[1:][keep]
+    np.testing.assert_allclose(old["dt_days"], start, atol=1e-12)
+    assert (new["dt_days"] > 0).all() and (new["dt_days"] != old["dt_days"]).any()
+    same = [c for c in new.columns if c != "dt_days"]
+    pd.testing.assert_frame_equal(new[same], old[same])
+
+
+def test_settings_keep_their_release_hashes():
+    assert config_hash(CapacityConfig().v0_2()) == "b3959941c19b"
+    assert config_hash(CapacityConfig().v0_1()) == "109e9eb1efa5"
+    assert len({config_hash(c) for c in (CapacityConfig(), CapacityConfig().v0_2(), CapacityConfig().v0_1())}) == 3
+    # every 0.3 setting moves the hash
+    base = CapacityConfig().v0_2()
+    for change in (dict(voltage_terms="every_pair_quadratic"), dict(rest_time="reading"), dict(quad_min_rests=5.0),
+                   dict(above_full_min_rests=5), dict(above_full_share=0.1), dict(limits_share=0.25)):
+        assert config_hash(base.with_(**change)) != config_hash(base), change
+    with pytest.raises(ValueError, match="rest_time"):
+        CapacityConfig(rest_time="end")

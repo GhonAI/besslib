@@ -118,6 +118,7 @@ def run_pack(setting: str, seed: int) -> list[dict]:
     fan_day = next((e["day"] for e in sim.events(rec.data, seed) if e["kind"] == "fan_failure"), -1)
     row = {
         **common.base_row(setting, seed),
+        **common.estimated_counts(reduced, rec.spec, rec.start, rec.months),
         "fan_day": int(fan_day), "limit_c": limit, "step_s": truth.step_s,
         "bands_used": int(used.sum()), "bands_outside": int(outside.sum()),
         "worst_band_error_h": float(np.abs(err[used]).max()) if used.any() else 0.0,
@@ -133,6 +134,7 @@ def run_pack(setting: str, seed: int) -> list[dict]:
 def summary(table: pd.DataFrame) -> list[dict]:
     rows = []
     for setting, t in common.by_setting(table, SETTINGS):
+        rows.append(common.r_row(setting, t))
         n = len(t)
         ok = int(t["t1a_ok"].sum())
         rows.append({

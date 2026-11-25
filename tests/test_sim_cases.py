@@ -196,9 +196,10 @@ def test_seeds_and_the_one_seed_set_rule():
     import sim_cases
 
     assert sim_cases.parse_seeds("0-9") == list(range(10))
-    assert len(sim_cases.parse_seeds("development")) == 200 and sim_cases.parse_seeds("held-out")[0] == 1000
-    assert sim_cases.seed_set([0, 5]) == "development" and sim_cases.seed_set([1000]) == "held-out"
-    assert sim_cases.seed_set([5, 1000]) == "mixed"
+    assert len(sim_cases.parse_seeds("development")) == 200 and sim_cases.parse_seeds("held-out")[0] == 2000
+    assert sim_cases.seed_set([0, 5]) == "development" and sim_cases.seed_set([2000]) == "held-out"
+    assert sim_cases.seed_set([5, 2000]) == "mixed"
+    assert sim_cases.seed_set([1000]) == "mixed"  # the seeds of version 0.2's run are no longer a set of their own
     with pytest.raises(SystemExit):
         sim_cases.parse_seeds("nine")
 

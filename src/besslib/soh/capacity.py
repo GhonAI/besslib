@@ -19,10 +19,13 @@ estimate lags a steady fade by about ``tau_days``. With ``voltage_terms = "every
 every pair also carries the relaxed open-circuit voltages of its two rests
 (``rests.rest_pairs``: ``u_start``, ``u_end``), each end its own kind's voltage minus a
 reference, because two stops of one kind are not at the same state of charge
-(``voltage_terms`` gives the columns as the core forms them). The capacity is then the
+(``voltage_terms`` gives the columns as the core forms them);
+``"every_pair_quadratic"`` (version 0.3) adds the square of that difference at each end,
+because the charge is a curved function of the voltage. The capacity is then the
 capacity between a full rest at ``ref_full_v`` and an empty rest at ``ref_empty_v``, the
 forgetting-weighted mean rest voltages of each kind at the date. The columns
-``gamma_full_ah_per_v`` and ``gamma_empty_ah_per_v`` report the two terms, and
+``gamma_full_ah_per_v`` and ``gamma_empty_ah_per_v`` (and ``gamma_full2_ah_per_v2``,
+``gamma_empty2_ah_per_v2``) report the terms, and
 ``terms`` the parameters each solve used. ``band_forgetting``
 sets how often the forgetting weight enters the band's sums, and with it the band's
 degrees of freedom (``dof``). With ``plausibility`` a capacity or band at or below zero,
@@ -69,6 +72,9 @@ def _z(level: float) -> float:
 #: The core's codes of the pair kinds in ``rests.rest_pairs``.
 _KIND_CODES = {"F->E": _core.PAIR_FE, "E->F": _core.PAIR_EF, "F->F": _core.PAIR_FF, "E->E": _core.PAIR_EE}
 
+#: The core's codes of ``CapacityConfig.voltage_terms``.
+_VOLTAGE_CODES = {"none": 0, "every_pair": 1, "every_pair_quadratic": 2}
+
 
 def _columns(pairs: pd.DataFrame):
     """The core's inputs from a pair table. Without ``kind`` the kind is taken from the
@@ -100,7 +106,7 @@ def _new_state(spec: PackSpec, config: CapacityConfig) -> _core.Fit:
         spec.nominal_capacity_ah,
         config.tau_days,
         int(config.local_trend),
-        int(config.voltage_terms == "every_pair"),
+        _VOLTAGE_CODES[config.voltage_terms],
         int(config.band_forgetting),
         int(config.plausibility),
     )
@@ -136,6 +142,23 @@ def voltage_terms(pairs: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, float, f
     return du_f, du_e, r0f, r0e
 
 
+def quadratic_terms(pairs: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """The quadratic voltage terms ``du_f2``, ``du_e2`` of every pair, as the core forms them
+    (``besslib.soh._core``): as ``voltage_terms``, with the square of each end's difference."""
+    _, x, _, _, _, _, _, kind, u_a, u_b = _columns(pairs)
+    kind = _kinds(kind, x)
+    _, _, _, _, da, db = _voltage_parts(kind, u_a, u_b)
+    return _end_terms(kind, da * da, db * db)
+
+
+def _end_terms(kind, da, db) -> tuple[np.ndarray, np.ndarray]:
+    """What each end gives its own kind: the end rest's value less the start rest's, full and empty."""
+    fa, fb, known = _ends(kind)
+    du_f = np.where(fb, db, 0.0) - np.where(fa, da, 0.0)
+    du_e = np.where(~fb, db, 0.0) - np.where(~fa, da, 0.0)
+    return np.where(known, du_f, 0.0), np.where(known, du_e, 0.0)
+
+
 def _voltage_parts(kind, u_a, u_b):
     """``du_f``, ``du_e``, the references, and each end's voltage minus its reference."""
     fa, fb, known = _ends(kind)
@@ -153,21 +176,20 @@ def _voltage_parts(kind, u_a, u_b):
         db = np.where(fb, u_b - r0[True], u_b - r0[False])
     da = np.where(known & np.isfinite(da), da, 0.0)
     db = np.where(known & np.isfinite(db), db, 0.0)
-    du_f = np.where(fb, db, 0.0) - np.where(fa, da, 0.0)
-    du_e = np.where(~fb, db, 0.0) - np.where(~fa, da, 0.0)
-    du_f = np.where(known, du_f, 0.0)
-    du_e = np.where(known, du_e, 0.0)
+    du_f, du_e = _end_terms(kind, da, db)
     return du_f, du_e, r0[True], r0[False], da, db
 
 
-def _regressors(state: _core.Fit, x, dt, du_f, du_e, y) -> list:
-    """The regressor columns in the core's order: x, (x y), dt, (du_f, du_e)."""
+def _regressors(state: _core.Fit, x, dt, du_f, du_e, du_f2, du_e2, y) -> list:
+    """The regressor columns in the core's order: x, (x y), dt, (du_f, du_e), (du_f2, du_e2)."""
     cols = [x]
     if state.trend:
         cols.append(x * y)
     cols.append(dt)
     if state.voltage:
         cols += [du_f, du_e]
+    if state.voltage == 2:
+        cols += [du_f2, du_e2]
     return cols
 
 
@@ -181,17 +203,17 @@ def capacity_state_at(pairs: pd.DataFrame, spec: PackSpec, config: CapacityConfi
     state.t_last = t_days
     if len(t) == 0:
         return state
-    du_f = np.zeros(len(t))
-    du_e = np.zeros(len(t))
+    du_f, du_e, du_f2, du_e2 = (np.zeros(len(t)) for _ in range(4))
     if state.voltage:
         du_f, du_e, r0f, r0e, da, db = _voltage_parts(kind, u_a, u_b)
+        du_f2, du_e2 = _end_terms(kind, da * da, db * db)
     state.t0_days = float(t[0])  # the time of the first pair, as the core takes it
     state.has_t0 = 1
     tau = config.tau_days
     lam = np.exp(-(t_days - t) / tau) if tau > 0 else np.ones_like(t)
     w = 1.0 / (sq * sq + (spec.nominal_capacity_ah * sx) ** 2)
     y = (t - state.t0_days) / 365.25
-    cols = _regressors(state, x, dt, du_f, du_e, y)
+    cols = _regressors(state, x, dt, du_f, du_e, du_f2, du_e2, y)
     p = state.p
     rows = np.column_stack(cols)
     zs = np.column_stack(cols + [q - spec.nominal_capacity_ah * x])
@@ -233,12 +255,13 @@ def capacity_state_at(pairs: pd.DataFrame, spec: PackSpec, config: CapacityConfi
     s4l = np.einsum("n,nrs,ni,nj->rsij", u, aa, zs[cur_i], zs[prev_i])
     for r in range(p):
         for k in range(p):
-            state.a[5 * r + k] = float(a[r, k])
-            state.l[5 * r + k] = float(lmat[r, k])
+            state.a[_core.P_MAX * r + k] = float(a[r, k])
+            state.l[_core.P_MAX * r + k] = float(lmat[r, k])
             for i in range(p + 1):
                 for j in range(p + 1):
-                    state.s4[((r * 5 + k) * 6 + i) * 6 + j] = float(s4[r, k, i, j])
-                    state.s4l[((r * 5 + k) * 6 + i) * 6 + j] = float(s4l[r, k, i, j])
+                    idx = ((r * _core.P_MAX + k) * _core._NZ + i) * _core._NZ + j
+                    state.s4[idx] = float(s4[r, k, i, j])
+                    state.s4l[idx] = float(s4l[r, k, i, j])
         state.h[r] = float(h[r])
         state.ly[r] = float((lv * qc * prev[:, r]).sum())
         state.yl[r] = float((lv * cur[:, r] * qp).sum())
@@ -297,6 +320,7 @@ def _solve(state: _core.Fit, t: float, z: float, config: CapacityConfig) -> _cor
     gain = config.gain_error / math.sqrt(3.0) if config.gain_rectangular else config.gain_error
     return _core.solve(
         state, t, z, gain, config.min_cross, config.min_same, config.fade_min_span_years, config.trend_min_cross,
+        config.quad_min_rests,
     )
 
 
@@ -357,6 +381,13 @@ def estimate_capacity(
     last rest of ``rests`` at or before it, so the rule can only be checked when ``rests``
     is given (also together with ``pairs``). With ``pairs`` alone the levels are not known,
     and the rule is not checked.
+
+    The two range rules of version 0.3 (``CapacityConfig``) need ``rests`` in the same way:
+    ``INSIDE_LIMITS`` when ``spec`` gives ``voltage_max_v`` and ``voltage_min_v`` and a level
+    lies too far inside them, ``ABOVE_FULL`` when charges end above the full level. Without
+    documented limits nothing tells a pack that never reaches full from one that does:
+    full and empty are then the ends of the observed window, and the Annex VII record says
+    so (``besslib.soh.record``).
     """
     config = config or CapacityConfig()
     if pairs is None:
@@ -376,6 +407,10 @@ def estimate_capacity(
     at = pd.DatetimeIndex(at)
     z = _z(config.level)
     crossed = _levels_crossed(rests, days(at)) if config.plausibility and rests is not None else None
+    inside = above = None
+    if rests is not None:
+        inside = _inside_limits(rests, spec, config, days(at))
+        above = _above_full(rests, config, days(at))
     rows = []
     for k, t in enumerate(days(at)):
         if t < ready:
@@ -384,6 +419,12 @@ def estimate_capacity(
         elif crossed is not None and crossed[k]:
             est = _core.Estimate()
             est.status = _core.LEVELS_CROSSED
+        elif inside is not None and inside[k]:
+            est = _core.Estimate()
+            est.status = _core.INSIDE_LIMITS
+        elif above is not None and above[k]:
+            est = _core.Estimate()
+            est.status = _core.ABOVE_FULL
         else:
             est = _solve(capacity_state_at(pairs, spec, config, float(t)), float(t), z, config)
         rows.append(estimate_row(est, spec))
@@ -396,14 +437,63 @@ def estimate_capacity(
 
 def _levels_crossed(rests: pd.DataFrame, t_days: np.ndarray) -> np.ndarray:
     """Per date: the empty level lies at or above the full level, in the last rest at or before it."""
+    full, empty = levels_at(rests, t_days)
+    return np.isfinite(full) & np.isfinite(empty) & (empty >= full)
+
+
+def levels_at(rests: pd.DataFrame, t_days: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The full and the empty level (V) at each date: those of the last rest at or before it (NaN if none)."""
+    nan = np.full(len(t_days), np.nan)
     if "level_full_v" not in rests.columns or len(rests) == 0:
-        return np.zeros(len(t_days), dtype=bool)
+        return nan, nan.copy()
     table = rests.sort_values("start")
-    full = table["level_full_v"].to_numpy(float)
-    empty = table["level_empty_v"].to_numpy(float)
-    crossed_at_rest = np.isfinite(full) & np.isfinite(empty) & (empty >= full)
     last = np.searchsorted(days(table["start"]), t_days, side="right") - 1
-    return np.where(last >= 0, crossed_at_rest[np.maximum(last, 0)], False)
+    pick = np.maximum(last, 0)
+    full = np.where(last >= 0, table["level_full_v"].to_numpy(float)[pick], np.nan)
+    empty = np.where(last >= 0, table["level_empty_v"].to_numpy(float)[pick], np.nan)
+    return full, empty
+
+
+def limit_gaps(rests: pd.DataFrame, spec: PackSpec, t_days: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """How far the full level lies below ``spec.voltage_max_v`` and the empty level above
+    ``spec.voltage_min_v`` at each date, as shares of the documented window (NaN without
+    both limits or without a level)."""
+    nan = np.full(len(t_days), np.nan)
+    if spec.voltage_max_v is None or spec.voltage_min_v is None:
+        return nan, nan.copy()
+    window = float(spec.voltage_max_v) - float(spec.voltage_min_v)
+    if not window > 0.0:
+        raise ValueError("voltage_max_v must lie above voltage_min_v")
+    full, empty = levels_at(rests, t_days)
+    return (float(spec.voltage_max_v) - full) / window, (empty - float(spec.voltage_min_v)) / window
+
+
+def _inside_limits(rests: pd.DataFrame, spec: PackSpec, config: CapacityConfig, t_days: np.ndarray) -> np.ndarray | None:
+    """Per date: a level lies more than ``limits_share`` of the documented window inside it."""
+    if config.limits_share <= 0.0:
+        return None
+    full, empty = limit_gaps(rests, spec, t_days)
+    with np.errstate(invalid="ignore"):
+        return (full > config.limits_share) | (empty > config.limits_share)
+
+
+def _above_full(rests: pd.DataFrame, config: CapacityConfig, t_days: np.ndarray) -> np.ndarray | None:
+    """Per date: at least ``above_full_min_rests`` accepted rests after a charge, in the trailing
+    ``level_window_days``, end more than ``above_full_share`` of the span above the full level."""
+    if config.above_full_min_rests <= 0 or "level_full_v" not in rests.columns:
+        return None
+    full, empty = levels_at(rests, t_days)
+    bar = full + config.above_full_share * (full - empty)
+    ends = rests[rests["accepted"].to_numpy(dtype=bool) & (rests["direction"] == "charge").to_numpy()]
+    t = days(ends["start"])
+    v = ends["edge_v"].to_numpy(float)
+    out = np.zeros(len(t_days), dtype=bool)
+    for k in range(len(t_days)):
+        if not (np.isfinite(bar[k]) and full[k] > empty[k]):
+            continue
+        near = (t <= t_days[k]) & (t > t_days[k] - config.level_window_days)
+        out[k] = int((v[near] > bar[k]).sum()) >= config.above_full_min_rests
+    return out
 
 
 def _terms(est: _core.Estimate) -> str:
@@ -417,6 +507,10 @@ def _terms(est: _core.Estimate) -> str:
         names.append("gamma_full")
     if est.terms & _core.TERM_EMPTY:
         names.append("gamma_empty")
+    if est.terms & _core.TERM_FULL2:
+        names.append("gamma_full2")
+    if est.terms & _core.TERM_EMPTY2:
+        names.append("gamma_empty2")
     return "+".join(names)
 
 
@@ -453,6 +547,10 @@ def estimate_row(est: _core.Estimate, spec: PackSpec) -> dict:
         "gamma_full_sigma_ah_per_v": est.sigma[_core.I_GF] if ok else nan,
         "gamma_empty_ah_per_v": est.theta[_core.I_GE] if ok else nan,
         "gamma_empty_sigma_ah_per_v": est.sigma[_core.I_GE] if ok else nan,
+        "gamma_full2_ah_per_v2": est.theta[_core.I_GF2] if ok else nan,
+        "gamma_full2_sigma_ah_per_v2": est.sigma[_core.I_GF2] if ok else nan,
+        "gamma_empty2_ah_per_v2": est.theta[_core.I_GE2] if ok else nan,
+        "gamma_empty2_sigma_ah_per_v2": est.sigma[_core.I_GE2] if ok else nan,
         "terms": _terms(est),
     }
 
@@ -467,7 +565,7 @@ def fade_rate(
     """The fade rate over the whole record: the capacity fit without forgetting.
 
     ``q = (c0 + r y) x + beta dt`` over all pairs, ``y`` in years since the first pair;
-    with ``config.voltage_terms`` also ``+ gamma_f du_f + gamma_e du_e``, each left out
+    with ``config.voltage_terms`` also the voltage terms, each left out
     when its kind has fewer than ``min_same`` pairs (``besslib.soh._core``). The rate is
     ``r``. With ``config.plausibility`` a full-to-empty or empty-to-full pair of the
     wrong sign anywhere in the record makes the rate ``not possible`` (the fit has no
@@ -498,7 +596,7 @@ def fade_rate(
     out = {"reference_capacity_ah": ref, "config_hash": config_hash(config), "n_pairs": int(len(t))}
     t0 = float(t[0]) if len(t) else 0.0
     state = _core.fade_state(
-        spec.nominal_capacity_ah, t0, int(config.voltage_terms == "every_pair"), int(config.band_forgetting), int(config.plausibility)
+        spec.nominal_capacity_ah, t0, _VOLTAGE_CODES[config.voltage_terms], int(config.band_forgetting), int(config.plausibility)
     )
     for k in range(len(t)):
         _core.update(
@@ -549,6 +647,8 @@ def fade_rate(
         terms=_terms(est),
         gamma_full_ah_per_v=est.theta[_core.I_GF],
         gamma_empty_ah_per_v=est.theta[_core.I_GE],
+        gamma_full2_ah_per_v2=est.theta[_core.I_GF2],
+        gamma_empty2_ah_per_v2=est.theta[_core.I_GE2],
     )
     return out
 
@@ -569,6 +669,12 @@ def _bootstrap(
         cols.append(du_f)
     if terms & _core.TERM_EMPTY:
         cols.append(du_e)
+    if terms & (_core.TERM_FULL2 | _core.TERM_EMPTY2):
+        du_f2, du_e2 = quadratic_terms(pairs)
+    if terms & _core.TERM_FULL2:
+        cols.append(du_f2)
+    if terms & _core.TERM_EMPTY2:
+        cols.append(du_e2)
     rows = np.column_stack(cols)
     p = rows.shape[1]
     q = pairs["q_ah"].to_numpy(float)
@@ -593,12 +699,17 @@ def _bootstrap(
 #: The statuses of the plausibility rules 1 to 3 (version 0.2).
 PLAUSIBILITY_STATUSES = (_core.LEVELS_CROSSED, _core.OUT_OF_RANGE, _core.WRONG_SIGN)
 
+#: The statuses of the range rules (version 0.3): full or empty is not the pack's.
+RANGE_STATUSES = (_core.INSIDE_LIMITS, _core.ABOVE_FULL)
+
 
 def implausible_dates(capacity: pd.DataFrame) -> pd.DataFrame:
     """The rows of a capacity table that hold a plausibility rule (version 0.2, rules 1 to 3).
 
     Rule 1: levels crossed. Rule 2: out of range (status 9), or an ``estimated`` row whose
-    value or low end is at or below zero. Rule 3: a pair of the wrong sign in memory.
+    value or low end is at or below zero. Rule 3: a pair of the wrong sign in memory. The
+    range rules of version 0.3 are numbered 5 (a level too far inside the documented limits)
+    and 6 (charges end above the full level); rule 4 is ``fade_rate_checked``'s own.
     Returns the index (``time``) and ``rule`` (1, 2 or 3) of each such row.
     """
     status = capacity["status"]
@@ -609,6 +720,8 @@ def implausible_dates(capacity: pd.DataFrame) -> pd.DataFrame:
     )
     rule[(status == _core.STATUS_TEXT[_core.OUT_OF_RANGE]) | nonpositive] = 2
     rule[status == _core.STATUS_TEXT[_core.WRONG_SIGN]] = 3
+    rule[status == _core.STATUS_TEXT[_core.INSIDE_LIMITS]] = 5
+    rule[status == _core.STATUS_TEXT[_core.ABOVE_FULL]] = 6
     return rule[rule > 0].rename("rule").to_frame()
 
 
@@ -623,7 +736,7 @@ def fade_rate_checked(
     """``fade_rate``, but ``not possible`` for a record that holds a plausibility rule (rule 4).
 
     ``capacity`` is the record's capacity table (``estimate_capacity``, one row per month
-    end). If any row holds rule 1, 2 or 3 (``implausible_dates``) the rate is NaN and the
+    end). If any row holds rule 1, 2, 3, 5 or 6 (``implausible_dates``) the rate is NaN and the
     status names the first such date and its rule (``first_implausible_date``,
     ``first_implausible_rule``); with ``config.plausibility`` off, or no such row, the
     result is ``fade_rate``'s, unchanged.
@@ -636,7 +749,8 @@ def fade_rate_checked(
     if bad.empty:
         return out
     first, rule = bad.index[0], int(bad["rule"].iloc[0])
-    names = {1: "the levels have crossed", 2: "the estimate is out of range", 3: "a pair has the wrong sign"}
+    names = {1: "the levels have crossed", 2: "the estimate is out of range", 3: "a pair has the wrong sign",
+             5: "a level lies too far inside the documented voltage limits", 6: "charges end above the full level"}
     for key in list(out):
         if key.startswith("rate_"):
             out[key] = np.nan

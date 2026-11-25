@@ -73,6 +73,9 @@ _RESISTANCE = (
     "dV/dI of current steps between consecutive samples (Barai et al., Sci. Rep. 8, 21 (2018), "
     "doi:10.1038/s41598-017-18424-5; Schweiger et al., Sensors 10, 5604 (2010), doi:10.3390/s100605604)"
 )
+#: Added to A1's label when the levels cannot be checked (version 0.3, ``CapacityConfig.limits_share``).
+NOT_CHECKED = "full and empty are the ends of the observed window; not checked against voltage limits"
+
 # What A1 is: with the voltage terms (version 0.2) the capacity is read at two rest voltages, not between the stops.
 _A1_LABELS = {
     "none": "remaining capacity between the system's own end of charge and end of discharge",
@@ -87,6 +90,11 @@ _METHODS = {
         "capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed "
         f"voltage of each rest ({_FIGGENER}); read at the mean full and empty rest voltages of the memory time, "
         "which the record gives"
+    ),
+    "A1 quadratic": (  # version 0.3, voltage_terms = "every_pair_quadratic"
+        "capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed "
+        f"voltage of each rest, a linear and a quadratic term at each end ({_FIGGENER}); read at the mean full and "
+        "empty rest voltages of the memory time, which the record gives"
     ),
     "A2": f"ratio of the resistance on the first day to the resistance at the date, from {_RESISTANCE}; no power test",
     "A3": (
@@ -259,10 +267,21 @@ def _capacity_fields(reduced, spec, at, mask, level, config, capacity_config) ->
     now = cap.loc[at]
     value, low, high = _row_value(now, "capacity_ah")
     ref = float(spec.reference_capacity_ah)
+    form = capacity_config.voltage_terms
+    label = _A1_LABELS["none" if form == "none" else "voltage"]
+    method = _METHODS[{"none": "A1", "every_pair": "A1 voltage", "every_pair_quadratic": "A1 quadratic"}[form]]
+    more = {}
+    if capacity_config.limits_share > 0.0:  # version 0.3
+        if spec.voltage_max_v is None or spec.voltage_min_v is None:
+            label = f"{label}; {NOT_CHECKED}"
+            more["voltage_limits"] = NOT_CHECKED
+        else:
+            more["voltage_limits"] = (
+                f"full and empty levels checked against {spec.voltage_max_v:g} V and {spec.voltage_min_v:g} V from the "
+                "pack's documents"
+            )
     a1 = Field(
-        "A1", _LEGAL["A1"], _A1_LABELS["none" if capacity_config.voltage_terms == "none" else "voltage"],
-        value, low, high, "Ah", _METHODS["A1" if capacity_config.voltage_terms == "none" else "A1 voltage"],
-        float(now["n_pairs"]), now["status"],
+        "A1", _LEGAL["A1"], label, value, low, high, "Ah", method, float(now["n_pairs"]), now["status"],
         {
             "share_of_reference": value / ref,
             "share_of_reference_low": low / ref,
@@ -275,6 +294,7 @@ def _capacity_fields(reduced, spec, at, mask, level, config, capacity_config) ->
             # version 0.2: the rest voltages the capacity is read at (NaN without voltage terms)
             "read_at_full_rest_v": float(now.get("ref_full_v", np.nan)),
             "read_at_empty_rest_v": float(now.get("ref_empty_v", np.nan)),
+            **more,
         },
     )
     loss = charge_loss(cap, spec, level=level, config=config)

@@ -118,7 +118,9 @@ def test_synthetic_pack_finds_the_hidden_drain():
     assert last["status"] == OK
     assert abs(last["charge_loss_ma"] - truth) < 10.0
     assert 0.0 < last["charge_loss_ma_high"] - last["charge_loss_ma_low"] < 20.0
-    np.testing.assert_allclose(out["charge_loss_ma"], -1000.0 * cap["offset_current_a"])
+    ok = (out["status"] == OK).to_numpy()  # with few months the sandwich can leave the offset without a band
+    np.testing.assert_allclose(out["charge_loss_ma"][ok], -1000.0 * cap["offset_current_a"][ok])
+    assert (out["charge_loss_ma"][~ok].isna()).all()
 
 
 def test_band_uses_the_fits_own_degrees_of_freedom():

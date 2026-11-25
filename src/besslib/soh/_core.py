@@ -4,6 +4,7 @@ Each *pair* runs from one full or empty rest to the next linked one. Its measure
 charge ``q`` (Ah, positive = charging) is modelled as
 
     q = C * x + beta * dt + gamma_f * du_f + gamma_e * du_e
+        + gamma_f2 * du_f2 + gamma_e2 * du_e2
 
 ``x`` is the change of state of charge: +1 from empty to full, -1 from full to empty,
 0 from full to full or empty to empty. ``dt`` is the time between the rests in days.
@@ -39,6 +40,22 @@ empty-to-empty) has fewer than ``min_same`` pairs in memory (decayed count) is l
 of that solve: the solve then uses the sub-system of the same sums, and
 ``Estimate.terms`` says which terms it used.
 
+The *quadratic voltage terms* (version 0.3, ``voltage = 2``): the charge of a rest is a
+curved function of its relaxed voltage, and the mean charge of scattered rests is not the
+charge at their mean voltage (Jensen). Each end therefore also gives the square of its
+voltage difference, ``du_f2 = [b full] (u_b - r0f)^2 - [a full] (u_a - r0f)^2`` and
+``du_e2`` likewise, so the reading at the mean voltage follows the curve:
+
+    C(rf, re) = C(r0f, r0e) + gamma_f (rf - r0f) + gamma_f2 (rf - r0f)^2
+                - gamma_e (re - r0e) - gamma_e2 (re - r0e)^2
+
+A line and a square together span the same curves whatever the reference, so moving the
+references is still a change of parameters only. A quadratic term is used only with its
+linear term and while its kind has at least ``min_quad`` rests with a voltage in memory
+(decayed count, ``wu_f`` and ``wu_e``): a full-to-empty pair carries the voltages of a full
+and of an empty rest, so every kind of pair helps to fix a curve, not the same-kind pairs
+alone.
+
 The *trend* (version 0.2, ``trend``): ``C = c0 + r * y``, with ``y`` in years since
 ``t0``, the time of the first pair the state sees, so ``q = (c0 + r y) x + ...``. The
 estimate is read at the date: ``C(t) = c0 + r y_t``. Under a straight-line fade a
@@ -51,15 +68,15 @@ estimate. There is no minimum span: a short span gives a wide band, shown as it 
 without forgetting; its main quantity is ``r``, and it needs ``min_span_years``.
 
 The capacity at the date is the linear combination ``g' theta`` with the gradient ``g =
-(1, y_t, 0, rf - r0f, -(re - r0e))`` over the terms used, and its band is from ``g' V
+(1, y_t, 0, rf - r0f, -(re - r0e), (rf - r0f)^2, -(re - r0e)^2)`` over the terms used, and its band is from ``g' V
 g``, the same sandwich, with no further term for the references: they define the
 quantity reported (the capacity between those two voltages), and are reported with it.
 The fade fit's start capacity ``c0`` is read the same way, at the record's mean
 voltages (no forgetting).
 
 The state's regressors, in this order: ``x``, ``x * y`` (trend), ``dt``, ``du_f`` and
-``du_e`` (voltage terms), at most five. ``Estimate`` gives every parameter at a fixed
-position (``I_C``, ``I_BETA``, ``I_RATE``, ``I_GF``, ``I_GE``) whatever its index.
+``du_e`` (voltage terms), ``du_f2`` and ``du_e2`` (quadratic), at most seven. ``Estimate`` gives every parameter at a fixed
+position (``I_C``, ``I_BETA``, ``I_RATE``, ``I_GF``, ``I_GE``, ``I_GF2``, ``I_GE2``) whatever its index.
 
 Weights: ``1 / (sigma_q**2 + c_weight**2 * sigma_x**2)``, the effective variance of
 Orear, Am. J. Phys. 50, 912 (1982), doi:10.1119/1.12972, with a fixed prior
@@ -86,7 +103,7 @@ gain error is added to the capacity's band as a systematic term. The Birge ratio
 reported as diagnostics; they do not scale the band.
 
 The residuals are not known until the fit is solved, so ``M`` is kept as fixed-size
-sums of fourth-order products of ``z = (a, q - c_weight * x)`` (at most six long);
+sums of fourth-order products of ``z = (a, q - c_weight * x)`` (at most eight long);
 ``solve`` contracts them with ``(-theta', 1)``, with 0 for a term left out. Subtracting
 ``c_weight * x`` keeps these sums small, which matters in 32-bit arithmetic.
 
@@ -121,7 +138,7 @@ below zero gives ``OUT_OF_RANGE``. The kinds of pair are counted from the kind p
 ``update``, not from ``x == 0``. ``LEVELS_CROSSED`` is set by the caller, which sees the
 levels.
 
-Inverse: for ``p = 2`` and 3 the closed forms of release 0.1.0; for ``p = 4`` and 5 a
+Inverse: for ``p = 2`` and 3 the closed forms of release 0.1.0; for ``p = 4`` to 7 a
 Cholesky factorisation in fixed loops. Years count from the first pair, so late in a
 long record ``c0`` and ``r`` are strongly correlated and ``C(t) = c0 + r y_t`` loses
 digits to cancellation; the 32-bit test vectors measure it.
@@ -260,8 +277,8 @@ rest dominates ``C2``, so the band rests on the error of one rest whose size is 
 from the others; a zero offset of the current sensor does not cancel and is not in the
 band (a gain error cancels in the ratio).
 
-Portability rule: plain float arithmetic, a fixed-size state (arrays of length 5, 6, 25
-and 900, and eight more floats for the voltage references; for the ratio fit 2, 3, 4, 9 and 36), no numpy, no pandas, no growing containers, no
+Portability rule: plain float arithmetic, a fixed-size state (arrays of length 7, 8, 49
+and 3136, and eight more floats for the voltage references; for the ratio fit 2, 3, 4, 9 and 36), no numpy, no pandas, no growing containers, no
 recursion, no exceptions for control flow. Each class maps to a C struct, each function
 to a C function. The test vectors live in ``tests/vectors/``.
 """
@@ -285,6 +302,8 @@ NO_LINKS = 10
 LOW_DOF = 11
 LEVELS_CROSSED = 12  # set by the caller: the core sees pairs, not the levels (version 0.2)
 WRONG_SIGN = 13  # version 0.2
+ABOVE_FULL = 14  # set by the caller: the core sees pairs, not the rests (version 0.3)
+INSIDE_LIMITS = 15  # set by the caller, against the pack's documented limits (version 0.3)
 
 STATUS_TEXT = {
     OK: "estimated",
@@ -307,21 +326,29 @@ STATUS_TEXT = {
         "not possible from this data: a full-to-empty or empty-to-full pair within the memory time carries "
         "charge of the wrong sign"
     ),
+    ABOVE_FULL: "not possible from this data: charges end above the full level, so that level is not the pack's full",
+    INSIDE_LIMITS: (
+        "not possible from this data: the full or the empty level lies too far inside the documented voltage limits"
+    ),
 }
 
 #: Relative rounding tolerance of the band's sums, for 64-bit arithmetic. A 32-bit port
 #: needs a larger one, set from its own test vectors.
 ROUNDING = 1.0e-9
 
-P_MAX = 5  # most regressors of the capacity fit: x, x * y, dt, du_f, du_e
-_NZ = 6  # length of z = (regressors, centred charge); index of s4 is ((r * 5 + s) * 6 + i) * 6 + j
+P_MAX = 7  # most regressors of the capacity fit: x, x * y, dt, du_f, du_e, du_f2, du_e2
+_NZ = 8  # length of z = (regressors, centred charge); index of s4 is ((r * P_MAX + s) * _NZ + i) * _NZ + j
+_NA = P_MAX * P_MAX
+_NS4 = P_MAX * P_MAX * _NZ * _NZ
 
 #: Positions in ``Estimate.theta`` and ``Estimate.sigma``, the same for every fit.
 I_C = 0  # capacity (Ah): at the date for the capacity fit, at t0 for the fade fit
 I_BETA = 1  # offset term (Ah per day)
 I_RATE = 2  # trend of the capacity (Ah per year)
-I_GF = 3  # full-to-full voltage term (Ah per V)
-I_GE = 4  # empty-to-empty voltage term (Ah per V)
+I_GF = 3  # voltage term of the full rests (Ah per V)
+I_GE = 4  # voltage term of the empty rests (Ah per V)
+I_GF2 = 5  # quadratic voltage term of the full rests (Ah per V^2)
+I_GE2 = 6  # quadratic voltage term of the empty rests (Ah per V^2)
 
 #: Kinds of pair, as ``update`` takes them. ``PAIR_FROM_X`` takes the kind from the sign
 #: of ``x`` (release 0.1.0): full-to-empty below 0, empty-to-full above 0, else a
@@ -336,6 +363,8 @@ PAIR_EE = 4
 TERM_TREND = 1
 TERM_FULL = 2
 TERM_EMPTY = 4
+TERM_FULL2 = 8
+TERM_EMPTY2 = 16
 
 _NEVER = -1.0e30
 
@@ -344,15 +373,16 @@ class Fit:
     """Fixed-size state of a weighted least-squares fit with forgetting and lag-1 sums.
 
     Regressors, in this order: ``x``; ``x * y`` when ``trend`` is 1 (y in years since
-    ``t0_days``); ``dt``; ``du_f`` and ``du_e`` when ``voltage`` is 1. ``p`` is their
-    number (2 to 5). ``a`` = sum lambda w a a' (row-major 5 x 5), ``h`` = sum lambda w a q,
+    ``t0_days``); ``dt``; ``du_f`` and ``du_e`` when ``voltage`` is 1 or 2; ``du_f2`` and
+    ``du_e2`` when it is 2. ``p`` is their number (2 to 7). ``a`` = sum lambda w a a'
+    (row-major P_MAX x P_MAX), ``h`` = sum lambda w a q,
     ``c`` = sum lambda w q q; ``l`` = sum v a_k a_(k-1)', ``ly`` = sum v q_k a_(k-1),
     ``yl`` = sum v a_k q_(k-1), ``yy1`` = sum v q_k q_(k-1), with v = g sqrt(w_k w_(k-1)),
     over pairs that share a rest with the pair before them; ``g`` =
     exp(-(t_k - t_(k-1)) / (2 tau_days)) makes a link decay as sqrt(lambda_k lambda_(k-1)).
     ``s4`` = sum lambda^b w^2 a_r a_s z_i z_j and ``s4l`` = sum (lambda_k lambda_(k-1))^(b/2)
     w_k w_(k-1) (a_k,r a_(k-1),s + a_(k-1),r a_k,s) z_k,i z_(k-1),j, with z = (a, q -
-    c_weight x) and ``b = band_forgetting``: the sums of the band's sandwich (5 x 5 x 6 x 6
+    c_weight x) and ``b = band_forgetting``: the sums of the band's sandwich (7 x 7 x 8 x 8
     each). ``m``, ``m_lag``, ``m_cross``, ``m_same``, ``m_ff``, ``m_ee`` are decayed counts
     (sum lambda) of pairs, links and kinds of pair; ``m2`` = sum lambda^2, ``m2_lag`` = sum
     lambda_k lambda_(k-1) over links and ``m2_ll`` the same over links whose previous pair
@@ -386,7 +416,9 @@ class Fit:
     ) -> None:
         self.fade = 1 if fade != 0 else 0  # 1: the fade fit (main quantity r, minimum span, no gain term)
         self.trend = 1 if trend != 0 or fade != 0 else 0
-        self.voltage = 1 if voltage != 0 else 0
+        self.voltage = 0  # 1: a linear term at each end; 2: a linear and a quadratic one
+        if voltage == 1 or voltage == 2:
+            self.voltage = voltage
         self.band = 2 if band_forgetting == 2 else 1
         self.plausibility = 1 if plausibility != 0 else 0
         self.p = 2 + self.trend + 2 * self.voltage
@@ -397,15 +429,15 @@ class Fit:
         self.t_last = _NEVER
         self.t_last_cross = _NEVER
         self.t_wrong = _NEVER
-        self.a = [0.0] * 25
-        self.h = [0.0] * 5
+        self.a = [0.0] * _NA
+        self.h = [0.0] * P_MAX
         self.c = 0.0
-        self.l = [0.0] * 25
-        self.ly = [0.0] * 5
-        self.yl = [0.0] * 5
+        self.l = [0.0] * _NA
+        self.ly = [0.0] * P_MAX
+        self.yl = [0.0] * P_MAX
         self.yy1 = 0.0
-        self.s4 = [0.0] * 900
-        self.s4l = [0.0] * 900
+        self.s4 = [0.0] * _NS4
+        self.s4l = [0.0] * _NS4
         self.m = 0.0  # decayed number of pairs
         self.m_lag = 0.0  # decayed number of lag-1 links
         self.m_cross = 0.0  # decayed number of full-to-empty and empty-to-full pairs
@@ -444,7 +476,8 @@ def capacity_state(
     plausibility: int = 0,
 ) -> Fit:
     """The capacity estimator: regressors (x, dt), plus x * y with ``local_trend`` and
-    (du_f, du_e) with ``voltage_terms``. The defaults are the fit of release 0.1.0."""
+    (du_f, du_e) with ``voltage_terms`` 1 or 2 and (du_f2, du_e2) with 2. The defaults are
+    the fit of release 0.1.0."""
     return Fit(c_weight, tau_days, 0.0, 0, local_trend, voltage_terms, band_forgetting, plausibility)
 
 
@@ -455,8 +488,8 @@ def fade_state(
     band_forgetting: int = 1,
     plausibility: int = 0,
 ) -> Fit:
-    """The fade model: regressors (x, x * y, dt), plus (du_f, du_e) with ``voltage_terms``;
-    no forgetting. The defaults are the fit of release 0.1.0."""
+    """The fade model: regressors (x, x * y, dt), plus the voltage terms as in
+    ``capacity_state``; no forgetting. The defaults are the fit of release 0.1.0."""
     return Fit(c_weight, 0.0, t0_days, 1, 1, voltage_terms, band_forgetting, plausibility)
 
 
@@ -477,13 +510,13 @@ def decay(state: Fit, t_days: float) -> None:
     fb = f
     if state.band == 2:
         fb = f2
-    for k in range(25):
+    for k in range(_NA):
         state.a[k] *= f
         state.l[k] *= f
-    for k in range(900):
+    for k in range(_NS4):
         state.s4[k] *= fb
         state.s4l[k] *= fb
-    for k in range(5):
+    for k in range(P_MAX):
         state.h[k] *= f
         state.ly[k] *= f
         state.yl[k] *= f
@@ -562,6 +595,8 @@ def update(
             pk = PAIR_FE
     du_f = 0.0
     du_e = 0.0
+    du_f2 = 0.0
+    du_e2 = 0.0
     if state.voltage != 0 and pk != PAIR_FROM_X:
         fa = 0  # 1 when the rest at the start (a) or the end (b) is full
         fb = 0
@@ -579,12 +614,16 @@ def update(
         db = _rest_voltage(state, fb, u_end, 1.0, 1)
         if fb != 0:
             du_f += db
+            du_f2 += db * db
         else:
             du_e += db
+            du_e2 += db * db
         if fa != 0:
             du_f -= da
+            du_f2 -= da * da
         else:
             du_e -= da
+            du_e2 -= da * da
     w = 1.0 / (sigma_q_ah * sigma_q_ah + state.c_weight * state.c_weight * sigma_x * sigma_x)
     y = (t_days - state.t0_days) / 365.25
     p = state.p
@@ -598,13 +637,16 @@ def update(
     if state.voltage != 0:
         row[nr + 1] = du_f
         row[nr + 2] = du_e
+    if state.voltage == 2:
+        row[nr + 3] = du_f2
+        row[nr + 4] = du_e2
     z = [0.0] * _NZ
     for r in range(p):
         z[r] = row[r]
     z[p] = q_ah - state.c_weight * x
     for r in range(p):
         for k in range(p):
-            state.a[5 * r + k] += w * row[r] * row[k]
+            state.a[P_MAX * r + k] += w * row[r] * row[k]
         state.h[r] += w * row[r] * q_ah
     state.c += w * q_ah * q_ah
     for r in range(p):
@@ -612,7 +654,7 @@ def update(
             ww = w * w * row[r] * row[s]
             for i in range(p + 1):
                 for j in range(p + 1):
-                    state.s4[((r * 5 + s) * 6 + i) * 6 + j] += ww * z[i] * z[j]
+                    state.s4[((r * P_MAX + s) * _NZ + i) * _NZ + j] += ww * z[i] * z[j]
     link = 0
     if linked != 0 and state.prev_ok != 0:
         link = 1
@@ -624,7 +666,7 @@ def update(
         v = g * math.sqrt(w * state.prev_w)
         for r in range(p):
             for k in range(p):
-                state.l[5 * r + k] += v * row[r] * state.prev_a[k]
+                state.l[P_MAX * r + k] += v * row[r] * state.prev_a[k]
             state.ly[r] += v * q_ah * state.prev_a[r]
             state.yl[r] += v * row[r] * state.prev_q
         state.yy1 += v * q_ah * state.prev_q
@@ -641,7 +683,7 @@ def update(
                 aa = u * (row[r] * state.prev_a[s] + state.prev_a[r] * row[s])
                 for i in range(p + 1):
                     for j in range(p + 1):
-                        state.s4l[((r * 5 + s) * 6 + i) * 6 + j] += aa * z[i] * state.prev_z[j]
+                        state.s4l[((r * P_MAX + s) * _NZ + i) * _NZ + j] += aa * z[i] * state.prev_z[j]
     state.prev_ok = 1
     state.prev_linked = link
     for r in range(P_MAX):
@@ -672,25 +714,26 @@ def update(
 
 
 def _invert(p: int, a: list, out: list) -> int:
-    """Invert the symmetric p x p matrix ``a`` (row-major in 5 x 5) into ``out``.
+    """Invert the symmetric p x p matrix ``a`` (row-major in P_MAX x P_MAX) into ``out``.
 
     p = 2 and 3: the closed forms of release 0.1.0 (kept, so its settings give its
-    numbers to the last bit); p = 4 and 5: ``_cholesky_inverse``. Returns 0 when the
+    numbers to the last bit); p = 4 and more: ``_cholesky_inverse``. Returns 0 when the
     matrix is singular.
     """
-    for k in range(25):
+    for k in range(_NA):
         out[k] = 0.0
+    n = P_MAX
     if p == 2:
-        det = a[0] * a[6] - a[1] * a[5]
-        if a[0] <= 0.0 or a[6] <= 0.0 or det <= 1.0e-9 * a[0] * a[6]:
+        det = a[0] * a[n + 1] - a[1] * a[n]
+        if a[0] <= 0.0 or a[n + 1] <= 0.0 or det <= 1.0e-9 * a[0] * a[n + 1]:
             return 0
-        out[0] = a[6] / det
+        out[0] = a[n + 1] / det
         out[1] = -a[1] / det
-        out[5] = -a[5] / det
-        out[6] = a[0] / det
+        out[n] = -a[n] / det
+        out[n + 1] = a[0] / det
         return 1
     if p == 3:
-        a11, a12, a13, a22, a23, a33 = a[0], a[1], a[2], a[6], a[7], a[12]
+        a11, a12, a13, a22, a23, a33 = a[0], a[1], a[2], a[n + 1], a[n + 2], a[2 * n + 2]
         c11 = a22 * a33 - a23 * a23
         c12 = a13 * a23 - a12 * a33
         c13 = a12 * a23 - a13 * a22
@@ -703,37 +746,37 @@ def _invert(p: int, a: list, out: list) -> int:
         vals = (c11, c12, c13, c12, c22, c23, c13, c23, c33)
         for r in range(3):
             for k in range(3):
-                out[5 * r + k] = vals[3 * r + k] / det
+                out[P_MAX * r + k] = vals[3 * r + k] / det
         return 1
     return _cholesky_inverse(p, a, out)
 
 
 def _cholesky_inverse(p: int, a: list, out: list) -> int:
-    """Invert the symmetric positive definite p x p matrix ``a`` (p <= 5, row-major in
-    5 x 5) into ``out`` by Cholesky, ``a = L L'`` and ``a^-1 = L^-T L^-1``, in fixed
+    """Invert the symmetric positive definite p x p matrix ``a`` (p <= P_MAX, row-major in
+    P_MAX x P_MAX) into ``out`` by Cholesky, ``a = L L'`` and ``a^-1 = L^-T L^-1``, in fixed
     loops. Returns 0 when a pivot is not above 1e-12 times its diagonal element (a
     singular matrix)."""
-    low = [0.0] * 25
+    low = [0.0] * _NA
     for j in range(p):
-        d = a[5 * j + j]
+        d = a[P_MAX * j + j]
         for k in range(j):
-            d -= low[5 * j + k] * low[5 * j + k]
-        if a[5 * j + j] <= 0.0 or d <= 1.0e-12 * a[5 * j + j]:
+            d -= low[P_MAX * j + k] * low[P_MAX * j + k]
+        if a[P_MAX * j + j] <= 0.0 or d <= 1.0e-12 * a[P_MAX * j + j]:
             return 0
-        low[5 * j + j] = math.sqrt(d)
+        low[P_MAX * j + j] = math.sqrt(d)
         for i in range(j + 1, p):
-            s = a[5 * i + j]
+            s = a[P_MAX * i + j]
             for k in range(j):
-                s -= low[5 * i + k] * low[5 * j + k]
-            low[5 * i + j] = s / low[5 * j + j]
-    li = [0.0] * 25  # L^-1, lower triangular
+                s -= low[P_MAX * i + k] * low[P_MAX * j + k]
+            low[P_MAX * i + j] = s / low[P_MAX * j + j]
+    li = [0.0] * _NA  # L^-1, lower triangular
     for i in range(p):
-        li[5 * i + i] = 1.0 / low[5 * i + i]
+        li[P_MAX * i + i] = 1.0 / low[P_MAX * i + i]
         for j in range(i):
             s = 0.0
             for k in range(j, i):
-                s += low[5 * i + k] * li[5 * k + j]
-            li[5 * i + j] = -s / low[5 * i + i]
+                s += low[P_MAX * i + k] * li[P_MAX * k + j]
+            li[P_MAX * i + j] = -s / low[P_MAX * i + i]
     for i in range(p):
         for j in range(p):
             s = 0.0
@@ -741,8 +784,8 @@ def _cholesky_inverse(p: int, a: list, out: list) -> int:
             if j > i:
                 k0 = j
             for k in range(k0, p):
-                s += li[5 * k + i] * li[5 * k + j]
-            out[5 * i + j] = s
+                s += li[P_MAX * k + i] * li[P_MAX * k + j]
+            out[P_MAX * i + j] = s
     return 1
 
 
@@ -815,7 +858,11 @@ def _position(state: Fit, r: int) -> int:
         return I_BETA
     if r == 2 + state.trend:
         return I_GF
-    return I_GE
+    if r == 3 + state.trend:
+        return I_GE
+    if r == 4 + state.trend:
+        return I_GF2
+    return I_GE2
 
 
 def _quad(pe: int, con: list, meat: list, size: list) -> float:
@@ -824,8 +871,8 @@ def _quad(pe: int, con: list, meat: list, size: list) -> float:
     mag = 0.0
     for i in range(pe):
         for j in range(pe):
-            acc += con[i] * meat[5 * i + j] * con[j]
-            mag += abs(con[i] * con[j]) * size[5 * i + j]
+            acc += con[i] * meat[P_MAX * i + j] * con[j]
+            mag += abs(con[i] * con[j]) * size[P_MAX * i + j]
     if acc < 0.0 and -acc <= ROUNDING * mag:
         acc = 0.0
     return acc
@@ -840,8 +887,8 @@ def _dof(state: Fit, pe: int, con: list, meat_s: list, meat_l: list, nu: float) 
         lag2 = 0.0
         for i in range(pe):
             for j in range(pe):
-                e2 += con[i] * meat_s[5 * i + j] * con[j]
-                lag2 += con[i] * meat_l[5 * i + j] * con[j]
+                e2 += con[i] * meat_s[P_MAX * i + j] * con[j]
+                lag2 += con[i] * meat_l[P_MAX * i + j] * con[j]
         rho = 0.0
         if state.m2_lag > 0.0 and e2 > 0.0:
             rho = (0.5 * lag2 / state.m2_lag) / (e2 / state.m2)
@@ -862,6 +909,7 @@ def solve(
     min_same: float,
     min_span_years: float,
     min_cross_trend: float = 0.0,
+    min_quad: float = 0.0,
 ) -> Estimate:
     """The estimate at ``t_days`` (the state is decayed to it first).
 
@@ -875,7 +923,8 @@ def solve(
     fade fit only. A voltage term whose kind of pair has a decayed count below
     ``min_same`` is left out of the solve, and so is the trend of the capacity fit while
     the decayed count of full-to-empty and empty-to-full pairs is below
-    ``min_cross_trend``.
+    ``min_cross_trend``, and a quadratic voltage term while its kind's decayed count of
+    rests with a voltage is below ``min_quad``.
 
     The capacity fit's main quantity is the capacity at the date, read at the reference
     voltages at the date (``u_full``, ``u_empty``), with the gradient of the module
@@ -913,15 +962,20 @@ def solve(
         return out
     # The terms of this solve: a voltage term needs min_same pairs of its kind in memory,
     # the capacity fit's trend min_cross_trend full-to-empty and empty-to-full pairs.
+    i_gf = 2 + state.trend  # the regressors of the voltage terms: full, empty, full squared, empty squared
     act = [0] * P_MAX
     pe = 0
     for r in range(p):
         use = 1
         if state.trend != 0 and state.fade == 0 and r == 1 and state.m_cross < min_cross_trend:
             use = 0
-        if state.voltage != 0 and r == p - 2 and state.m_ff < min_same:
+        if (r == i_gf or r == i_gf + 2) and state.m_ff < min_same:
             use = 0
-        if state.voltage != 0 and r == p - 1 and state.m_ee < min_same:
+        if (r == i_gf + 1 or r == i_gf + 3) and state.m_ee < min_same:
+            use = 0
+        if r == i_gf + 2 and state.wu_f < min_quad:
+            use = 0
+        if r == i_gf + 3 and state.wu_e < min_quad:
             use = 0
         if use != 0:
             act[pe] = r
@@ -933,15 +987,19 @@ def solve(
             out.terms |= TERM_TREND
         if act[i] == 1 + state.trend:
             i_beta = i
-        if state.voltage != 0 and act[i] == p - 2:
+        if act[i] == i_gf:
             out.terms |= TERM_FULL
-        if state.voltage != 0 and act[i] == p - 1:
+        if act[i] == i_gf + 1:
             out.terms |= TERM_EMPTY
-    sub = [0.0] * 25
+        if act[i] == i_gf + 2:
+            out.terms |= TERM_FULL2
+        if act[i] == i_gf + 3:
+            out.terms |= TERM_EMPTY2
+    sub = [0.0] * _NA
     for i in range(pe):
         for k in range(pe):
-            sub[5 * i + k] = state.a[5 * act[i] + act[k]]
-    inv = [0.0] * 25
+            sub[P_MAX * i + k] = state.a[P_MAX * act[i] + act[k]]
+    inv = [0.0] * _NA
     if _invert(pe, sub, inv) == 0:
         out.status = SINGULAR
         return out
@@ -949,7 +1007,7 @@ def solve(
     for r in range(pe):
         acc = 0.0
         for k in range(pe):
-            acc += inv[5 * r + k] * state.h[act[k]]
+            acc += inv[P_MAX * r + k] * state.h[act[k]]
         th[r] = acc
     chi2 = state.c
     for r in range(pe):
@@ -970,7 +1028,7 @@ def solve(
         for r in range(pe):
             cross -= th[r] * (state.ly[act[r]] + state.yl[act[r]])
             for k in range(pe):
-                cross += th[r] * state.l[5 * act[r] + act[k]] * th[k]
+                cross += th[r] * state.l[P_MAX * act[r] + act[k]] * th[k]
         out.rho = (cross / state.m_lag) / (chi2 / state.m)
     # The sandwich's meat M_rs = phi' (S_rs + SL_rs) phi with phi = (-theta + c_weight e_0, 1);
     # a term left out has phi 0.
@@ -979,10 +1037,10 @@ def solve(
         phi[act[r]] = -th[r]
     phi[0] += state.c_weight
     phi[p] = 1.0
-    meat = [0.0] * 25
-    size = [0.0] * 25  # the same sums in absolute values: the scale of their rounding error
-    meat_s = [0.0] * 25  # the squares' part and the links' part, apart (band_forgetting = 2)
-    meat_l = [0.0] * 25
+    meat = [0.0] * _NA
+    size = [0.0] * _NA  # the same sums in absolute values: the scale of their rounding error
+    meat_s = [0.0] * _NA  # the squares' part and the links' part, apart (band_forgetting = 2)
+    meat_l = [0.0] * _NA
     for r in range(pe):
         for s in range(pe):
             acc = 0.0
@@ -991,16 +1049,16 @@ def solve(
             acc_l = 0.0
             for i in range(p + 1):
                 for j in range(p + 1):
-                    idx = ((act[r] * 5 + act[s]) * 6 + i) * 6 + j
+                    idx = ((act[r] * P_MAX + act[s]) * _NZ + i) * _NZ + j
                     acc += phi[i] * (state.s4[idx] + state.s4l[idx]) * phi[j]
                     mag += abs(phi[i] * phi[j]) * (abs(state.s4[idx]) + abs(state.s4l[idx]))
                     if state.band == 2:
                         acc_s += phi[i] * state.s4[idx] * phi[j]
                         acc_l += phi[i] * state.s4l[idx] * phi[j]
-            meat[5 * r + s] = acc
-            size[5 * r + s] = mag
-            meat_s[5 * r + s] = acc_s
-            meat_l[5 * r + s] = acc_l
+            meat[P_MAX * r + s] = acc
+            size[P_MAX * r + s] = mag
+            meat_s[P_MAX * r + s] = acc_s
+            meat_l[P_MAX * r + s] = acc_l
     scale = state.m / nu
     # The reference voltages at the date, as shifts from the first rest of each kind.
     d_f = 0.0
@@ -1013,7 +1071,7 @@ def solve(
         out.u_empty = state.r0_e + d_e
     # The capacity at the date and at the reference voltages: the gradient over the terms
     # used (1 for C, y_t for the trend, 0 for the offset, d_f and -d_e for the voltage
-    # terms). ``main`` is the index of the main parameter, -1 for this combination: the
+    # terms, d_f^2 and -d_e^2 for the quadratic ones). ``main`` is the index of the main parameter, -1 for this combination: the
     # capacity fit with trend or voltage terms in the solve.
     y_t = (t_days - state.t0_days) / 365.25
     grad = [0.0] * P_MAX  # the capacity's gradient (capacity fit), or c0's (fade fit)
@@ -1023,11 +1081,17 @@ def solve(
         if state.fade == 0 and state.trend != 0 and act[i] == 1:
             grad[i] = y_t
             combo = 1
-        if state.voltage != 0 and act[i] == p - 2:
+        if act[i] == i_gf:
             grad[i] = d_f
             combo = 1
-        if state.voltage != 0 and act[i] == p - 1:
+        if act[i] == i_gf + 1:
             grad[i] = -d_e
+            combo = 1
+        if act[i] == i_gf + 2:
+            grad[i] = d_f * d_f
+            combo = 1
+        if act[i] == i_gf + 3:
+            grad[i] = -d_e * d_e
             combo = 1
     main = 0
     if state.fade != 0:
@@ -1040,8 +1104,8 @@ def solve(
         mag = 0.0
         for i in range(pe):
             for j in range(pe):
-                acc += inv[5 * r + i] * meat[5 * i + j] * inv[5 * j + r]
-                mag += abs(inv[5 * r + i] * inv[5 * j + r]) * size[5 * i + j]
+                acc += inv[P_MAX * r + i] * meat[P_MAX * i + j] * inv[P_MAX * j + r]
+                mag += abs(inv[P_MAX * r + i] * inv[P_MAX * j + r]) * size[P_MAX * i + j]
         # A negative value within rounding of the sums is zero (a fit with no scatter).
         if acc < 0.0 and -acc <= ROUNDING * mag:
             acc = 0.0
@@ -1058,10 +1122,10 @@ def solve(
     for j in range(pe):
         acc = 0.0
         for i in range(pe):
-            acc += grad[i] * inv[5 * i + j]
+            acc += grad[i] * inv[P_MAX * i + j]
         con_c[j] = acc
         if main >= 0:
-            con[j] = inv[5 * main + j]
+            con[j] = inv[P_MAX * main + j]
         else:
             con[j] = acc
     value = th[0]
@@ -1083,7 +1147,7 @@ def solve(
     dof = _dof(state, pe, con, meat_s, meat_l, nu)
     con_b = [0.0] * P_MAX
     for j in range(pe):
-        con_b[j] = inv[5 * i_beta + j]
+        con_b[j] = inv[P_MAX * i_beta + j]
     out.dof = dof
     out.dof_beta = _dof(state, pe, con_b, meat_s, meat_l, nu)
     for r in range(pe):
@@ -1427,18 +1491,18 @@ def ratio_solve(
     if p == 2 and out.span_years < min_span_years:
         out.status = SHORT_SPAN
         return out
-    inv = [0.0] * 25  # row-major in 5 x 5, as _invert writes it
+    inv = [0.0] * _NA  # row-major in P_MAX x P_MAX, as _invert writes it
     if p == 1:
         if not (state.a[0] > 0.0):
             out.status = SINGULAR
             return out
         inv[0] = 1.0 / state.a[0]
     else:
-        mat = [0.0] * 25
+        mat = [0.0] * _NA
         mat[0] = state.a[0]
         mat[1] = state.a[1]
-        mat[5] = state.a[2]
-        mat[6] = state.a[3]
+        mat[P_MAX] = state.a[2]
+        mat[P_MAX + 1] = state.a[3]
         if _invert(2, mat, inv) == 0:
             out.status = SINGULAR
             return out
@@ -1446,7 +1510,7 @@ def ratio_solve(
     for r in range(p):
         acc = 0.0
         for k in range(p):
-            acc += inv[5 * r + k] * state.h[k]
+            acc += inv[P_MAX * r + k] * state.h[k]
         th[r] = acc
     th[0] += state.k_ref
     value = th[0]
@@ -1510,8 +1574,8 @@ def ratio_solve(
             mag = 0.0
             for i in range(p):
                 for j in range(p):
-                    acc += inv[5 * r + i] * meat[2 * i + j] * inv[5 * j + s]
-                    mag += abs(inv[5 * r + i] * inv[5 * j + s]) * size[2 * i + j]
+                    acc += inv[P_MAX * r + i] * meat[2 * i + j] * inv[P_MAX * j + s]
+                    mag += abs(inv[P_MAX * r + i] * inv[P_MAX * j + s]) * size[2 * i + j]
             if r == s:
                 # A negative value within rounding of the sums is zero (a fit with no scatter).
                 if acc < 0.0 and -acc <= ROUNDING * mag:

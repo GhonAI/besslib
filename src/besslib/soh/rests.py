@@ -12,8 +12,9 @@ rises or falls steeply at both ends of the charge window, also for LFP, whose re
 voltage is too flat to tell full from half-full.
 
 Every rest also gets an open-circuit voltage from a two-RC relaxation fit (Suppl.
-Eq. 2-5), with bounded time constants found on a grid. It is reported, not used by the
-capacity estimate.
+Eq. 2-5), with bounded time constants found on a grid. It is the level near the end of
+the fitted part of the rest, at most ``ocv_fit_max_min`` after its start; the capacity
+fit's voltage terms read it.
 """
 
 from __future__ import annotations
@@ -407,7 +408,7 @@ def operating_rests(
 #: Columns of the rest chain.
 CHAIN_COLUMNS = [
     "time", "kind", "full", "q_ah", "throughput_ah", "missing_s", "edge_v", "temp_pack_c", "new_segment", "reason",
-    "ocv_v",
+    "ocv_v", "duration_min",
 ]
 
 
@@ -444,6 +445,7 @@ def rest_chain(
             "edge_v": ends["edge_v"].astype(float),
             "temp_pack_c": ends["temp_pack_c"].astype(float),
             "ocv_v": ends["ocv_v"].astype(float),
+            "duration_min": ends["duration_min"].astype(float) if "duration_min" in ends else np.nan,
         }
     )
     reason = np.full(len(chain), "", dtype=object)
@@ -479,7 +481,11 @@ def rest_pairs(chain: pd.DataFrame, config: CapacityConfig | None = None) -> pd.
     starts at the rest where the previous pair ended (their errors share that rest).
     ``u_start`` and ``u_end`` are the relaxed open-circuit voltages (``ocv_v``) of the
     two rests: the capacity fit's voltage terms are formed from them
-    (``besslib.soh._core``; ``capacity.voltage_terms``).
+    (``besslib.soh._core``; ``capacity.voltage_terms``). ``dt_days`` is the time between
+    the moments the rest voltages are read, ``min(duration_min, ocv_fit_max_min)`` after
+    each start (``config.rest_time = "reading"``, version 0.3), or between the starts
+    (``"start"``). The charge is the same in both: no current flows through the meter in a
+    rest, but the battery's own supply drains it while its voltage relaxes.
     """
     config = config or CapacityConfig()
     a = chain.iloc[:-1].reset_index(drop=True)
@@ -498,6 +504,12 @@ def rest_pairs(chain: pd.DataFrame, config: CapacityConfig | None = None) -> pd.
             "linked": (a["new_segment"] == 0).astype(int),
         }
     )
+    if config.rest_time == "reading":
+        if len(chain) and chain["duration_min"].isna().any():
+            raise ValueError('rest_time = "reading" needs the duration of every rest (duration_min)')
+        read_a = a["duration_min"].clip(upper=config.ocv_fit_max_min).to_numpy(float)
+        read_b = b["duration_min"].clip(upper=config.ocv_fit_max_min).to_numpy(float)
+        pairs["dt_days"] += (read_b - read_a) / 1440.0
     pairs["u_start"] = a["ocv_v"].to_numpy(float)
     pairs["u_end"] = b["ocv_v"].to_numpy(float)
     pairs = pairs[(b["new_segment"] == 0).to_numpy()].reset_index(drop=True)

@@ -22,9 +22,9 @@ For each system:
 
 Floats are written with a fixed format; two runs give identical files.
 
-With ``--settings 0.1 --out DIR`` the run uses the settings of release 0.1.0
-(``CapacityConfig().v0_1()``, ``RecordConfig().v0_1()``) and writes to DIR (check X0 of
-version 0.2); the A1 comparison of step 5 then reads the phase 2 files of
+With ``--settings 0.1 --out DIR`` (or ``0.2``) the run uses the settings of release 0.1.0 (or
+0.2.0) (``CapacityConfig().v0_1()``, ``RecordConfig().v0_1()``, or ``v0_2()``) and writes to DIR
+(check F1, ``check_v03.py``); the A1 comparison of step 5 then reads the phase 2 files of
 ``--phase2 DIR`` and is skipped without it.
 
 Usage:
@@ -196,9 +196,11 @@ def main(argv: list[str]) -> None:
     config, record_config, out, phase2_dir = CapacityConfig(), RecordConfig(), OUT, PHASE2
     if "--settings" in argv:
         k = argv.index("--settings")
-        if argv[k + 1] != "0.1":
-            sys.exit("--settings takes 0.1 (release 0.1.0); the default is the current settings")
-        config, record_config, phase2_dir = config.v0_1(), record_config.v0_1(), None
+        if argv[k + 1] not in ("0.1", "0.2"):
+            sys.exit("--settings takes 0.1 or 0.2 (releases 0.1.0 and 0.2.0); the default is the current settings")
+        old = argv[k + 1] == "0.1"
+        config = config.v0_1() if old else config.v0_2()
+        record_config, phase2_dir = record_config.v0_1() if old else record_config.v0_2(), None
         del argv[k : k + 2]
     if "--out" in argv:
         k = argv.index("--out")

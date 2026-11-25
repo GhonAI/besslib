@@ -1,0 +1,7 @@
+check,pass_if,value,result,note
+F1 v0.1.0 files,0 differences,0 of 102 files differ,pass,"21 systems compared; 21 records differ only in the A3 text and in keys later versions add; columns and keys added later, not compared: ['A1.details.read_at_empty_rest_v', 'A1.details.read_at_full_rest_v', 'dof', 'gamma_empty2_ah_per_v2', 'gamma_empty2_sigma_ah_per_v2', 'gamma_empty_ah_per_v', 'gamma_empty_sigma_ah_per_v', 'gamma_full2_ah_per_v2', 'gamma_full2_sigma_ah_per_v2', 'gamma_full_ah_per_v', 'gamma_full_sigma_ah_per_v', 'offset_dof', 'ref_empty_v', 'ref_full_v', 'terms', 'trend_ah_per_year']"
+F1 v0.1.0 vectors,0 differences,0 of 6 test-vector files differ,pass,byte for byte against the tag; the core's agreement with them is test_core.py
+F1 v0.1.0 hashes,the release's,"109e9eb1efa5, c2f7f545cebb",pass,
+F1 v0.2.0 files,0 differences,0 of 102 files differ,pass,"21 systems compared; 0 records differ only in keys later versions add; columns and keys added later, not compared: ['gamma_empty2_ah_per_v2', 'gamma_empty2_sigma_ah_per_v2', 'gamma_full2_ah_per_v2', 'gamma_full2_sigma_ah_per_v2']"
+F1 v0.2.0 vectors,0 differences,0 of 8 test-vector files differ,pass,byte for byte against the tag; the core's agreement with them is test_core.py
+F1 v0.2.0 hashes,the release's,"b3959941c19b, d49cbfdcd5b6",pass,

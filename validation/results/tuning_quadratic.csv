@@ -1,0 +1,5 @@
+config_hash,quad_min_rests,n_tests,n_estimated,median_abs_error_points,coverage,median_band_points,median_error_points,selected
+b30137b3f868,2.0000,22,18,1.8324,0.3182,1.6328,0.5962,True
+2c595bac842b,5.0000,22,18,1.8324,0.3182,1.6328,0.5962,False
+1184e1fd2cec,10.0000,22,18,1.8324,0.3182,1.8037,0.5962,False
+9fb99be68a68,20.0000,22,18,1.8324,0.3182,1.8153,0.7073,False

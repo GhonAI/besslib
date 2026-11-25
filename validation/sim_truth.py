@@ -1,4 +1,4 @@
-"""Shared by the case checks T1-T6: one simulated pack with its truth, and besslib 0.2 on its frames.
+"""Shared by the case checks T1-T6: one simulated pack with its truth, and besslib on its frames.
 
 ``Recorder`` runs one pack of a case, passes its frames on to besslib month by month, and
 keeps what the checks need of the truth: every BMS stop with the running terminal charge,
@@ -7,7 +7,7 @@ the cell states at each month's end, and the month's sums of charge per cell gro
 Two capacity truths (both from the simulator's own states, no sensor error):
 
 * ``t_rest``: the charge between full and empty at two relaxed pack voltages (those the
-  0.2 estimate reads at, ``ref_full_v`` and ``ref_empty_v``), computed on the cell states
+  estimate reads at, ``ref_full_v`` and ``ref_empty_v``), computed on the cell states
   at the date: the charge moved through the string that takes the sum of the open-circuit
   voltages (with the hysteresis bound of the side, when the chemistry has one) from one
   voltage to the other. The estimate reads its voltages from a meter with a gain error, so
@@ -40,7 +40,8 @@ from besslib.soh.rests import levels_from, operating_rests, rest_chain, rest_pai
 
 OK = _core.STATUS_TEXT[_core.OK]
 PASS_RANGE = (0.85, 0.95)
-HELD_OUT = range(1000, 1200)  # fixed with the plan, before any result
+HELD_OUT = range(2000, 2200)  # version 0.3: fixed with its plan, before any result; judged once
+HELD_OUT_02 = range(1000, 1200)  # the run of version 0.2 (``results/sim/``); read before 0.3 was built, so no target of it
 DEVELOPMENT = range(0, 200)
 HASHES = {
     "capacity_config_hash": config_hash(CapacityConfig()),
@@ -183,11 +184,11 @@ def reduce_pack(rec: Recorder):
 
 
 def capacity_rows(reduced, spec, mask=None, config: CapacityConfig | None = None) -> pd.DataFrame:
-    """besslib 0.2's monthly capacity estimates from reduced tables (``mask`` as in ``operating_rests``)."""
+    """besslib's monthly capacity estimates from reduced tables (``mask`` as in ``operating_rests``)."""
     config = config or CapacityConfig()
     rests = operating_rests(reduced.rests, spec, config, **({"mask": mask} if mask is not None else {}))
     pairs = rest_pairs(rest_chain(rests, spec, config, **({"mask": mask} if mask is not None else {})), config)
-    return estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=levels_from(rests, config))
+    return estimate_capacity(None, spec, rests=rests, config=config, pairs=pairs, levels_from=levels_from(rests, config))
 
 
 def has_band(row) -> bool:

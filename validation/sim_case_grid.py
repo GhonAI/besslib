@@ -1,4 +1,4 @@
-"""Case 5, grid duty at mid state of charge: no estimate without a calibration (T5a), coverage (T5b), the spread's cost (T5f).
+"""Case 5, grid duty at mid state of charge: no estimate from a window inside the pack's (T5a, T5a-L, T5b'), coverage (T5b), the spread's cost (T5f).
 
 Two case files: ``grid-duty`` (NMC, 14 cells of 100 Ah in series; the ``lfp-*`` settings: LFP, 16 cells of 280 Ah; identical cells)
 and ``grid-string`` (396 LFP cells of 280 Ah in series, capacity sd 1 %, balancing on, sensors at the stated accuracy
@@ -7,10 +7,13 @@ one arbitrage cycle a day, a calibration full charge every 7 days, every 30 days
 ``*-30``, ``*-never``). No BMS supply and no self-discharge, so the BMS's counter is exact between calibrations
 (a simplification, said in the case files). 36 months, 10 s steps.
 
-* T5a: in the ``never`` settings, ``estimate_capacity`` at every month end gives 0 estimates; each month says
-  ``not possible from this data`` with its reason. Per pack: month ends, estimated month ends, the reasons with
-  their month counts. Pass, per chemistry and string: 200 of 200 packs without an estimate and with a reason.
-* T5b (information): in the other settings, coverage and error of the A1 band against ``T_rest``
+* T5a: in the ``never`` settings, without documented limits, ``estimate_capacity`` at every month end gives 0 estimates;
+  each month says ``not possible from this data`` with its reason. Per pack: month ends, estimated month ends, the reasons
+  with their month counts. Pass, per chemistry and string: 200 of 200 packs without an estimate and with a reason.
+* T5a-L: the same with the BMS's documented voltage limits given (``sim.spec``, as a datasheet gives them). A set-up change
+  of version 0.3, chosen before its run; T5a stays beside it.
+* T5b': in the settings with a calibration, without documented limits: 0 estimated month ends, 200 of 200 packs.
+* T5b (information): in those settings, coverage and error of the A1 band against ``T_rest``
   (``sim_truth``), as case 2; a band without reference voltages has no T_rest and is left out (counted in ``n_no_reference``).
 * T5f (information, from the truth, no besslib): the usable capacity lost to the cell spread,
   ``1 - (charge between the BMS stops of the string) / (charge of the mean cell between the same states)``.
@@ -84,7 +87,9 @@ def _reasons(cap: pd.DataFrame) -> str:
 def run_pack(setting: str, seed: int) -> list[dict]:
     rec = common.recorder(CASE, SETTINGS, setting, seed)
     reduced = sim_truth.reduce_pack(rec)
-    cap = common.capacity_table(reduced, rec.spec, rec.start, rec.months)
+    cap = common.capacity_table(reduced, common.without_limits(rec.spec), rec.start, rec.months)
+    limited = common.capacity_table(reduced, rec.spec, rec.start, rec.months)
+    refused_l = limited[limited["status"] != sim_truth.OK]
     estimated = cap[cap["status"] == sim_truth.OK]
     n = held = n_no_reference = 0
     err = []
@@ -108,6 +113,9 @@ def run_pack(setting: str, seed: int) -> list[dict]:
         "month_ends": int(len(cap)), "estimated_months": int(len(estimated)),
         "all_refusals_say_not_possible": bool(refusing["status"].str.startswith("not possible from this data").all()),
         "reasons": _reasons(cap),
+        "estimated_months_limits": int((limited["status"] == sim_truth.OK).sum()),
+        "all_refusals_say_not_possible_limits": bool(refused_l["status"].str.startswith("not possible from this data").all()),
+        "reasons_limits": _reasons(limited),
         "with_band": n, "n_no_reference": n_no_reference, "held_rest": held, "mean_error_rest_ah": float(np.mean(err)) if err else math.nan,
         "spread_loss_pack": spread_loss(rec.pack), "spread_loss_14_groups": spread_loss(small) if small else math.nan,
         "stops_loss": run_loss(rec),
@@ -137,7 +145,19 @@ def summary(table: pd.DataFrame) -> list[dict]:
                           f"the estimate is a median {t['estimate_over_true_capacity'].median():.1%} of the true capacity; "
                           "reasons: " + "; ".join(f"{k} ({v:.1%} of month ends)" for k, v in share.items()),
                 "pass_if": "200 of 200 packs", "passed": bool(ok == n and n > 0)})
+            ok = int(((t["estimated_months_limits"] == 0) & t["all_refusals_say_not_possible_limits"]).sum())
+            rows.append({
+                "check": "T5a-L", "what": f"{setting}: no calibration charge, the BMS's documented limits given: the same",
+                "result": f"{ok} of {n} packs with 0 estimated month ends and every reason 'not possible from this data'; "
+                          f"{int(t['estimated_months_limits'].sum())} estimated of {int(t['month_ends'].sum())} month ends",
+                "pass_if": "200 of 200 packs", "passed": bool(ok == n and n > 0)})
         else:
+            ok = int((t["estimated_months"] == 0).sum())
+            rows.append({
+                "check": "T5b'", "what": f"{setting}: a calibration charge, no documented limits: month ends with an A1 estimate",
+                "result": f"{ok} of {n} packs with 0 estimated month ends; {int(t['estimated_months'].sum())} estimated of "
+                          f"{int(t['month_ends'].sum())} month ends (with the limits given: {int(t['estimated_months_limits'].sum())})",
+                "pass_if": "200 of 200 packs", "passed": bool(ok == n and n > 0)})
             r = sim_truth.coverage_row("T5b", f"{setting}: the A1 band holds T_rest at month ends with a band (information)",
                                        int(t["held_rest"].sum()), int(t["with_band"].sum()),
                                        t["mean_error_rest_ah"].to_numpy(float), "Ah")

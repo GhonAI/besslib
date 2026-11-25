@@ -59,6 +59,10 @@ class PackSpec:
     ``reference_capacity_ah`` is the value every state-of-health share is divided by.
     besslib prints it with every share, because the same pack can read 100 % or 65 %
     depending on the reference chosen.
+
+    ``voltage_max_v`` and ``voltage_min_v`` are the documented limits of the whole pack (V, at
+    its terminals). With both, the capacity estimate checks that the full and empty levels it
+    finds lie near them (``CapacityConfig.limits_share``); without them it cannot.
     """
 
     nominal_capacity_ah: float

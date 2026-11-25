@@ -269,7 +269,7 @@ if __name__ == "__main__" and "--write-vectors" in sys.argv:
 # --- version 0.2: trend, voltage terms, forgetting squared, plausibility -------------------
 
 KIND_TEXT = {_core.PAIR_FE: "F->E", _core.PAIR_EF: "E->F", _core.PAIR_FF: "F->F", _core.PAIR_EE: "E->E"}
-V02 = CapacityConfig()  # the version 0.2 settings
+V02 = CapacityConfig().v0_2()  # the version 0.2 settings
 
 
 def chain_v02(seed=21, n=400, cap=100.0, fade=-3.0, beta=-1.2, slope_f=2.0, slope_e=5.0, sigma_soc=0.02,
@@ -338,7 +338,17 @@ def du_of(rows):
     return du_f, du_e, da, db
 
 
-def reference_shift(rows, at, tau):
+def quad_of(rows):
+    """The quadratic voltage terms from their definition: the square of each end's difference."""
+    _, _, da, db = du_of(rows)
+    kind = rows["kind"].to_numpy()
+    fa = (kind == _core.PAIR_FE) | (kind == _core.PAIR_FF)
+    fb = (kind == _core.PAIR_EF) | (kind == _core.PAIR_FF)
+    return (np.where(fb, db**2, 0.0) - np.where(fa, da**2, 0.0),
+            np.where(~fb, db**2, 0.0) - np.where(~fa, da**2, 0.0))
+
+
+def reference_shift(rows, at, tau, count=False):
     """The forgetting-weighted mean of (u - reference) per kind at ``at``: every pair's end
     rest, and the start rest of a pair that does not continue the one before."""
     _, _, da, db = du_of(rows)
@@ -351,11 +361,17 @@ def reference_shift(rows, at, tau):
     lam_a = np.exp(-(at - t + dt) / tau) if tau > 0 else np.ones_like(t)
     linked = rows["linked"].to_numpy()
     new_a = np.r_[True, linked[1:] == 0]
-    out = []
+    out, counts = [], []
     for full in (True, False):
         sa, sb = new_a & (fa == full), fb == full
-        out.append(((lam_a * da)[sa].sum() + (lam_b * db)[sb].sum()) / (lam_a[sa].sum() + lam_b[sb].sum()))
-    return out
+        counts.append(lam_a[sa].sum() + lam_b[sb].sum())
+        out.append(((lam_a * da)[sa].sum() + (lam_b * db)[sb].sum()) / counts[-1])
+    return counts if count else out
+
+
+def rest_counts(rows, at, tau):
+    """The decayed number of full and of empty rests at ``at``."""
+    return reference_shift(rows, at, tau, count=True)
 
 
 def as_pairs(inputs: pd.DataFrame) -> pd.DataFrame:
@@ -381,8 +397,8 @@ def feed_v02(state, rows, rounder=None):
             rounder(state)
 
 
-def direct_v02(rows, at, tau, trend, voltage, band, min_same=2.0, fade=False, min_cross_trend=0.0):
-    """The 0.2 estimate and band from the residuals in two passes (plain numpy).
+def direct_v02(rows, at, tau, trend, voltage, band, min_same=2.0, fade=False, min_cross_trend=0.0, min_quad=0.0):
+    """The 0.2 estimate (and the 0.3 one with ``voltage`` 2) and band from the residuals in two passes (plain numpy).
 
     Returns (C at the date and the reference voltages, or r; its sandwich standard error;
     dof; terms used; theta).
@@ -413,6 +429,17 @@ def direct_v02(rows, at, tau, trend, voltage, band, min_same=2.0, fade=False, mi
         cols.append(du_e)
         names.append("gamma_empty")
         grad.append(-d_e)
+    if voltage == 2:
+        du_f2, du_e2 = quad_of(rows)
+        n_f, n_e = rest_counts(rows, at, tau)
+        if "gamma_full" in names and n_f >= min_quad:
+            cols.append(du_f2)
+            names.append("gamma_full2")
+            grad.append(d_f**2)
+        if "gamma_empty" in names and n_e >= min_quad:
+            cols.append(du_e2)
+            names.append("gamma_empty2")
+            grad.append(-(d_e**2))
     a = np.column_stack(cols)
     q = rows["q_ah"].to_numpy()
     amat = (lam * w)[:, None, None] * a[:, :, None] * a[:, None, :]
@@ -446,7 +473,8 @@ def direct_v02(rows, at, tau, trend, voltage, band, min_same=2.0, fade=False, mi
         rho = (0.5 * l2 / m2_lag) / (e2 / m2) if m2_lag > 0 and e2 > 0 else 0.0
         qq, q2 = m2_lag / m2, m2_ll / m2
         dof = (m - p) * (1 + 2 * rho * qq) ** 2 / (1 + 2 * qq + 8 * rho * qq + 4 * rho * rho * (qq + q2))
-    return value, se, dof, "+".join(n for n in ("C", "beta", "r", "gamma_full", "gamma_empty") if n in names), theta
+    return value, se, dof, "+".join(n for n in ("C", "beta", "r", "gamma_full", "gamma_empty", "gamma_full2", "gamma_empty2")
+                                   if n in names), theta
 
 
 def _terms_text(est):
@@ -457,29 +485,29 @@ def _terms_text(est):
 
 def test_cholesky_inverse_matches_numpy_and_the_closed_forms():
     rng = np.random.default_rng(4)
-    for p in (2, 3, 4, 5):
+    for p in (2, 3, 4, 5, 6, 7):
         for _ in range(20):
             b = rng.normal(size=(p + 3, p)) * rng.uniform(0.01, 100.0, p)
             mat = b.T @ b
-            flat = [0.0] * 25
+            flat = [0.0] * _core.P_MAX**2
             for i in range(p):
                 for j in range(p):
-                    flat[5 * i + j] = float(mat[i, j])
-            out = [0.0] * 25
+                    flat[_core.P_MAX * i + j] = float(mat[i, j])
+            out = [0.0] * _core.P_MAX**2
             assert _core._cholesky_inverse(p, flat, out) == 1
-            got = np.array(out).reshape(5, 5)[:p, :p]
+            got = np.array(out).reshape(_core.P_MAX, _core.P_MAX)[:p, :p]
             np.testing.assert_allclose(got, np.linalg.inv(mat), rtol=1e-8, atol=1e-12 * np.abs(np.linalg.inv(mat)).max())
-            closed = [0.0] * 25
+            closed = [0.0] * _core.P_MAX**2
             assert _core._invert(p, flat, closed) == 1
-            np.testing.assert_allclose(np.array(closed).reshape(5, 5)[:p, :p], got, rtol=1e-8, atol=1e-12 * np.abs(got).max())
+            np.testing.assert_allclose(np.array(closed).reshape(_core.P_MAX, _core.P_MAX)[:p, :p], got, rtol=1e-8, atol=1e-12 * np.abs(got).max())
     b = rng.normal(size=(9, 4))
     b[:, 3] = b[:, 0] - 2.0 * b[:, 1]  # rank 3
     mat = b.T @ b
-    singular = [0.0] * 25
+    singular = [0.0] * _core.P_MAX**2
     for i in range(4):
         for j in range(4):
-            singular[5 * i + j] = float(mat[i, j])
-    assert _core._cholesky_inverse(4, singular, [0.0] * 25) == 0
+            singular[_core.P_MAX * i + j] = float(mat[i, j])
+    assert _core._cholesky_inverse(4, singular, [0.0] * _core.P_MAX**2) == 0
 
 
 def test_v02_exact_recovery_without_noise():
@@ -701,8 +729,8 @@ def test_v02_reference_moves_only_the_capacity():
         out.append(_core.solve(state, at, Z90, 0.005, 3.0, 2.0, 1.0))
     a, b = base[0], moved[0]
     for k in range(_core.P_MAX):
-        assert b.theta[k] == pytest.approx(a.theta[k], rel=1e-9)
-        assert b.sigma[k] == pytest.approx(a.sigma[k], rel=1e-7)
+        assert b.theta[k] == pytest.approx(a.theta[k], rel=1e-9, nan_ok=True)
+        assert b.sigma[k] == pytest.approx(a.sigma[k], rel=1e-7, nan_ok=True)
     assert b.u_full == pytest.approx(a.u_full + 0.3, rel=1e-12) and b.u_empty == pytest.approx(a.u_empty, rel=1e-12)
     # The capacity at another reference: C(rf) = C(r0f) + gamma_f (rf - r0f), the same band.
     state = new_state(dict(fit="capacity", tau_days=90.0, trend=1, voltage=1, band=2, plausibility=0))
@@ -851,6 +879,239 @@ def test_float32_state_v02():
 if __name__ == "__main__" and "--write-v02-vectors" in sys.argv:
     write_v02_vectors()
     print(f"wrote the 0.2 capacity vectors to {VECTORS}")
+
+
+# --- version 0.3: quadratic voltage terms ---------------------------------------------------
+
+V03 = CapacityConfig()  # the version 0.3 settings
+
+
+def curved_chain(seed=41, n=500, curve_f=-60.0, curve_e=25.0, sigma_f=0.04, sigma_e=0.02, noise=0.0, fade=-3.0, **kw):
+    """Core inputs whose rests scatter in state of charge and whose relaxed voltage is a curved function of it.
+
+    ``u = 57.4 + v`` at full with charge ``14 v + curve_f v^2`` (Ah), ``u = 44.8 + v`` at empty with ``25 v +
+    curve_e v^2``; the capacity between 57.4 V and 44.8 V is 110 Ah and fades by ``fade`` Ah per year."""
+    rows = chain_v02(seed=seed, n=n, sigma_soc=0.0, **kw)
+    rng = np.random.default_rng(seed + 1000)
+    kind = rows["kind"].to_numpy()
+    full = np.r_[kind[0] in (_core.PAIR_FE, _core.PAIR_FF), np.isin(kind, (_core.PAIR_EF, _core.PAIR_FF))]
+    v = rng.normal(0.0, 1.0, n + 1) * np.where(full, 2.0 * sigma_f, 5.0 * sigma_e)
+    u = np.where(full, 57.4, 44.8) + v
+    extra = np.where(full, 14.0 * v + curve_f * v**2, 25.0 * v + curve_e * v**2) + rng.normal(0.0, 1.0, n + 1) * noise
+    y = (rows["t_days"] - rows["t_days"].iloc[0]).to_numpy() / 365.25
+    rows["u_start"], rows["u_end"] = u[:-1], u[1:]
+    rows["q_ah"] = (110.0 + fade * y) * rows["x"] - 0.7 * rows["dt_days"] + extra[1:] - extra[:-1]
+    return rows
+
+
+def curved_truth(est, years=0.0, fade=-3.0, curve_f=-60.0, curve_e=25.0):
+    """The chain's capacity between the two voltages the estimate reads at."""
+    f, e = est.u_full - 57.4, est.u_empty - 44.8
+    return 110.0 + fade * years + 14.0 * f + curve_f * f**2 - 25.0 * e - curve_e * e**2
+
+
+def test_v03_quadratic_terms_recover_a_curved_relation():
+    rows = curved_chain()
+    at = rows["t_days"].iloc[-1] + 0.5
+    years = (at - rows["t_days"].iloc[0]) / 365.25
+    for tau in (0.0, 60.0):
+        state = _core.capacity_state(100.0, tau, 1, 2, 2, 1)
+        feed_v02(state, rows)
+        est = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0)
+        assert est.status == _core.OK and est.p == 7
+        assert est.terms == (_core.TERM_TREND | _core.TERM_FULL | _core.TERM_EMPTY | _core.TERM_FULL2 | _core.TERM_EMPTY2)
+        assert est.theta[_core.I_C] == pytest.approx(curved_truth(est, years), abs=1e-6)
+        assert est.theta[_core.I_GF2] == pytest.approx(-60.0, abs=1e-5)
+        assert est.theta[_core.I_GE2] == pytest.approx(25.0, abs=1e-5)
+        assert est.theta[_core.I_BETA] == pytest.approx(-0.7, abs=1e-8)
+        # a line alone reads the mean of the curve at the mean voltage: off by about curve x variance of the voltage
+        line = _core.capacity_state(100.0, tau, 1, 1, 2, 1)
+        feed_v02(line, rows)
+        e1 = _core.solve(line, at, Z90, 0.0, 3.0, 2.0, 1.0)
+        assert e1.theta[_core.I_C] - curved_truth(e1, years) < -0.2
+    fade = _core.fade_state(100.0, float(rows["t_days"].iloc[0]), 2, 2, 1)
+    feed_v02(fade, rows)
+    est = _core.solve(fade, at, Z90, 0.0, 3.0, 2.0, 0.5)
+    assert est.status == _core.OK and est.p == 7
+    assert est.theta[_core.I_RATE] == pytest.approx(-3.0, abs=1e-6)
+    assert est.theta[_core.I_C] == pytest.approx(curved_truth(est), abs=1e-6)
+
+
+@pytest.mark.parametrize("tau, trend, band, quad", [(90.0, 1, 2, 0.0), (30.0, 1, 2, 16.0), (0.0, 0, 2, 0.0), (90.0, 1, 1, 0.0)])
+def test_v03_core_equals_direct_sandwich(tau, trend, band, quad):
+    rows = curved_chain(seed=42, noise=0.5, no_ee=(230, 300))
+    used = set()
+    for at in rows["t_days"].iloc[[120, 260, 290, 399]].to_numpy() + 0.3:
+        state = _core.capacity_state(100.0, tau, trend, 2, band, 0)
+        feed_v02(state, rows[rows["t_days"] <= at])
+        est = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0, 0.0, quad)
+        assert est.status == _core.OK
+        value, se, dof, terms, _ = direct_v02(rows, at, tau, trend, 2, band, min_quad=quad)
+        assert est.theta[_core.I_C] == pytest.approx(value, rel=1e-9)
+        assert est.sigma[_core.I_C] == pytest.approx(se, rel=1e-6)
+        assert est.dof == pytest.approx(dof, rel=1e-6)
+        assert _terms_text(est) == terms
+        used.add(est.terms)
+    if quad > 0.0:
+        assert any(t & _core.TERM_EMPTY and not t & _core.TERM_EMPTY2 for t in used)  # the gate left one out
+
+
+def test_v03_fade_equals_direct_sandwich():
+    rows = curved_chain(seed=43, n=900, noise=0.5, breaks=(300,))
+    at = rows["t_days"].iloc[-1]
+    state = _core.fade_state(100.0, float(rows["t_days"].iloc[0]), 2, 2, 0)
+    feed_v02(state, rows)
+    est = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0)
+    value, se, dof, terms, theta = direct_v02(rows, at, 0.0, 1, 2, 2, fade=True)
+    assert est.status == _core.OK and _terms_text(est) == terms
+    assert est.theta[_core.I_RATE] == pytest.approx(value, rel=1e-8)
+    assert est.sigma[_core.I_RATE] == pytest.approx(se, rel=1e-6)
+    d_f, d_e = reference_shift(rows, at, 0.0)
+    c0 = theta[0] + theta[3] * d_f - theta[4] * d_e + theta[5] * d_f**2 - theta[6] * d_e**2
+    assert est.theta[_core.I_C] == pytest.approx(c0, rel=1e-9)
+
+
+@pytest.mark.parametrize("tau", [0.0, 30.0, 180.0])
+def test_v03_batch_path_equals_core(tau):
+    rows = curved_chain(seed=44, noise=0.5, no_ee=(230, 300), breaks=(150,))
+    rows.loc[rows.index[60], "u_end"] = np.nan  # a rest without a voltage
+    rows.loc[rows.index[61], "u_start"] = np.nan
+    pairs = as_pairs(rows)
+    config = V03.with_(tau_days=tau, quad_min_rests=5.0)
+    at = pairs["t_end"].iloc[[30, 149, 150, 260, 290, 335, 380, 399]] + pd.Timedelta(hours=6)
+    for when, c in zip(at, run_core(pairs, SPEC, config, at)):
+        td = (when - EPOCH).total_seconds() / 86400.0
+        b = _solve(capacity_state_at(pairs, SPEC, config, td), td, Z90, config)
+        assert b.status == c.status and b.terms == c.terms and b.p == c.p
+        for k in range(_core.P_MAX):  # check V7: 1e-6
+            assert b.theta[k] == pytest.approx(c.theta[k], rel=1e-6, nan_ok=True)
+            assert b.sigma[k] == pytest.approx(c.sigma[k], rel=1e-6, nan_ok=True)
+        assert b.low == pytest.approx(c.low, rel=1e-6, nan_ok=True)
+        assert b.u_full == pytest.approx(c.u_full, rel=1e-12, nan_ok=True)
+    # the batch state takes further pairs like the core
+    mid = 0.5 * (rows["t_days"].iloc[250] + rows["t_days"].iloc[251])
+    state = capacity_state_at(pairs, SPEC, config, float(mid))
+    feed_v02(state, rows[rows["t_days"] > mid])
+    whole = capacity_state_at(pairs, SPEC, config, float(rows["t_days"].iloc[-1]) + 0.01)
+    end = float(rows["t_days"].iloc[-1]) + 1.0
+    a, b = _solve(state, end, Z90, config), _solve(whole, end, Z90, config)
+    assert a.status == b.status == _core.OK and a.p == b.p == 7
+    assert a.theta[_core.I_C] == pytest.approx(b.theta[_core.I_C], rel=1e-8)
+
+
+def test_v03_the_reading_does_not_depend_on_the_first_rest():
+    # The references are the first rests. Dropping the first pairs changes them (and the data a little);
+    # with the curve known exactly the reading is the curve's at its own mean voltages either way.
+    rows = curved_chain(seed=45, fade=0.0, breaks=())
+    at = rows["t_days"].iloc[-1] + 0.5
+    for skip in (0, 1, 2, 3, 5, 8):
+        state = _core.capacity_state(100.0, 90.0, 1, 2, 2, 0)
+        feed_v02(state, rows.iloc[skip:])
+        est = _core.solve(state, at, Z90, 0.0, 3.0, 2.0, 1.0)
+        assert est.theta[_core.I_C] == pytest.approx(curved_truth(est, fade=0.0), abs=1e-6)
+
+
+def test_v03_band_holds_a_curved_capacity():
+    held, err, err_line = 0, [], []
+    runs = 200
+    config = V03.with_(tau_days=90.0, gain_error=0.0, plausibility=False)
+    for seed in range(runs):
+        rows = curved_chain(seed=500 + seed, n=600, fade=-8.0, noise=1.0, breaks=(300,))
+        pairs = as_pairs(rows)
+        at = float(rows["t_days"].iloc[-1]) + 0.5
+        years = (at - rows["t_days"].iloc[0]) / 365.25
+        est = _solve(capacity_state_at(pairs, SPEC, config, at), at, Z90, config)
+        line = _solve(capacity_state_at(pairs, SPEC, config.with_(voltage_terms="every_pair"), at), at, Z90, config)
+        truth = curved_truth(est, years, fade=-8.0)
+        held += est.low <= truth <= est.high
+        err.append(est.theta[_core.I_C] - truth)
+        err_line.append(line.theta[_core.I_C] - truth)
+    assert 0.84 <= held / runs <= 0.96
+    assert abs(np.mean(err)) < 2.0 * np.std(err) / np.sqrt(runs)
+    assert np.mean(err_line) < -0.2  # about curve x variance: -60 x 0.08^2 - 25 x 0.1^2
+
+
+_OUT_V03 = _OUT_V02 + ("theta5", "theta6", "sigma5", "sigma6")
+_SETTINGS_V03 = _SETTINGS_V02 + ("min_quad",)
+
+
+def _v03_vector_inputs():
+    inputs = curved_chain(seed=46, n=600, noise=0.5, no_ee=(230, 300), breaks=(150,)).assign(chain=0)
+    at = inputs["t_days"].iloc[[20, 60, 149, 150, 220, 290, 300, 335, 520, 599]].to_numpy() + 0.25
+    settings = [
+        ("capacity", 0.0, 1, 2, 2, 1, 0.0, 0.0), ("capacity", 30.0, 1, 2, 2, 1, 0.0, 0.0),
+        ("capacity", 90.0, 1, 2, 2, 1, 0.0, 0.0), ("capacity", 90.0, 0, 2, 2, 1, 0.0, 0.0),
+        ("capacity", 30.0, 1, 2, 2, 1, 0.0, 16.0),  # a quadratic term left out while fewer than 16 weighted rests of its kind
+        ("fade", 0.0, 1, 2, 2, 0, 0.0, 0.0),
+    ]
+    queries = [(0, 100.0) + s + (a,) for s in settings for a in at]
+    return inputs, pd.DataFrame(queries, columns=("chain", "c_weight") + _SETTINGS_V03 + ("t_days",))
+
+
+def _v03_vector_outputs(inputs: pd.DataFrame, queries: pd.DataFrame, rounder=None) -> pd.DataFrame:
+    rows = []
+    for key, group in queries.groupby(["chain", "c_weight", *_SETTINGS_V03], sort=False):
+        setting = dict(zip(("chain", "c_weight") + _SETTINGS_V03, key))
+        state = new_state(setting, c_weight=setting["c_weight"], t0=float(inputs["t_days"].iloc[0]))
+        k = 0
+        for at in group["t_days"]:
+            while k < len(inputs) and inputs["t_days"].iloc[k] <= at:
+                feed_v02(state, inputs.iloc[k:k + 1], rounder)
+                k += 1
+            e = _core.solve(state, float(at), Z90, 0.005, 3.0, 2.0, 1.0, float(setting["min_cross_trend"]),
+                            float(setting["min_quad"]))
+            row = dict(setting, t_days=at, status=e.status, low=e.low, high=e.high, chi2=e.chi2, dof=e.dof,
+                       birge=e.birge, rho=e.rho, m=e.m, m_cross=e.m_cross, m_same=e.m_same, terms=e.terms, p=e.p,
+                       u_full=e.u_full, u_empty=e.u_empty, dof_beta=e.dof_beta)
+            for i in range(_core.P_MAX):
+                row[f"theta{i}"] = e.theta[i]
+                row[f"sigma{i}"] = e.sigma[i]
+            rows.append(row)
+    return pd.DataFrame(rows)[["chain", "c_weight", *_SETTINGS_V03, "t_days", *_OUT_V03]]
+
+
+def write_v03_vectors() -> None:
+    inputs, queries = _v03_vector_inputs()
+    inputs.to_csv(VECTORS / "capacity_core_v03_pairs.csv", index=False, float_format="%.17g")
+    _v03_vector_outputs(inputs, queries).to_csv(VECTORS / "capacity_core_v03_expected.csv", index=False, float_format="%.17g")
+
+
+def test_saved_v03_vectors():
+    inputs = _read_vectors(VECTORS / "capacity_core_v03_pairs.csv")
+    expected = _read_vectors(VECTORS / "capacity_core_v03_expected.csv")
+    got = _v03_vector_outputs(inputs, expected[["chain", "c_weight", *_SETTINGS_V03, "t_days"]])
+    for col in ("status", "terms", "p"):
+        assert (got[col].to_numpy() == expected[col].to_numpy()).all(), col
+    for col in _OUT_V03:
+        if col not in ("status", "terms", "p"):
+            np.testing.assert_allclose(got[col].to_numpy(float), expected[col].to_numpy(float), rtol=1e-9, atol=1e-9, equal_nan=True)
+    every = _core.TERM_FULL | _core.TERM_EMPTY | _core.TERM_FULL2 | _core.TERM_EMPTY2
+    ok = expected[expected["status"] == _core.OK]
+    assert (ok["terms"] == _core.TERM_TREND | every).any() and (ok["terms"] == every).any()
+    assert ((ok["terms"] & _core.TERM_EMPTY > 0) & (ok["terms"] & _core.TERM_EMPTY2 == 0)).any()
+    assert set(ok["fit"]) == {"capacity", "fade"}
+
+
+def v03_float32_errors():
+    """Largest relative error of C (or r) and of the band's width, 32-bit state against 64-bit, and the rows whose
+    status differs, over the 0.3 vectors (reported, not judged: docs)."""
+    inputs, queries = _v03_vector_inputs()
+    e64 = _v03_vector_outputs(inputs, queries)
+    e32 = _v03_vector_outputs(inputs, queries, rounder=_to_f32)
+    ok = (e64["status"] == _core.OK) & (e32["status"] == _core.OK)
+    main = np.where(e64["fit"] == "fade", "theta2", "theta0")
+    v64 = np.array([e64[c].iloc[i] for i, c in enumerate(main)])[ok]
+    v32 = np.array([e32[c].iloc[i] for i, c in enumerate(main)])[ok]
+    w64 = (e64["high"] - e64["low"])[ok].to_numpy()
+    w32 = (e32["high"] - e32["low"])[ok].to_numpy()
+    return (float(np.max(np.abs(v32 - v64) / np.abs(v64))), float(np.max(np.abs(w32 - w64) / np.abs(w64))),
+            int((e64["status"] != e32["status"]).sum()), int(ok.sum()))
+
+
+if __name__ == "__main__" and "--write-v03-vectors" in sys.argv:
+    write_v03_vectors()
+    print(f"wrote the 0.3 capacity vectors to {VECTORS}")
+    print("32-bit: value, width, statuses differing, rows", v03_float32_errors())
 
 
 # --- the through-origin ratio fit --------------------------------------------------------

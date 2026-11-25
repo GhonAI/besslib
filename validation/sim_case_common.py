@@ -8,6 +8,7 @@ A case module has ``CASE`` (a case file), ``SETTINGS`` (name -> overrides, month
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 import numpy as np
 import pandas as pd
@@ -61,14 +62,42 @@ def pass_range_text() -> str:
     return f"{lo:.0%}-{hi:.0%} of month ends with a band"
 
 
-def capacity_table(reduced, spec, start: pd.Timestamp, months: int) -> pd.DataFrame:
-    """``sim_truth.capacity_rows`` at the end of every month of the run, also where there are no pairs at all."""
+def without_limits(spec):
+    """The pack's documents without the voltage limits, as a field system whose metadata has none."""
+    return replace(spec, voltage_max_v=None, voltage_min_v=None)
+
+
+def capacity_table(reduced, spec, start: pd.Timestamp, months: int, config=None, mask=None) -> pd.DataFrame:
+    """``sim_truth.capacity_rows`` at the end of every month of the run, also where there are no pairs at all.
+
+    ``spec``: the pack's (``Recorder.spec`` holds the BMS's documented voltage limits), or ``without_limits(spec)``."""
     from besslib.soh.capacity import estimate_capacity
     from besslib.soh.config import CapacityConfig
     from besslib.soh.rests import levels_from, operating_rests, rest_chain, rest_pairs
 
-    config = CapacityConfig()
-    rests = operating_rests(reduced.rests, spec, config)
-    pairs = rest_pairs(rest_chain(rests, spec, config), config)
+    config = config or CapacityConfig()
+    rests = operating_rests(reduced.rests, spec, config, mask=mask)
+    pairs = rest_pairs(rest_chain(rests, spec, config, mask=mask), config)
     at = pd.date_range(pd.Timestamp(start), periods=int(months), freq="ME")
-    return estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=levels_from(rests, config), at=at)
+    return estimate_capacity(None, spec, rests=rests, config=config, pairs=pairs, levels_from=levels_from(rests, config), at=at)
+
+
+def estimated_counts(reduced, spec, start, months, mask=None) -> dict:
+    """Check R: the estimated month ends of one pack with today's settings and with those of release 0.2.0."""
+    from besslib.soh.config import CapacityConfig
+
+    out = {}
+    for name, config in (("estimated_months", CapacityConfig()), ("estimated_months_02", CapacityConfig().v0_2())):
+        table = capacity_table(reduced, spec, start, months, config, mask)
+        out[name] = int((table["status"] == sim_truth.OK).sum())
+    return out
+
+
+def r_row(setting: str, t: pd.DataFrame, judged: bool = True) -> dict:
+    """The row of check R: not fewer estimated month ends than with the 0.2 settings on the same packs."""
+    new, old = int(t["estimated_months"].sum()), int(t["estimated_months_02"].sum())
+    fewer = int((t["estimated_months"] < t["estimated_months_02"]).sum())
+    return {"check": "R", "what": f"{setting}: estimated month ends against the 0.2 settings on the same packs"
+                                  + ("" if judged else " (reported, not judged)"),
+            "result": f"{new} against {old}; packs with fewer: {fewer} of {len(t)}",
+            "pass_if": "not fewer" if judged else "information", "passed": bool(new >= old) if judged else ""}

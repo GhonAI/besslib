@@ -179,3 +179,21 @@ def test_a3_method_text(record):
 
 
 ESTIMATED_TEXT = OK
+
+
+def test_a1_says_whether_its_levels_were_checked_against_limits(reduced):
+    from dataclasses import replace
+
+    from besslib.soh.record import _A1_LABELS, NOT_CHECKED
+
+    plain = annex_vii(None, SPEC, reduced=reduced, capacity_config=SHORT).field("A1")
+    assert plain.label == f"{_A1_LABELS['voltage']}; {NOT_CHECKED}" and plain.details["voltage_limits"] == NOT_CHECKED
+    n = SPEC.cells_in_series
+    spec = replace(SPEC, voltage_max_v=4.2 * n, voltage_min_v=3.3 * n)
+    checked = annex_vii(None, spec, reduced=reduced, capacity_config=SHORT).field("A1")
+    assert checked.label == _A1_LABELS["voltage"] and "checked against" in checked.details["voltage_limits"]
+    one = annex_vii(None, replace(SPEC, voltage_max_v=4.2 * n), reduced=reduced, capacity_config=SHORT).field("A1")
+    assert one.label == plain.label
+    old = annex_vii(None, SPEC, reduced=reduced, capacity_config=SHORT.v0_2()).field("A1")
+    assert old.label == _A1_LABELS["voltage"] and "voltage_limits" not in old.details
+    assert plain.method != old.method and "quadratic" in plain.method and "quadratic" not in old.method

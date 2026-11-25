@@ -84,6 +84,7 @@ def run_pack(setting: str, seed: int) -> list[dict]:
             err_stop.append(r["capacity_ah"] - t_stop)
     row = {
         **common.base_row(setting, seed),
+        **common.estimated_counts(reduced, rec.spec, rec.start, rec.months),
         "month_ends": int(len(cap)), "with_band": n, "n_no_reference": n_no_reference, "held_rest": held,
         "mean_error_rest_ah": float(np.mean(err)) if err else float("nan"),
         "with_stop_truth": n_stop, "held_stop": held_stop,
@@ -108,6 +109,7 @@ def summary(table: pd.DataFrame) -> list[dict]:
                       "mean_error_stop_ah", "Ah")
         r.update(pass_if="information", passed="")
         rows.append(r)
+        rows.append(common.r_row(setting, t, judged=setting.endswith("-balance")))
         n = len(t)
         rows.append(common.info_row(
             "T2c", f"{setting}: usable capacity lost to imbalance, and the groups that limit the stops",

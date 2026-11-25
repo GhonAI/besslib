@@ -42,9 +42,12 @@ at the end of month 72, less the mean of the first year's (with ``D157-steps`` t
 
 * S9: the docs/04 statistic (first and last month end with an empty rest voltage, ``ref_empty_v`` / cells) gives -D within
   10 mV, on at least 95 % of the packs, at each D.
-* T6a: D = 0, the 0.2 band holds ``t_rest`` at 85-95 % of month ends with a band, mean error within 2 sd / sqrt(n).
-* T6b: at each D, the test value lies in the 0.2 band at the test date, at least 80 % of tests. A test without a band counts as
-  not held.
+* T6a: D = 0, the A1 band holds ``t_rest`` at 85-95 % of month ends with a band, mean error within 2 sd / sqrt(n).
+* T6b': at each D, the band at the test date holds ``t_rest``, 85-95 % of tests; a test without a band or without a reading
+  voltage counts as not held.
+* T6b (information since 0.3, with T6d's split beside it): the test value lies in the band at the test date, against 80 % of
+  tests. A test without a band counts as not held. The miss is the rate term (T6d): no band on an operating quantity holds it.
+* W: D = 0, the median band width, at most 1.2 times that of version 0.2 (``results/sim/drift.csv``).
 * T6c: estimate less test value in points of the nominal capacity: the median over the packs (of each pack's median over its
   tests) with its 90 % range, and the line a + b D through the per-pack medians (least squares), with 90 % bands from a
   bootstrap over packs (a pack's seeds are the same at each D and are drawn together).
@@ -65,6 +68,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import sim_case_common as common
 import sim_truth
 from besslib import sim
 from besslib.sim.duty import DAY_S, Overlay
@@ -84,6 +88,7 @@ DRIFT_DAYS = (366.0, 2192.0)  # the ends of months 12 and 72 (a run from 1 Janua
 # `setup` on development seed 0, from the truth alone.
 LIMIT_FALLS_MV = {0.0: 0.0, 50.0: 56.0, 100.0: 109.0, 157.0: 167.0}
 S9_TOLERANCE_MV, S9_SHARE, T6B_SHARE = 10.0, 0.95, 0.80
+WIDTH_FACTOR = 1.2  # W: fixed with the plan of version 0.3, before any result
 BOOTSTRAP, BOOTSTRAP_SEED = 2000, 17
 
 
@@ -225,8 +230,8 @@ def run_pack(setting: str, seed: int) -> list[dict]:
     rests = operating_rests(reduced.rests, spec, config, mask=masks)
     pairs = rest_pairs(rest_chain(rests, spec, config, mask=masks), config)
     ready = levels_from(rests, config)
-    monthly = estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=ready)
-    at_tests = estimate_capacity(None, spec, config=config, pairs=pairs, levels_from=ready, at=[m[0] for m in masks])
+    monthly = estimate_capacity(None, spec, rests=rests, config=config, pairs=pairs, levels_from=ready)
+    at_tests = estimate_capacity(None, spec, rests=rests, config=config, pairs=pairs, levels_from=ready, at=[m[0] for m in masks])
 
     # The first year's relaxed stop voltages (true).
     stops = rec.stops
@@ -240,12 +245,14 @@ def run_pack(setting: str, seed: int) -> list[dict]:
         e = at_tests.iloc[k]
         time = rec.start + pd.Timedelta(seconds=s)
         band = sim_truth.has_band(e)
+        t_rest = charge_between(rec, s, rec.true_volts(float(e["ref_full_v"])), rec.true_volts(float(e["ref_empty_v"])))
         rows.append({
             **base, "row": "test", "month": TEST_MONTHS[k], "test_status": m.status, "has_band": int(band),
             "held": int(bool(band and e["capacity_ah_low"] <= m.capacity_ah <= e["capacity_ah_high"])),
             "estimate_ah": float(e["capacity_ah"]), "test_ah": float(m.capacity_ah),
             "t_test": true_test(rec, s, 14.0), "t_ops": nearest_ops(ops, time),
-            "t_rest": charge_between(rec, s, rec.true_volts(float(e["ref_full_v"])), rec.true_volts(float(e["ref_empty_v"]))),
+            "t_rest": t_rest,
+            "held_rest": int(bool(band and e["capacity_ah_low"] <= t_rest <= e["capacity_ah_high"])),
             "t_fixed": charge_between(rec, s, full1, empty1), "c_total": float(rec._capacity(s)[0]),
         })
 
@@ -269,7 +276,9 @@ def run_pack(setting: str, seed: int) -> list[dict]:
     _, fall = true_fall(stops, rec.ocv)
     rows.append({
         **base, "row": "pack", "month_ends": n, "month_ends_held": held, "month_ends_without_truth": no_truth,
-        "month_ends_without_band": without, "mean_error_ah": float(np.mean(err)) if err else float("nan"),
+        "month_ends_without_band": without,
+        **common.estimated_counts(reduced, spec, rec.start, rec.months, masks),
+        "mean_error_ah": float(np.mean(err)) if err else float("nan"),
         "empty_drift_mv": 1000.0 * float(v[-1] - v[0]) if len(v) > 1 else float("nan"),
         "true_fall_mv": 1000.0 * fall,
         "median_band_points": float(100.0 * (monthly["capacity_ah_high"] - monthly["capacity_ah_low"]).median() / nominal),
@@ -286,6 +295,13 @@ def _pct(a: np.ndarray, q) -> list[float]:
 def _medians(tests: pd.DataFrame, column: str) -> pd.Series:
     """Per pack, the median over its tests."""
     return tests.groupby("seed")[column].median().dropna()
+
+
+def width_02() -> float:
+    """Version 0.2's median band width at D = 0 (points), from its held-out run."""
+    t = pd.read_csv(ROOT / "validation" / "results" / "sim" / "drift.csv")
+    t = t[(t["row"] == "pack") & (t["setting"] == "D0")]
+    return float(t["median_band_points"].median())
 
 
 def line_fit(per_pack: dict[float, pd.Series]) -> dict:
@@ -343,14 +359,28 @@ def summary(table: pd.DataFrame) -> list[dict]:
             row.update(pass_if="information", passed="")
         rows.append(row)
     for s in present:
+        rows.append(common.r_row(s, packs[packs["setting"] == s]))
+    if "D0" in present:
+        width = float(packs.loc[packs["setting"] == "D0", "median_band_points"].median())
+        old = width_02()
+        rows.append(_row("W", "D0: median band width of the month ends, points of nominal, against version 0.2's",
+                         f"{width:.3f} against {old:.3f} ({width / old:.2f} times)", f"at most {WIDTH_FACTOR:g} times",
+                         bool(width <= WIDTH_FACTOR * old)))
+    for s in present:
         t = tests[tests["setting"] == s]
         held = int(t["held"].sum())
         sh = sim_truth.share(held, len(t))
         bad = int((t["test_status"] != "ok").sum())
         main = s in MAIN
-        rows.append(_row("T6b", f"{s}: the test value lies in the A1 band at the test date",
-                         f"{held} of {len(t)} tests ({sh:.1%}); {int((t['has_band'] == 0).sum())} without a band, {bad} tests not measured",
-                         f">= {T6B_SHARE:.0%} of tests" if main else "information", bool(sh >= T6B_SHARE) if main else ""))
+        rest = int(t["held_rest"].sum())
+        share_rest = sim_truth.share(rest, len(t))
+        lo, hi = sim_truth.PASS_RANGE
+        rows.append(_row("T6b'", f"{s}: the A1 band at the test date holds T_rest",
+                         f"{rest} of {len(t)} tests ({share_rest:.1%}); {int((t['has_band'] == 0).sum())} without a band",
+                         f"{lo:.0%}-{hi:.0%} of tests" if main else "information", bool(lo <= share_rest <= hi) if main else ""))
+        rows.append(_row("T6b", f"{s}: the test value lies in the A1 band at the test date (information; 0.2's rule: "
+                                f">= {T6B_SHARE:.0%} of tests)",
+                         f"{held} of {len(t)} tests ({sh:.1%}); {int((t['has_band'] == 0).sum())} without a band, {bad} tests not measured"))
     for s in present:
         t = tests[tests["setting"] == s]
         m = _medians(t, "miss").to_numpy(float)

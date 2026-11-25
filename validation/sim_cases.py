@@ -3,11 +3,12 @@
 A case module ``sim_case_<name>.py`` holds ``CASE``, ``SETTINGS``, ``run_pack(setting, seed)`` (the result rows of
 one pack, no file written), ``RESULT`` and ``summary(table)`` (the check rows). This script runs the packs of a
 case, setting by setting and seed by seed, in a few processes, and writes ``RESULT``; ``summary`` reads every
-result file and writes ``validation/results/checks_sim.csv``.
+result file and writes ``validation/results/checks_sim_v03.csv``.
 
-Seeds: ``development`` (0-199), ``held-out`` (1000-1199, run once, on frozen code) or ``a-b`` (both ends included).
+Seeds: ``development`` (0-199), ``held-out`` (2000-2199, run once, on frozen code) or ``a-b`` (both ends included).
 A results file holds one seed set only (column ``seed_set``). Development runs write to ``data/sim_dev/``
-(git-ignored), never to ``validation/results/sim/``; a held-out run writes to ``validation/results/sim/``.
+(git-ignored), never to ``validation/results/``; a held-out run writes to ``validation/results/sim_v03/``. The run
+of version 0.2 (seeds 1000-1199) stays in ``validation/results/sim/`` and ``checks_sim.csv``.
 ``summary`` refuses a file whose configuration hashes differ from today's or whose seeds are not the 200
 held-out ones (``--development`` reads ``data/sim_dev/`` and allows any seeds).
 
@@ -35,9 +36,9 @@ import sim_truth  # noqa: E402
 
 CASES = {"heat": "sim_case_heat", "imbalance": "sim_case_imbalance", "leak": "sim_case_leak", "cold": "sim_case_cold",
          "grid": "sim_case_grid", "drift": "sim_case_drift"}
-RESULTS = ROOT / "validation" / "results" / "sim"
+RESULTS = ROOT / "validation" / "results" / "sim_v03"
 DEVELOPMENT = ROOT / "data" / "sim_dev"
-CHECKS = ROOT / "validation" / "results" / "checks_sim.csv"
+CHECKS = ROOT / "validation" / "results" / "checks_sim_v03.csv"
 COLUMNS = ["check", "what", "result", "pass_if", "passed"]
 
 
@@ -104,7 +105,7 @@ def cmd_run(args) -> None:
         raise SystemExit("a run holds one seed set only: development seeds or held-out seeds, not both")
     folder = result_dir(seeds, args.out)
     if label == "development" and folder.resolve() == RESULTS.resolve():
-        raise SystemExit("development runs write to data/sim_dev/, never to validation/results/sim/")
+        raise SystemExit("development runs write to data/sim_dev/, never to validation/results/")
     folder.mkdir(parents=True, exist_ok=True)
     for name in args.cases:
         module = load(name)
@@ -182,7 +183,7 @@ def main(argv=None) -> None:
     r.add_argument("--settings", nargs="*", help="only these settings")
     r.add_argument("--out", help="the folder to write to (default by seed set)")
     s = sub.add_parser("summary", help="the checks of every results file")
-    s.add_argument("--out", help="the checks file (default validation/results/checks_sim.csv)")
+    s.add_argument("--out", help="the checks file (default validation/results/checks_sim_v03.csv)")
     s.add_argument("--development", action="store_true", help="read data/sim_dev/ and allow any seeds")
     args = p.parse_args(argv)
     {"run": cmd_run, "summary": cmd_summary}[args.command](args)

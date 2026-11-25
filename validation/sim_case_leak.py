@@ -111,6 +111,7 @@ def run_pack(setting: str, seed: int) -> list[dict]:
             change_a1 = float(ca["capacity_ah"] - cb["capacity_ah"])
     row = {
         **common.base_row(setting, seed),
+        **common.estimated_counts(reduced, rec.spec, rec.start, rec.months),
         "onset_day": int(event["day"]), "leak_group": int(event["group"]), "leak_planted": bool(planted),
         "n_before": n["before"], "held_before": held["before"], "n_after": n["after"], "held_after": held["after"],
         "held_memory_before": held_memory["before"], "held_memory_after": held_memory["after"],
@@ -134,6 +135,7 @@ def summary(table: pd.DataFrame) -> list[dict]:
                       f"truth (information) {hm} of {n} ({common.fraction(hm, n):.1%})",
             "pass_if": "information (T3c)" if setting.endswith("-off") else "85-95 % of month ends with a band",
             "passed": "" if setting.endswith("-off") else bool(n and PASS_HOLD[0] <= share <= PASS_HOLD[1])})
+        rows.append(common.r_row(setting, t))
         d = int(t["detected"].sum())
         dshare = common.fraction(d, len(t))
         control = setting.startswith("leak0")

@@ -17,8 +17,8 @@ Every output row carries the configuration hash. The settings are the defaults o
 Writes ``validation/results/phase2/system_XX_{tests,monthly}.csv`` and
 ``system_XX_summary.json``.
 
-With ``--settings 0.1 --out DIR`` the run uses the settings of release 0.1.0
-(``CapacityConfig().v0_1()``) and writes to DIR (check X0 of version 0.2).
+With ``--settings 0.1 --out DIR`` (or ``0.2``) the run uses the settings of release 0.1.0 (or 0.2.0)
+(``CapacityConfig().v0_1()``, ``v0_2()``) and writes to DIR (check F1, ``check_v03.py``).
 
 Usage:
     python validation/run_capacity.py 1 4 7          # some systems
@@ -133,9 +133,9 @@ def main(argv: list[str]) -> None:
     config, out = CapacityConfig(), OUT
     if "--settings" in argv:
         k = argv.index("--settings")
-        if argv[k + 1] != "0.1":
-            sys.exit("--settings takes 0.1 (release 0.1.0); the default is the current settings")
-        config = config.v0_1()
+        if argv[k + 1] not in ("0.1", "0.2"):
+            sys.exit("--settings takes 0.1 or 0.2 (releases 0.1.0 and 0.2.0); the default is the current settings")
+        config = config.v0_1() if argv[k + 1] == "0.1" else config.v0_2()
         del argv[k : k + 2]
     if "--out" in argv:
         k = argv.index("--out")
