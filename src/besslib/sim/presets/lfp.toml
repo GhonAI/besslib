@@ -1,0 +1,84 @@
+# One measured LFP cell of 280 Ah, as a besslib.sim cell. Written by validation/sim_params_lic.py; do not edit.
+# Data: Gray and Vagg, "LIC cell characterisation" (TEMPEST), Zenodo 19632939, CC BY 4.0 (presets/NOTICE.md).
+# Not a model of any product: one cell's measured values, read as each comment says. Values are per cell.
+name = "lfp"
+source = "https://zenodo.org/records/19632939, files named at each value"
+credit = "Gray and Vagg, LIC cell characterisation, EU Horizon project TEMPEST, Zenodo 19632939, CC BY 4.0"
+notes = "measured at 15-35 degC; beyond, an extrapolation. No ageing, no diffusion element: the voltage of a rest longer than some minutes is the open-circuit voltage with the hysteresis"
+# LIC_capacity_analysis.csv, 25 degC (between 2.50 and 3.65 V at C/10). The model's capacity does not depend on temperature.
+capacity_ah = 302.3087
+
+# Open-circuit voltage: 25C_capacity.csv, the mean of the C/10 charge and discharge voltages at equal charge
+# (state of charge = charge over the capacity above); points every 2.5 %, more where the curve bends (within 1 mV).
+ocv_soc = [
+    0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.008, 0.009, 0.011, 0.013, 0.015,
+    0.017, 0.02, 0.025, 0.031, 0.037, 0.043, 0.05, 0.056, 0.062, 0.067, 0.075, 0.1,
+    0.125, 0.136, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375,
+    0.4, 0.425, 0.45, 0.475, 0.5, 0.525, 0.55, 0.575, 0.6, 0.625, 0.65, 0.675,
+    0.7, 0.725, 0.75, 0.775, 0.8, 0.825, 0.85, 0.875, 0.9, 0.925, 0.95, 0.975,
+    0.983, 0.988, 0.992, 0.994, 0.995, 0.996, 0.997, 0.998, 0.999, 1,
+]
+ocv_v = [
+    2.61517, 2.66026, 2.70295, 2.73522, 2.76195, 2.78521, 2.80605, 2.8424, 2.85848, 2.88744, 2.91298, 2.93586,
+    2.95661, 2.98452, 3.02445, 3.06441, 3.09805, 3.12688, 3.15546, 3.17556, 3.19036, 3.19724, 3.20202, 3.20887,
+    3.2153, 3.21971, 3.22851, 3.24266, 3.25537, 3.26548, 3.27421, 3.28043, 3.28529, 3.28838, 3.29064, 3.29253,
+    3.29421, 3.29577, 3.29726, 3.29872, 3.30024, 3.30192, 3.30393, 3.30658, 3.3106, 3.31722, 3.32501, 3.3305,
+    3.33392, 3.33625, 3.33794, 3.33924, 3.34038, 3.34153, 3.34278, 3.34421, 3.34591, 3.34811, 3.3514, 3.35814,
+    3.36295, 3.36854, 3.37761, 3.38671, 3.39381, 3.40378, 3.41799, 3.43855, 3.46865, 3.50242,
+]
+
+# Largest hysteresis voltage: the same file, half of the difference of the two curves less R0 times the current, not below 0.
+hyst_soc = [
+    0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.008, 0.009, 0.011, 0.013, 0.015,
+    0.017, 0.02, 0.025, 0.031, 0.037, 0.043, 0.05, 0.056, 0.062, 0.067, 0.075, 0.1,
+    0.125, 0.136, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375,
+    0.4, 0.425, 0.45, 0.475, 0.5, 0.525, 0.55, 0.575, 0.6, 0.625, 0.65, 0.675,
+    0.7, 0.725, 0.75, 0.775, 0.8, 0.825, 0.85, 0.875, 0.9, 0.925, 0.95, 0.975,
+    0.983, 0.988, 0.992, 0.994, 0.995, 0.996, 0.997, 0.998, 0.999, 1,
+]
+hyst_table = [
+    0.08072, 0.07588, 0.06956, 0.06576, 0.06333, 0.06149, 0.05993, 0.05728, 0.05612, 0.05406, 0.05228, 0.05073,
+    0.04935, 0.04756, 0.04512, 0.04283, 0.04103, 0.03962, 0.03855, 0.0386, 0.03991, 0.04013, 0.03869, 0.03664,
+    0.03784, 0.03842, 0.03732, 0.03816, 0.03877, 0.03913, 0.04106, 0.04096, 0.03956, 0.03753, 0.03576, 0.03446,
+    0.0335, 0.03282, 0.03242, 0.03228, 0.03236, 0.03269, 0.03333, 0.03443, 0.0362, 0.03851, 0.03825, 0.03516,
+    0.03307, 0.03199, 0.03138, 0.031, 0.03083, 0.03092, 0.03129, 0.03202, 0.03316, 0.03492, 0.038, 0.04503,
+    0.05024, 0.05612, 0.06468, 0.07179, 0.07668, 0.08314, 0.09188, 0.1038, 0.1187, 0.1313,
+]
+# How fast the hysteresis voltage follows the charge: the lowest RMS voltage error over the HPPC runs
+# of 15, 25 and 35 degC (15C_hppc.csv, 25C_hppc.csv, 35C_hppc.csv; 10-90 %, sample by sample): 16.1 mV;
+# the grid is in validation/results/sim/lfp_preset.csv.
+hyst_rate = 421.7
+
+# Resistances and time constant: LIC_hppc_analysis.csv at 15, 25, 35 degC (its other rows are not used),
+# R0_Ohm, R1_Ohm and tau1 = R1_Ohm * C1_F. One row per temperature, one column per state of charge.
+r_soc = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
+r_temp_c = [15.0, 25.0, 35.0]
+r0_table = [
+    [0.000585969, 0.000578591, 0.000582763, 0.000589202, 0.000589589, 0.000583462, 0.000563085, 0.000556825, 0.0005518, 0.00053938],
+    [0.000432359, 0.0004254, 0.000426085, 0.000432361, 0.000428743, 0.000424273, 0.000413965, 0.000411854, 0.000410185, 0.000403353],
+    [0.000353681, 0.000348942, 0.000347963, 0.000349355, 0.000347824, 0.00034531, 0.000341822, 0.000340843, 0.00034001, 0.000337357],
+]
+r1_table = [
+    [0.000259533, 0.000187842, 0.000164483, 0.000149941, 0.00014839, 0.000140003, 0.000125689, 0.000131732, 0.000122449, 0.00010612],
+    [0.000187546, 0.000160366, 0.000146265, 0.000132541, 0.000131841, 0.000124241, 0.000111563, 0.000116942, 0.000108909, 9.56e-05],
+    [0.000130222, 0.00012468, 0.000117448, 0.000108022, 0.000106809, 0.000100004, 9.28e-05, 9.44e-05, 8.7e-05, 7.82e-05],
+]
+tau1_table = [
+    [48.4374, 50.835, 58.2528, 64.9778, 48.2886, 44.3507, 91.3898, 53.1947, 45.1727, 50.745],
+    [43.8543, 43.7718, 46.7097, 62.6198, 46.6984, 45.5591, 108.352, 52.7138, 46.0084, 50.8383],
+    [66.4306, 56.4703, 53.0178, 71.2227, 53.2171, 53.2357, 118.018, 55.2411, 47.2652, 53.9265],
+]
+
+# Beyond 15-35 degC: an extrapolation with the Arrhenius form of besslib.sim.cell. The activation energies are
+# fitted to the tables above over 15-35 degC (least squares, a constant of its own per state of charge;
+# RMS misfit 2.3 % for R0, 5.1 % for R1).
+ea_r0_j_mol = 21136.0
+ea_r1_j_mol = 16142.0
+# Over the three temperatures the time constant of the table varies less (standard deviation of the logarithm: time constant 0.07, capacitance 0.21).
+rc_hold = "tau"
+
+# The tables at 50 % and 25 degC, for a reader that takes one value; with tables the model does not use them.
+r0_ohm = 0.000426508
+r1_ohm = 0.000128041
+tau1_s = 46.1288
+t_ref_c = 25.0

@@ -1,0 +1,64 @@
+# Case 4, the cold: one year of a pack of 16 groups of the LFP cell scaled to 280 Ah in an unheated room;
+# the pack temperature follows the season from -15 to 25 degrees C; charging is blocked below 0 degrees C
+# (setting block) or not (noblock); a constant-power discharge from full on the 15th of every month.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "cold"
+description = "One year in an unheated room: resistance rising as it gets colder, the stop reached sooner, charging blocked"
+start = "2020-01-01"
+months = 12
+step_s = 10
+update_s = 1800
+cell_every_s = 600
+chemistry = "LFP"
+nominal_cell_v = 3.2  # for the nominal energy of the spec
+pack_name = "besslib cold pack"
+
+[cell]
+preset = "lfp"
+scale_to_ah = 280.0
+
+[pack]
+groups = 16
+series = 1
+# no fade and no growth of the resistance in this case
+
+[thermal]
+mode = "prescribed"
+
+# The warmest day is day 200: mean + season + day = 25 degrees C, the coldest day mean - season - day = -15.
+[temperature.pack]
+mean_c = 5.0  # example value, not from a source
+season_amp_c = 18.0  # example value, not from a source
+daily_amp_c = 2.0  # example value, not from a source
+
+[temperature.ambient]
+mean_c = 5.0
+season_amp_c = 18.0
+daily_amp_c = 2.0
+
+[bms]
+v_cell_max = 3.60  # example value, not from a source
+v_cell_min = 2.80  # example value, not from a source
+stop_sigma_v = 0.005  # example value, not from a source
+stop_rule = "cells"
+supply_a = 0.14  # example value, not from a source
+charge_block_below_c = 0.0  # setting noblock removes it
+
+[duty]
+kind = "home"
+capacity_ah = 280.0
+
+# 0.5 C of the nominal energy per hour: 0.5 x 280 Ah x 3.2 V x 16 cells = 7168 W
+[[duty.overlay]]
+kind = "cp_discharge"
+day_of_month = 15
+start_h = 0.0
+power_w = 7168.0
+c_charge = 0.25  # example value, not from a source
+
+[sensors]
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005
+voltage_gain_max = 0.0025

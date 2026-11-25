@@ -140,3 +140,56 @@ def test_synth_case_checks():
     assert s1["worst"] <= 1e-9 and s2["worst"] <= 1e-6
     # The synth rule checks the BMS's own copy of the pack: every stop lies in its step.
     assert s4["rule"] == "synth" and s4["bad_stops"] == 0 and s4["n_stops"] > 100
+
+
+def table_case() -> dict:
+    """The big pack with resistance and hysteresis tables (example values, not from a source)."""
+    data = big_case()
+    data["cell"].update(r_soc=[0.1, 0.5, 0.9], r_temp_c=[15.0, 30.0], r0_table=[[2e-3, 1.6e-3, 1.5e-3], [1.5e-3, 1.2e-3, 1.1e-3]],
+                        r1_table=[[1e-3, 8e-4, 7e-4], [7e-4, 5e-4, 4e-4]], tau1_table=[[500.0, 600.0, 700.0], [400.0, 500.0, 600.0]],
+                        hyst_soc=[0.0, 0.5, 1.0], hyst_table=[0.02, 0.0, 0.03])
+    data["pack"]["resistance_growth_per_year"] = 0.1
+    return data
+
+
+def test_table_pack_checks():
+    data = table_case()
+    pack, _ = sim.build(data, 3)
+    months = list(sim.run(data, months=1, seed=3, measured=False))
+    s1, s2, s4 = checks.s1_charge(months), checks.s2_energy(months, pack), checks.s4_bms(months, pack, update_s=3600)
+    assert s1["passed"] and s2["passed"] and s4["passed"] and s4["n_stops"] > 10, (s1, s2, s4)
+
+
+def test_engine_parameters_follow_each_group_s_state_and_temperature():
+    data = table_case()
+    pack, _ = sim.build(data, 3)
+    e = Engine(pack)
+    soc, temps = np.linspace(0.05, 0.95, 14), np.linspace(-5.0, 45.0, 14)
+    t = 2.0 * 365.25 * DAY
+    prm = e.params(t, temps, soc)
+    r0, r1, tau = pack.cell.resistances(soc, temps)
+    rf = np.asarray(pack.resistance_factor)
+    np.testing.assert_allclose(prm.r0, r0 * rf * 1.2, rtol=1e-13)
+    np.testing.assert_allclose(prm.r1, r1 * rf * 1.2, rtol=1e-13)
+    np.testing.assert_allclose(prm.tau1, tau * 1.2, rtol=1e-13)  # the capacitance is held: tau grows with r1
+    np.testing.assert_allclose(prm.h_max, np.interp(soc, [0.0, 0.5, 1.0], [0.02, 0.0, 0.03]), rtol=1e-13)
+
+
+def test_constant_tables_give_the_constant_cell():
+    """Tables with one value everywhere at the reference temperature: the same run as the constants."""
+    a = big_case()
+    a["thermal"], a["temperature"] = {"mode": "prescribed"}, {"pack": {"mean_c": 25.0}}
+    a["pack"].pop("fan_points")
+    b = {**a, "cell": dict(a["cell"])}
+    b["cell"].update(r_soc=[0.5], r_temp_c=[25.0], r0_table=[[0.02 / 14]], r1_table=[[0.01 / 14]], tau1_table=[[600.0]],
+                     hyst_soc=[0.0, 1.0], hyst_table=[0.01, 0.01])
+    (ma,), (mb,) = (list(sim.run(x, months=1, seed=3, measured=False)) for x in (a, b))
+    assert np.abs(ma.truth.voltage_v - mb.truth.voltage_v).max() <= 1e-9
+    assert np.array_equal(ma.truth.current_a, mb.truth.current_a)
+
+
+def test_synth_rules_refuse_tables():
+    data = sim.load_case("synth")
+    data["cell"].update({k: v for k, v in table_case()["cell"].items() if k.startswith(("r_", "r0_t", "r1_t", "tau1_t"))})
+    with pytest.raises(ValueError, match="synth"):
+        sim.build(data, 1)

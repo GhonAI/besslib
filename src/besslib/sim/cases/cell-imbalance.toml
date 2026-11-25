@@ -1,0 +1,55 @@
+# Case 2, cell imbalance: 14 groups of the NMC cell scaled to 100 Ah with a capacity spread, a spread in
+# self-discharge, passive balancing on or off. Settings change the spread (sd 1 % or 3 %) and the balancing.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "cell-imbalance"
+description = "Cell groups with their own capacity and self-discharge; the first group to reach a limit sets the stop"
+start = "2020-01-01"
+months = 36
+step_s = 10
+update_s = 1800
+cell_every_s = 600
+chemistry = "NMC"
+pack_name = "besslib imbalance pack"
+
+[cell]
+preset = "nmc"
+scale_to_ah = 100.0
+
+[pack]
+groups = 14
+series = 1
+capacity_spread_sd = 0.01  # example value, not from a source
+self_discharge_mean_a = 0.002  # example value, not from a source
+self_discharge_sd_a = 0.0005  # example value, not from a source
+fade_points_per_year = 2.0  # example value, not from a source
+
+[thermal]
+mode = "prescribed"
+
+[temperature.pack]
+mean_c = 25.0
+
+[temperature.ambient]
+mean_c = 20.0
+
+[bms]
+v_cell_max = 4.15  # example value, not from a source
+v_cell_min = 3.20  # example value, not from a source
+stop_sigma_v = 0.005  # example value, not from a source
+stop_rule = "cells"
+supply_a = 0.05  # example value, not from a source
+balance = true
+balance_v = 4.0  # example value, not from a source
+balance_spread_v = 0.010  # example value, not from a source
+bleed_ohm = 20.0  # example value, not from a source
+
+[duty]
+kind = "home"
+capacity_ah = 100.0
+
+[sensors]
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005
+voltage_gain_max = 0.0025

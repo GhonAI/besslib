@@ -18,9 +18,9 @@ Each day's two limits carry a random error (``stop_sigma_v``, drawn day by day).
 can move with time (``v_min_points``, ``v_max_points``: ``(day, offset_v)`` points,
 linear between them, flat outside), as a firmware update or a recalibration would move it.
 
-**Balancing** (``balance``): passive; at each block start, when the spread of the cell
-voltages exceeds ``balance_spread_v``, every group above ``balance_v`` bleeds through
-``bleed_ohm`` per cell.
+**Balancing** (``balance``): passive; at each block start, every group above ``balance_v``
+whose cell voltage lies more than ``balance_spread_v`` above the lowest group's bleeds through
+``bleed_ohm`` per cell. The lowest group never bleeds, so the others come down to it.
 
 **Current limits** by the hottest and the coldest group temperature: ``derate`` points
 ``(temp_c, charge_c, discharge_c)`` (largest C-rates, linear between points, flat
@@ -96,6 +96,4 @@ class BmsSettings:
         """Which groups bleed, from their mean cell voltages at the block start."""
         if not self.balance or len(v_cell) < 2:
             return np.zeros(len(v_cell), dtype=bool)
-        if float(v_cell.max() - v_cell.min()) <= self.balance_spread_v:
-            return np.zeros(len(v_cell), dtype=bool)
-        return v_cell > self.balance_v
+        return (v_cell > self.balance_v) & (v_cell - float(v_cell.min()) > self.balance_spread_v)

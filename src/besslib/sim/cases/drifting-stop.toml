@@ -1,0 +1,62 @@
+# A pack whose discharge stop falls over five years, and five capacity tests (check S9 and T6).
+# LMO cell scaled to 15 Ah, 40 identical cells in series: the size of the home-storage systems in which
+# besslib's docs/04 found a falling empty rest voltage. Not a model of those systems.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "drifting-stop"
+description = "40 LMO cells of 15 Ah in series, home duty, 72 months: the discharge stop falls from month 12 to month 72"
+start = "2020-01-01"
+months = 72
+step_s = 10
+update_s = 1800  # the resistances follow state of charge and temperature
+cell_every_s = 86400
+chemistry = "LMO/NMC"
+pack_name = "besslib drifting-stop pack"
+
+[cell]
+preset = "lmo"
+scale_to_ah = 15.0  # the capacity of the development LMO/NMC systems 01 and 04 (besslib.io.figgener pack specs)
+
+[pack]
+groups = 1
+series = 40  # as the same systems
+fade_points_per_year = 2.0  # as the cases of besslib's 0.1 and 0.2 checks (tests/synth.py)
+
+[thermal]
+mode = "prescribed"
+
+[temperature.pack]
+mean_c = 25.0  # as tests/synth.py
+
+[temperature.ambient]
+mean_c = 20.0
+
+[bms]
+# The limits that bring the mean relaxed cell voltages at the first year's stops (4.09 V full, 3.41 V empty; seed 0) to
+# the first-year rest voltages of the development LMO/NMC systems 01 and 04 (4.09 and 3.41 V per cell); to 10 mV,
+# found by `validation/sim_case_drift.py setup`, which reads the field values from validation/results/phase2/.
+v_cell_max = 4.15
+v_cell_min = 3.38
+stop_sigma_v = 0.005  # as tests/synth.py
+stop_rule = "cells"
+supply_a = 0.0075  # as tests/synth.py: the same share of the capacity (0.05 A on 100 Ah)
+
+[duty]
+kind = "home"
+capacity_ah = 15.0
+
+[[duty.overlay]]
+kind = "capacity_test"  # Figgener et al. 2024, Supplementary Note 6 (doi:10.1038/s41560-024-01620-9)
+days = [531, 896, 1261, 1627, 1992]  # the 15th of months 18, 30, 42, 54 and 66
+start_h = 0.0
+c_charge = 0.25
+c_discharge = 0.8408  # the median test_c_rate of the LMO/NMC field tests (validation/results/capacity_tests.csv), same script
+# The test's stop is 3.252 V per cell, the median lowest voltage (voltage_min_v) of the same 22 tests, same script: it lies below
+# v_cell_min by this offset, so a drift of the stop moves it too.
+v_min_offset_cell = 0.128
+
+[sensors]  # as tests/synth.py, and the voltage gain error of check W7
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005
+voltage_gain_max = 0.0025

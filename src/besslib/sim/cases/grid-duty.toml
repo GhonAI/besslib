@@ -1,0 +1,55 @@
+# Case 5, grid duty at mid state of charge: random power within 30-70 % state of charge, one arbitrage cycle a
+# day from 25 to 75 %, and a calibration full charge every 7 days, every 30 days or never (setting).
+# Simplification, said here: this case has no BMS supply and no self-discharge, so the BMS's coulomb
+# counter is exact between two calibrations (the state-of-charge window it keeps is the true one, apart
+# from the gain error of its own current measurement, which the counter does not have either).
+# This file is the NMC pack (14 cells of 100 Ah in series); the settings lfp-* replace the cell and the limits.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "grid-duty"
+description = "Grid duty around mid state of charge, with a calibration charge every 7 days, every 30 days or never"
+start = "2020-01-01"
+months = 36
+step_s = 10
+sample_s = 10
+cell_every_s = 86400
+update_s = 1800
+chemistry = "NMC"
+pack_name = "besslib grid pack"
+
+[cell]
+preset = "nmc"
+scale_to_ah = 100.0
+
+[pack]
+groups = 1  # identical cells: one group of 14 in series is the same pack
+series = 14
+fade_points_per_year = 2.0  # example value, not from a source
+
+[thermal]
+mode = "prescribed"
+
+[temperature.pack]
+mean_c = 25.0
+
+[temperature.ambient]
+mean_c = 25.0
+
+[bms]
+v_cell_max = 4.15  # example value, not from a source
+v_cell_min = 3.20  # example value, not from a source
+stop_sigma_v = 0.005  # example value, not from a source
+stop_rule = "cells"
+supply_a = 0.0  # no BMS supply in this case
+
+[duty]
+kind = "grid"
+capacity_ah = 100.0
+calibration_days = 7
+calibration_hours = 6.0
+
+[sensors]
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005
+voltage_gain_max = 0.0025

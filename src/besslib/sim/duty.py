@@ -12,9 +12,9 @@ so planting a day does not change the days after it.
 ``home`` is the day of ``tests/synth.py``, kept: a night load, a solar charge in eight
 hourly steps of a half sine, an evening load, each at a random rate.
 
-``grid`` keeps the pack around mid state of charge: a random current each hour, ended by
-the BMS's own state of charge at the edge of a window, one arbitrage cycle a day, and
-now and then a calibration full charge.
+``grid`` keeps the pack around mid state of charge: a random power each hour (set again
+every ``hold_s``), ended by the BMS's own state of charge at the edge of a window, one
+arbitrage cycle a day, and now and then a calibration full charge.
 
 An *overlay* plants a field procedure on chosen days of any base duty (``capacity_test``,
 ``cp_discharge``). The base duty draws its numbers first, as on any day, then the overlay
@@ -144,54 +144,64 @@ def check_pieces(pieces: list[Piece], step_s: float) -> None:
 
 @dataclass(frozen=True)
 class GridDuty:
-    """Grid duty: random currents around mid state of charge, an arbitrage cycle, a calibration.
+    """Grid duty: random power around mid state of charge, an arbitrage cycle, a calibration.
 
-    Currents are C-rates of ``capacity_ah``. Every day draws one uniform number per slot, in
-    slot order (``24 / slot_h`` of them), whatever else the day holds. A charge piece ends
-    when the BMS's state of charge reaches ``soc_high``, a discharge piece at ``soc_low``.
-    The arbitrage cycle charges to ``cycle_high`` in the first window and discharges to
-    ``cycle_low`` in the second; a calibration day (every ``calibration_days`` days, 0 =
-    never) replaces the first ``calibration_hours`` with a charge to the BMS's full stop.
+    The pack is asked for power, as an energy-management system asks: rates are shares of
+    ``nominal_energy_kwh`` per hour (``mid_p``, ``cycle_p``, ``calibration_p``), the power is
+    set again every ``hold_s`` seconds. ``sim.run`` sets ``nominal_energy_kwh`` from the pack's
+    spec when the case leaves it out. ``capacity_ah`` serves the overlays' C-rates only.
+
+    Every day draws one uniform number per slot, in slot order (``24 / slot_h`` of them),
+    whatever else the day holds. A charge piece ends when the BMS's state of charge reaches
+    ``soc_high``, a discharge piece at ``soc_low``. The arbitrage cycle charges to
+    ``cycle_high`` in the first window and discharges to ``cycle_low`` in the second; a
+    calibration day (every ``calibration_days`` days, 0 = never) replaces the first
+    ``calibration_hours`` with a charge, also at power, to the BMS's full stop.
     Every default is an example value, not from a source.
     """
 
+    nominal_energy_kwh: float = 0.0
     capacity_ah: float = 100.0
     soc_low: float = 0.30
     soc_high: float = 0.70
-    mid_c: float = 0.25
+    mid_p: float = 0.25
+    hold_s: float = 300.0
     slot_h: float = 1.0
     cycle: bool = True
     cycle_low: float = 0.25
     cycle_high: float = 0.75
-    cycle_c: float = 0.25
+    cycle_p: float = 0.25
     cycle_charge_h: tuple = (2.0, 6.0)
     cycle_discharge_h: tuple = (17.0, 21.0)
     calibration_days: int = 0
-    calibration_c: float = 0.20
+    calibration_p: float = 0.20
     calibration_hours: float = 6.0
     kind: str = field(default="grid", init=False)
 
     def day(self, rng: np.random.Generator, d: int) -> list[Piece]:
-        c0 = self.capacity_ah
+        if self.nominal_energy_kwh <= 0:
+            raise ValueError("the grid duty needs nominal_energy_kwh > 0 (sim.run sets it from the spec)")
+        e_w = self.nominal_energy_kwh * 1000.0  # W per share of the nominal energy per hour
         base = d * DAY_S
         n = int(round(24.0 / self.slot_h))
-        rates = rng.uniform(-self.mid_c, self.mid_c, n)
+        rates = rng.uniform(-self.mid_p, self.mid_p, n)
         pieces = []
         for k in range(n):
             a, b = base + k * self.slot_h * 3600.0, base + (k + 1) * self.slot_h * 3600.0
             r = float(rates[k])
-            pieces.append(Piece(a, b, "current" if r != 0.0 else "rest", r * c0,
-                                until_soc=(self.soc_high if r > 0 else self.soc_low) if r != 0.0 else None))
+            pieces.append(Piece(a, b, "power" if r != 0.0 else "rest", r * e_w,
+                                until_soc=(self.soc_high if r > 0 else self.soc_low) if r != 0.0 else None,
+                                hold_s=self.hold_s if r != 0.0 else None))
         if self.cycle:
             for (h0, h1), sign, target in ((self.cycle_charge_h, 1.0, self.cycle_high),
                                            (self.cycle_discharge_h, -1.0, self.cycle_low)):
                 a, b = base + h0 * 3600.0, base + h1 * 3600.0
-                pieces = replace_window(pieces, a, b, [Piece(a, b, "current", sign * self.cycle_c * c0,
-                                                             until_soc=target, tag="cycle")])
+                pieces = replace_window(pieces, a, b, [Piece(a, b, "power", sign * self.cycle_p * e_w,
+                                                             until_soc=target, hold_s=self.hold_s, tag="cycle")])
         if self.calibration_days > 0 and (d + 1) % self.calibration_days == 0:
             b = base + self.calibration_hours * 3600.0
-            pieces = replace_window(pieces, base, b, [Piece(base, b, "current", self.calibration_c * c0,
-                                                            tag="calibration")])
+            pieces = replace_window(pieces, base, b, [Piece(base, b, "power", self.calibration_p * e_w,
+                                                            hold_s=self.hold_s, tag="calibration")])
         return pieces
 
 
@@ -228,6 +238,7 @@ class Overlay:
     discharge_h: float = 8.0
     rest_h: float = 1.0
     margin: float = 1.15
+    v_min_offset_cell: float = 0.0  # the procedure's discharge stop lies lower by this, V per cell
 
     def __post_init__(self) -> None:
         if self.kind not in OVERLAYS:
@@ -261,7 +272,7 @@ class Overlay:
         out = [
             Piece(edges[0], edges[1], "current", self.c_charge * self.capacity_ah, tag=tag),
             Piece(edges[1], edges[2]),
-            Piece(edges[2], edges[3], mode, value, hold_s=hold, tag=tag),
+            Piece(edges[2], edges[3], mode, value, v_min_offset_cell=self.v_min_offset_cell, hold_s=hold, tag=tag),
             Piece(edges[3], edges[4]),
         ]
         return float(edges[0]), float(edges[-1]), out

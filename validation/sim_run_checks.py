@@ -4,12 +4,14 @@
 
 * ``check_s5``: the same case and seed written twice give identical file hashes; another seed
   gives different frame files. Pass: 0 differing files in the first, 0 equal frame files in the second.
+  Every shipped case (``sim.case_names()``).
 * ``check_s6``: every frame passes ``check_frame``; besslib 0.2 reads 3 packs of each shipped
-  case with no warning under ``warnings.simplefilter("error")``; ``besslib.sim`` does not import
+  case with no warning under ``warnings.simplefilter("error")``; a case in which besslib has nothing
+  to estimate (a grid pack without a calibration charge) gives ``not possible from this data``, which is no failure; ``besslib.sim`` does not import
   ``besslib.soh`` and ``besslib.soh`` does not import ``besslib.sim`` (read with ``ast``; a
   dynamic ``importlib`` call would not be seen). Pass: 0 failures.
 * ``check_s8`` (information): seconds per pack-month at the case's step, and the 200 packs x 36
-  months figure extrapolated from it (marked as such).
+  months figure extrapolated from it (marked as such); the 396-group string too, from 2 months.
 
 Usage:  python validation/sim_run_checks.py [s5|s6|s8]     (prints the result as JSON)
 """
@@ -32,8 +34,9 @@ from besslib.sim import truth  # noqa: E402
 
 
 # --- S5 -----------------------------------------------------------------------------------------
-def check_s5(cases=("synth", "demo"), months: int = 2, seed: int = 1, other_seed: int = 2) -> dict:
+def check_s5(cases=None, months: int = 2, seed: int = 1, other_seed: int = 2) -> dict:
     """Same case and seed twice: identical hashes. Another seed: different frame files."""
+    cases = cases or sim.case_names()
     rows = []
     with tempfile.TemporaryDirectory(dir=ROOT / "data") as tmp:
         tmp = Path(tmp)
@@ -83,6 +86,10 @@ def import_rule() -> dict:
     return {"files_scanned": scanned, "violations": bad}
 
 
+def _f(x) -> float:
+    return float("nan") if x is None else float(x)
+
+
 def _read_case(case: str, seed: int, months: int) -> dict:
     """One pack: its frames pass ``check_frame``, and besslib 0.2 reads them under -W error."""
     data = sim.load_case(case)
@@ -114,8 +121,8 @@ def _read_case(case: str, seed: int, months: int) -> dict:
         "case": case, "seed": seed, "months": months, "frames_checked": seen["frames"], "rows": seen["rows"],
         "statuses": {k: int(v) for k, v in table["status"].value_counts().items()},
         "record": {r.code: r.status for r in table.itertuples()},
-        "a1_value_ah": float(a1.value), "a1_low_ah": float(a1.low), "a1_high_ah": float(a1.high),
-        "a1_events": float(a1.events), "true_capacity_ah_last_stop": last.get("true_capacity_ah"),
+        "a1_status": str(a1.status), "a1_value_ah": _f(a1.value), "a1_low_ah": _f(a1.low), "a1_high_ah": _f(a1.high),
+        "a1_events": _f(a1.events), "true_capacity_ah_last_stop": last.get("true_capacity_ah"),
         "nominal_capacity_ah": float(spec.nominal_capacity_ah),
     }
 
@@ -135,18 +142,20 @@ def check_s6(packs: int = 3, months: int = 3) -> dict:
 
 
 # --- S8 -----------------------------------------------------------------------------------------
-def check_s8(cases=("synth", "demo"), months: int = 3, repeats: int = 2) -> dict:
+STRING_CASE = "grid-string"
+
+
+def check_s8(cases=("synth", "demo", STRING_CASE), months: int = 3, string_months: int = 2, repeats: int = 2) -> dict:
     """Seconds per pack-month (best of ``repeats``; one core, other jobs may share the machine)."""
     rows = []
     for case in cases:
-        best = min(_time(case, months) for _ in range(repeats))
-        per = best / months
-        rows.append({"case": case, "seconds_per_pack_month": per,
+        n = string_months if case == STRING_CASE else months
+        best = min(_time(case, n) for _ in range(repeats))
+        per = best / n
+        rows.append({"case": case, "months": n, "seconds_per_pack_month": per,
                      "packs_200_months_36_hours_extrapolated": per * 200 * 36 / 3600.0,
                      "note": "extrapolated from a short run on one core, not measured at 200 x 36"})
-    return {"check": "S8", "information": True, "rows": rows,
-            "string_396_cells": "not measured yet: the 396-cell string comes with its own case, later",
-            "pass": None}
+    return {"check": "S8", "information": True, "rows": rows, "pass": None}
 
 
 def _time(case: str, months: int) -> float:

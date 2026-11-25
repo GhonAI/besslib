@@ -65,6 +65,8 @@ class PackModel:
             raise ValueError("resistance_law is 'arrhenius' or 'synth-day'")
         if self.bms.stop_rule == "synth" and self.groups != 1:
             raise ValueError("the 'synth' stop rule models a one-group pack")
+        if self.cell.tables is not None and (self.resistance_law == "synth-day" or self.bms.stop_rule == "synth"):
+            raise ValueError("the 'synth' rules take a cell without resistance tables")
 
     # --- per group values ------------------------------------------------------------
     def _per_group(self, values: tuple, default: float) -> np.ndarray:
@@ -110,6 +112,7 @@ class Month:
     soc_end: np.ndarray | None = None
 
 
+_NONE = np.zeros(0)
 _STOP_COLUMNS = [
     "seconds", "kind", "rule", "group", "v_before", "v_after", "limit_v", "soc", "capacity_ah",
     "bms_soc", "model_soc", "model_capacity_ah", "tag", "current_a",
@@ -133,6 +136,10 @@ class Engine:
         self.series = np.full(g, float(pack.series))
         self.c0 = pack.capacity0()
         rf = pack._per_group(pack.resistance_factor, 1.0)
+        self.r_scale = pack.series / pack.parallel * rf  # cell ohms to group ohms
+        self.tables = cell.tables
+        self._hyst_table = len(cell.hyst_table) > 0
+        self._needs_soc = self.tables is not None or self._hyst_table
         self.r0_ref = cell.r0_ohm * pack.series / pack.parallel * rf
         self.r1_ref = cell.r1_ohm * pack.series / pack.parallel * rf
         self.r2_ref = cell.r2_ohm * pack.series / pack.parallel * rf
@@ -144,6 +151,7 @@ class Engine:
         self.leak_on = np.ceil(self.leak_from / self.dt - 1e-9) * self.dt
         on = self.leak_on[np.isfinite(self.leak_ohm) & (self.leak_on > 0)]
         self._leak_t = np.unique(on)
+        self._leaks = bool(np.isfinite(self.leak_ohm).any())
         self._networks: dict = {}
         self._fan_t = np.array([p[0] for p in pack.fan_points], dtype=float)
         self._fan_f = np.array([p[1] for p in pack.fan_points], dtype=float)
@@ -163,8 +171,30 @@ class Engine:
         growth = 1.0 + p.resistance_growth_per_year * day / 365.25
         return growth * np.exp(-p.r_temp_coeff_per_c * (p.pack_profile.day_mean(day) - 25.0))
 
-    def params(self, t: float, temps: np.ndarray) -> GroupParams:
+    def params(self, t: float, temps: np.ndarray, soc: np.ndarray | None = None) -> GroupParams:
+        """The groups' parameters at time ``t`` and these temperatures; ``soc`` (the present states
+        when left out) matters only to a cell with tables."""
         p, cell = self.pack, self.pack.cell
+        if self._needs_soc and soc is None:
+            soc = self.state.soc
+        h_max = cell.hyst_bound(soc) * p.series if self._hyst_table else np.full(p.groups, cell.hyst_v * p.series)
+        if self.tables is not None:
+            age = 1.0 + p.resistance_growth_per_year * (t / YEAR_S)
+            r0, r1, tau1 = self.tables(soc, temps)
+            hold = cell.rc_hold == "tau"
+            two = cell.r2_ohm > 0  # the second RC element has no table: its own value and t_ref_c
+            s1 = age * temperature_factor(cell.ea_r1_j_mol, temps, cell.t_ref_c) if two else 1.0
+            return GroupParams(
+                series=self.series,
+                capacity_ah=self.capacity(t),
+                r0=r0 * (self.r_scale * age),
+                r1=r1 * (self.r_scale * age),
+                tau1=tau1 if hold else tau1 * age,
+                r2=self.r2_ref * s1,
+                tau2=np.full(p.groups, cell.tau2_s if cell.tau2_s > 0 else 1.0) * (1.0 if hold or not two else s1),
+                h_max=h_max,
+                kappa=np.full(p.groups, cell.hyst_rate),
+            )
         if p.resistance_law == "synth-day":
             s0 = s1 = self._synth_scale(math.floor(t / DAY_S))
         else:
@@ -187,7 +217,7 @@ class Engine:
             tau1=tau1,
             r2=self.r2_ref * s1,
             tau2=tau2,
-            h_max=np.full(p.groups, cell.hyst_v * p.series),
+            h_max=h_max,
             kappa=np.full(p.groups, cell.hyst_rate),
         )
 
@@ -203,6 +233,8 @@ class Engine:
         return self._networks[fan]
 
     def _next_fan_change(self, t: float) -> float:
+        if len(self._fan_t) == 0:
+            return math.inf
         later = self._fan_t[self._fan_t > t]
         return float(later[0]) if len(later) else math.inf
 
@@ -244,9 +276,10 @@ class Engine:
         n_series = p.cells_in_series
         state, temps = self.state, self.temps
         te_max = min(piece.end_s, m1, (math.floor(tb / DAY_S) + 1) * DAY_S, self._next_fan_change(tb))
-        later = self._leak_t[self._leak_t > tb]
-        if len(later):
-            te_max = min(te_max, float(later[0]))
+        if len(self._leak_t):
+            later = self._leak_t[self._leak_t > tb]
+            if len(later):
+                te_max = min(te_max, float(later[0]))
         if self.update_s:
             te_max = min(te_max, (math.floor(tb / self.update_s + 1e-9) + 1) * self.update_s)
         if piece.mode == "power" and not latched:
@@ -263,8 +296,11 @@ class Engine:
             current = min(max(current, -discharge_max), charge_max)
         # Drains at the block start.
         v_cell0 = self.ocv(state.soc)
-        finite = np.isfinite(self.leak_ohm)
-        leak = np.where((tb >= self.leak_on) & finite, v_cell0 / np.where(finite, self.leak_ohm, 1.0), 0.0)
+        if self._leaks:
+            finite = np.isfinite(self.leak_ohm)
+            leak = np.where((tb >= self.leak_on) & finite, v_cell0 / np.where(finite, self.leak_ohm, 1.0), 0.0)
+        else:
+            leak = np.zeros(g)
         bleed = self._bleed(state, prm, current, v_cell0)
         drains = bms.supply_a + self.self_a + leak + bleed
         # The limits of this block.
@@ -276,12 +312,12 @@ class Engine:
         else:
             lim_max = bms.v_cell_max + e_max + bms.offset(bms.v_max_points, tb / DAY_S)
             lim_min = bms.v_cell_min + e_min + bms.offset(bms.v_min_points, tb / DAY_S) - piece.v_min_offset_cell
-        k_end, stop = kmax, None
+        k_end, stop, v = kmax, None, None
         if current != 0.0:
-            k_end, stop = self._search(state, prm, current, drains, kmax, lim_max, lim_min, tb, piece)
+            k_end, stop, v = self._search(state, prm, current, drains, kmax, lim_max, lim_min, tb, piece)
             if k_end == 0:  # the limit is reached at the block's start: no current in this block
                 self._record_stop(stop, tb, tb, piece, acc)
-                latched, current, k_end, stop = True, 0.0, kmax, None
+                latched, current, k_end, stop, v = True, 0.0, kmax, None, None
                 if bms.balance:  # balancing decides again, with no current
                     bleed = self._bleed(state, prm, current, v_cell0)
                     drains = bms.supply_a + self.self_a + leak + bleed
@@ -293,7 +329,10 @@ class Engine:
         i0 = int(round((tb - acc.m0) / dt))
         sl = slice(i0, i0 + k_end)
         offs = np.arange(k_end) * dt
-        _, v = trajectory(state, prm, self.ocv, cur_g, i_soc, offs)
+        if v is None:
+            _, v = trajectory(state, prm, self.ocv, cur_g, i_soc, offs)
+        else:  # the search has run through these steps with this current
+            v = v[:k_end]
         acc.current_a[sl] = current
         acc.voltage_v[sl] = v.sum(axis=1) if g > 1 else v[:, 0]
         vc = v / self.series
@@ -382,12 +421,13 @@ class Engine:
         return (-e + math.sqrt(disc)) / (2.0 * r)
 
     def _search(self, state, prm, current, drains, kmax, lim_max, lim_min, tb, piece):
-        """The first step end (0..kmax) at which a limit is reached; 0 = at the block's start."""
+        """The first step end (0..kmax) at which a limit is reached (0 = at the block's start), the stop,
+        and the groups' voltages at the steps' ends where the rule reads the plant's."""
         g = self.pack.groups
         taus = np.arange(kmax + 1) * self.dt
         charging = current > 0
         limit = lim_max if charging else lim_min
-        vc = None
+        vc = v = None
         if self.model is not None:
             v_series = self._model_volts(current, taus, tb)
             over = v_series >= lim_max if charging else v_series <= lim_min
@@ -410,7 +450,7 @@ class Engine:
             if hit.any():
                 k_until = int(np.argmax(hit))
         if k_stop is None and k_until is None:
-            return kmax, None
+            return kmax, None, v
         if k_stop is not None and (k_until is None or k_stop <= k_until):
             if group is None:
                 group = int(np.argmax(vc[k_stop])) if charging else int(np.argmin(vc[k_stop]))
@@ -419,9 +459,9 @@ class Engine:
                 trace = v_series
             v_before = float(trace[k_stop - 1]) if k_stop > 0 else math.nan
             return k_stop, dict(kind="full" if charging else "empty", group=group, v_before=v_before,
-                                v_after=float(trace[k_stop]), limit=limit, current=current)
+                                v_after=float(trace[k_stop]), limit=limit, current=current), v
         return k_until, dict(kind="until", group=-1, v_before=math.nan, v_after=math.nan, limit=piece.until_soc,
-                             current=current)
+                             current=current), v
 
     def _model_params(self, t: float):
         """The synth BMS's copy on the day of ``t``: capacity at midnight, resistances of the day."""
@@ -465,7 +505,7 @@ class Engine:
     def _cell_times(self, tb: float, te: float) -> np.ndarray:
         e = self.cell_every_s
         first = math.ceil(tb / e) * e
-        return np.arange(first, te, e) if first < te else np.zeros(0)
+        return np.arange(first, te, e) if first < te else _NONE
 
     def _month(self, start, acc) -> Month:
         g = self.pack.groups

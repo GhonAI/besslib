@@ -17,7 +17,7 @@ def _days(duty, n, seed=0):
 
 
 def test_grid_day_is_gapless_on_the_grid_and_has_its_pieces():
-    duty = make_duty({"kind": "grid", "calibration_days": 3})
+    duty = make_duty({"kind": "grid", "calibration_days": 3, "nominal_energy_kwh": 5.0})
     days = _days(duty, 6)
     check_pieces([p for day in days for p in day], 10.0)
     assert [any(p.tag == "calibration" for p in day) for day in days] == [False, False, True, False, False, True]
@@ -28,8 +28,29 @@ def test_grid_day_is_gapless_on_the_grid_and_has_its_pieces():
             assert (p.value > 0) == (p.until_soc in (0.70, 0.75))
 
 
+def test_grid_asks_for_power_in_shares_of_the_nominal_energy_and_holds_it():
+    day = _days(make_duty({"kind": "grid", "calibration_days": 1, "nominal_energy_kwh": 5.0}), 1)[0]
+    assert {p.mode for p in day} <= {"power", "rest"}
+    cal = [p for p in day if p.tag == "calibration"]
+    assert len(cal) == 1 and cal[0].value == pytest.approx(0.20 * 5000.0) and cal[0].until_soc is None
+    assert all(p.hold_s == 300.0 for p in day if p.mode == "power")
+    assert all(abs(p.value) <= 0.25 * 5000.0 + 1e-9 for p in day)
+    with pytest.raises(ValueError, match="nominal_energy_kwh"):
+        _days(make_duty({"kind": "grid"}), 1)
+
+
+def test_grid_draws_one_uniform_per_slot_whatever_the_calibration():
+    a, b = np.random.default_rng(3), np.random.default_rng(3)
+    make_duty({"kind": "grid", "nominal_energy_kwh": 5.0}).day(a, 0)
+    make_duty({"kind": "grid", "calibration_days": 1, "nominal_energy_kwh": 5.0}).day(b, 0)
+    assert a.bit_generator.state == b.bit_generator.state
+    c = np.random.default_rng(3)
+    c.uniform(-1, 1, 24)
+    assert a.bit_generator.state == c.bit_generator.state
+
+
 def test_grid_without_cycle_or_calibration_is_slots_only():
-    day = _days(make_duty({"kind": "grid", "cycle": False}), 1)[0]
+    day = _days(make_duty({"kind": "grid", "cycle": False, "nominal_energy_kwh": 5.0}), 1)[0]
     assert len(day) == 24 and all(p.tag == "" for p in day)
 
 

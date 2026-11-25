@@ -13,6 +13,6 @@ pack terminals would report (``besslib.frames`` format) and the truth behind the
 It is a test bench, not a model of any real product.
 """
 
-from .run import MonthOut, build, case_names, load_case, run, spec
+from .run import MonthOut, build, case_names, events, load_case, run, spec
 
-__all__ = ["MonthOut", "build", "case_names", "load_case", "run", "spec"]
+__all__ = ["MonthOut", "build", "case_names", "events", "load_case", "run", "spec"]

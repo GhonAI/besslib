@@ -222,3 +222,12 @@ def test_derating_and_charge_block():
     assert (t.current_a[~cold] > 0.0).any()
     assert t.current_a.max() < 60.0 and t.current_a.min() > -60.0  # derated below what was asked
     assert_checks(pk, months, update_s=600.0)
+
+
+def test_balancing_bleeds_only_the_cells_above_the_lowest_by_the_spread():
+    bms = BmsSettings(balance=True, balance_v=4.0, balance_spread_v=0.010)
+    # 4.02 V is 20 mV above the lowest; 4.005 V is within the spread; 3.99 V is below balance_v.
+    assert list(bms.bleeding(np.array([4.02, 4.005, 4.00]))) == [True, False, False]
+    assert list(bms.bleeding(np.array([3.99, 3.95]))) == [False, False]
+    # A permanent spread at the top: only the high cells come down, the lowest never bleeds.
+    assert list(bms.bleeding(np.array([4.10, 4.05, 4.02]))) == [True, True, False]

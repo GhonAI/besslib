@@ -9,6 +9,9 @@ check can run on its own.
   with the published files byte for byte (``S0b`` compares files already rebuilt).
 * S1, S2, S3, S4 (``sim_plant_checks.py``): charge, energy, closed forms, BMS limits.
 * S5, S6, S8 (``sim_run_checks.py``): reproducible files, the data contract, speed.
+* S10 (``sim_s10.py``): the LFP preset against measured HPPC currents at 20 and 30 degrees C.
+S1-S6 and S8 run on every shipped case (``besslib.sim.case_names()``); the 396-group string runs 2 months in S1, S2
+and S4, and S6 runs 3 packs of 14 months of every case, the string included (about 10 s per pack-month).
 
 Usage:
     python validation/sim_checks.py                 # every check but S0b
@@ -28,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "validation"))
 RESULTS = ROOT / "validation" / "results" / "sim_checks.csv"
 COLUMNS = ["check", "what", "result", "pass_if", "passed"]
-ORDER = ["S0a", "S0b V6", "S0b X3", "S0b W7", "S0c", "S1", "S2", "S3", "S4", "S5", "S6", "S8"]
+ORDER = ["S0a", "S0b V6", "S0b X3", "S0b W7", "S0c", "S1", "S2", "S3", "S4", "S5", "S6", "S8", "S10"]
 
 
 def s0a() -> list[dict]:
@@ -75,20 +78,35 @@ def s6() -> list[dict]:
     months = 14
     r = sim_run_checks.check_s6(packs=3, months=months)
     rule = r["import_rule"]
-    a1 = "; ".join(
-        f"{x['case']} seed {x['seed']}: A1 {x['a1_value_ah']:.2f} Ah ({x['a1_low_ah']:.2f}-{x['a1_high_ah']:.2f}), "
-        f"true capacity at the last stop {x['true_capacity_ah_last_stop']:.2f} Ah"
-        for x in r["rows"]
-    )
+    def a1_text(x: dict) -> str:
+        true = x["true_capacity_ah_last_stop"]
+        true_text = f"{true:.2f} Ah" if true is not None else "no full or empty stop"
+        if x["a1_status"] != "estimated":
+            return f"{x['case']} seed {x['seed']}: A1 {x['a1_status']}, true capacity at the last stop {true_text}"
+        return (f"{x['case']} seed {x['seed']}: A1 {x['a1_value_ah']:.2f} Ah ({x['a1_low_ah']:.2f}-{x['a1_high_ah']:.2f}), "
+                f"true capacity at the last stop {true_text}")
+
+    a1 = "; ".join(a1_text(x) for x in r["rows"])
+    estimated = sum(x["a1_status"] == "estimated" for x in r["rows"])
     return [{
         "check": "S6",
         "what": f"{r['packs_per_case']} packs of each case ({', '.join(r['cases'])}), {months} months: every frame "
                 f"through check_frame, besslib 0.2 annex_vii under warnings as errors; the import rule "
                 f"({rule['files_scanned']['sim']} sim and {rule['files_scanned']['soh']} soh modules, read with ast)",
-        "result": f"{r['n_failures']} failures. Information, A1 as read (the 0.2 quantity, between rest voltages): {a1}",
+        "result": f"{r['n_failures']} failures; A1 estimated in {estimated} of {len(r['rows'])} packs"
+                  f". Information, A1 as read (the 0.2 quantity, between rest voltages): {a1}",
         "pass_if": "0 failures",
         "passed": bool(r["pass"]),
     }]
+
+
+def s10() -> list[dict]:
+    """The LFP preset against the measured HPPC current at 20 and 30 degrees C (``sim_s10.check_s10``)."""
+    import sim_s10
+
+    out = sim_s10.check_s10()
+    rows = [out] if isinstance(out, dict) else list(out)
+    return [{c: row[c] for c in COLUMNS} for row in rows]
 
 
 def s8() -> list[dict]:
@@ -96,21 +114,30 @@ def s8() -> list[dict]:
 
     r = sim_run_checks.check_s8()
     text = "; ".join(
-        f"{x['case']}: {x['seconds_per_pack_month']:.2f} s per pack-month, "
+        f"{x['case']} ({x['months']} months): {x['seconds_per_pack_month']:.2f} s per pack-month, "
         f"200 packs x 36 months about {x['packs_200_months_36_hours_extrapolated']:.1f} h on one core (extrapolated)"
         for x in r["rows"]
     )
     return [{
         "check": "S8",
-        "what": "information: speed at 10 s steps, best of 2 runs of 3 months, one core",
-        "result": f"{text}; the 396-cell string: not measured yet, it comes with its own case",
+        "what": "information: speed at 10 s steps, best of 2 runs of 3 months (the 396-group string 2 months), one core",
+        "result": text,
         "pass_if": "information",
         "passed": "",
     }]
 
 
-PLANT_RUNS = (("synth", 36), ("demo", 12))
 PLANT_SEEDS = (1, 2, 3)
+STRING_CASE = "grid-string"
+
+
+def plant_runs() -> tuple:
+    """(case, months): synth 36 and demo 12 as before, every other shipped case 12, the string 2."""
+    from besslib import sim
+
+    first = (("synth", 36), ("demo", 12))
+    rest = tuple((c, 2 if c == STRING_CASE else 12) for c in sim.case_names() if c not in ("synth", "demo"))
+    return first + rest
 
 
 def plant() -> list[dict]:
@@ -120,7 +147,8 @@ def plant() -> list[dict]:
     from besslib import sim
 
     res = {"S1": [], "S2": [], "S4": []}
-    for case, months in PLANT_RUNS:
+    runs_list = plant_runs()
+    for case, months in runs_list:
         data = sim.load_case(case)
         for seed in PLANT_SEEDS:
             pack, settings = sim.build(data, seed)
@@ -133,11 +161,11 @@ def plant() -> list[dict]:
         flat = sim.load_case(case, {"pack.fade_points_per_year": 0.0})
         for seed in PLANT_SEEDS:
             pack, _ = sim.build(flat, seed)
-            out = [m.truth for m in sim.run(flat, 12, seed, measured=False, log_blocks=False)]
+            out = [m.truth for m in sim.run(flat, min(months, 12), seed, measured=False, log_blocks=False)]
             res["S2"].append((case + " no fade", seed, pc.s2_energy(out, pack)))
-    runs = ", ".join(f"{c} {m} months" for c, m in PLANT_RUNS)
+    runs = ", ".join(f"{c} {m} months" for c, m in runs_list)
     what = f"3 seeds each of {runs}, true signals"
-    what_s2 = f"{what}; and each case without fade, 12 months"
+    what_s2 = f"{what}; and each case without fade, up to 12 months"
     rows = []
     for key, label, pass_if in (("S1", "charge per group and month", "<= 1e-09 relative"),
                                 ("S2", "energy per group and month", "<= 1e-06 relative")):
@@ -154,7 +182,7 @@ def plant() -> list[dict]:
                                + (f" ({detail})" if detail else ""),
                      "pass_if": pass_if, "passed": all(r["passed"] for _, _, r in res[key])})
     parts = []
-    for case, _ in PLANT_RUNS:
+    for case, _ in runs_list:
         rr = [r for c, _, r in res["S4"] if c == case]
         parts.append(f"{case} (rule {rr[0]['rule']}): {sum(r['bad_stops'] for r in rr)} stops outside their step "
                      f"of {sum(r['n_stops'] for r in rr)}, {sum(r['bad_samples'] for r in rr)} samples with current "
@@ -212,8 +240,9 @@ def s3() -> dict:
             "pass_if": "<= 1e-12 V; <= 1e-06 relative", "passed": bool(elec <= 1e-12 and therm <= 1e-6)}
 
 
-RUNS = {"S0a": s0a, "S0b": s0b, "S0b-rebuild": s0b_rebuild, "S0c": s0c, "plant": plant, "S5": s5, "S6": s6, "S8": s8}
-DEFAULT = ["S0a", "S0c", "plant", "S5", "S6", "S8"]
+RUNS = {"S0a": s0a, "S0b": s0b, "S0b-rebuild": s0b_rebuild, "S0c": s0c, "plant": plant, "S5": s5, "S6": s6, "S8": s8,
+        "S10": s10}
+DEFAULT = ["S0a", "S0c", "plant", "S5", "S6", "S8", "S10"]
 
 
 def main(argv: list[str]) -> None:

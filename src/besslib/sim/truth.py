@@ -30,7 +30,7 @@ import pyarrow.parquet as pq
 
 import besslib
 
-from .run import build, load_case, run, spec
+from .run import events, load_case, run, spec, build
 
 TABLES = ("steps", "cells", "stops", "blocks", "balance")
 
@@ -40,8 +40,12 @@ def _times(origin: pd.Timestamp, seconds) -> pd.DatetimeIndex:
     return pd.DatetimeIndex(origin + pd.to_timedelta(ms, unit="ms"), name="time").as_unit("ms")
 
 
-def tables(month) -> dict[str, pd.DataFrame]:
-    """The truth tables of one month (a ``pack.Month``, or a ``MonthOut`` with ``.truth``)."""
+def tables(month, per_cell: tuple | None = None) -> dict[str, pd.DataFrame]:
+    """The truth tables of one month (a ``pack.Month``, or a ``MonthOut`` with ``.truth``).
+
+    ``per_cell = (cells in series, nominal capacity in Ah)`` (a case's ``[case] per_cell_truth``) adds
+    to ``steps`` the voltage per cell (the pack voltage divided by the cells) and the current as a
+    C-rate, the units of the PNNL/EPRI release."""
     m = getattr(month, "truth", month)
     origin = m.start - pd.to_timedelta(float(m.seconds[0]), unit="s")
 
@@ -56,6 +60,9 @@ def tables(month) -> dict[str, pd.DataFrame]:
         "temp_sensor_c": m.temp_sensor_c, "temp_ambient_c": m.temp_ambient_c,
         "v_cell_max": m.v_cell_max, "v_cell_min": m.v_cell_min,
     })
+    if per_cell:
+        steps["voltage_cell_v"] = m.voltage_v / float(per_cell[0])
+        steps["current_c"] = m.current_a / float(per_cell[1])
     balance = m.balance.copy()
     balance.insert(0, "time", pd.DatetimeIndex([m.start] * len(balance)).as_unit("ms"))
     return {
@@ -105,7 +112,8 @@ def run_to_dir(case, months: int | None, seed: int, out_dir, overrides: dict | N
         if true_frames:
             path = f"true_frames/{label}.parquet"
             hashes[path] = write_parquet(mo.true_frame, out / path)
-        for name, table in tables(mo).items():
+        per_cell = (pack.cells_in_series, pack.nominal_ah) if data.get("case", {}).get("per_cell_truth") else None
+        for name, table in tables(mo, per_cell).items():
             path = f"truth/{name}/{label}.parquet"
             hashes[path] = write_parquet(table, out / path)
         written += 1
@@ -114,6 +122,7 @@ def run_to_dir(case, months: int | None, seed: int, out_dir, overrides: dict | N
         "seed": int(seed),
         "months": written,
         "overrides": _jsonable(overrides or {}),
+        "events": _jsonable(events(data, seed)),
         "besslib_version": besslib.__version__,
         "spec": _jsonable({k: v for k, v in asdict(spec(data, pack)).items() if k != "extra"}),
         "files": dict(sorted(hashes.items())),

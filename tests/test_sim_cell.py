@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from besslib.sim.cell import GroupParams, GroupState, OcvCurve, advance, temperature_factor, trajectory
+from besslib.sim.cell import CellModel, GroupParams, GroupState, OcvCurve, advance, temperature_factor, trajectory
 
 VECTORS = Path(__file__).parent / "vectors"
 SOC = (0.0, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 1.0, 1.1)  # the synth preset's curve
@@ -116,6 +116,73 @@ def test_hysteresis_closed_form():
         p1 = i * 0.01 * (1 - math.exp(-tk / 600.0))
         exp_v = 14.0 * float(np.interp(soc, SOC, OCV_V)) + h + i * 0.02 + p1
         assert abs(v[k, 0] - exp_v) <= 1e-12
+
+
+def test_hysteresis_decays_where_its_bound_is_zero():
+    p = params(h_max=0.0, kappa=30.0)
+    i, beta = 30.0, 30.0 * 30.0 / 360000.0
+    s1, _ = advance(state(0.4, h=-0.1), p, OCV, np.array([i]), np.array([i]), 500.0)
+    assert abs(s1.h[0] + 0.1 * math.exp(-beta * 500.0)) <= 1e-15
+
+
+# --- tables -----------------------------------------------------------------------------------
+T_SOC, T_TEMP = (0.1, 0.5, 0.9), (10.0, 30.0)
+T_R0 = ((3e-3, 2e-3, 1e-3), (2e-3, 1.5e-3, 1e-3))
+T_R1 = ((6e-3, 4e-3, 2e-3), (4e-3, 3e-3, 2e-3))
+T_TAU = ((40.0, 50.0, 60.0), (30.0, 30.0, 30.0))
+
+
+def table_cell(**kw) -> CellModel:
+    base = dict(ocv_soc=SOC, ocv_v=OCV_V, capacity_ah=100.0, r0_ohm=1e-3, r1_ohm=1e-3, tau1_s=30.0, ea_r0_j_mol=20000.0,
+                ea_r1_j_mol=40000.0, r_soc=T_SOC, r_temp_c=T_TEMP, r0_table=T_R0, r1_table=T_R1, tau1_table=T_TAU)
+    return CellModel(**{**base, **kw})
+
+
+def test_tables_are_bilinear_inside_and_flat_beyond_the_states_of_charge():
+    c = table_cell()
+    r0, r1, tau = c.resistances(np.array([0.3, 0.9, 0.95, -0.2, 0.5]), np.array([15.0, 30.0, 10.0, 20.0, 10.0]))
+    np.testing.assert_allclose(r0, [0.75 * 2.5e-3 + 0.25 * 1.75e-3, 1e-3, 1e-3, 2.5e-3, 2e-3], rtol=1e-14)
+    np.testing.assert_allclose(r1, [0.75 * 5e-3 + 0.25 * 3.5e-3, 2e-3, 2e-3, 5e-3, 4e-3], rtol=1e-14)
+    np.testing.assert_allclose(tau, [0.75 * 45 + 0.25 * 30, 30.0, 60.0, 35.0, 50.0], rtol=1e-14)
+
+
+@pytest.mark.parametrize("hold", ["tau", "capacitance"])
+def test_tables_beyond_their_temperatures_follow_the_arrhenius_form_of_the_nearest_row(hold):
+    c = table_cell(rc_hold=hold)
+    for temp, row, end in ((-5.0, 0, 10.0), (45.0, 1, 30.0)):
+        r0, r1, tau = c.resistances(np.array([0.5]), np.array([temp]))
+        f0, f1 = temperature_factor(20000.0, temp, end), temperature_factor(40000.0, temp, end)
+        assert r0[0] == pytest.approx(T_R0[row][1] * f0, rel=1e-14)
+        assert r1[0] == pytest.approx(T_R1[row][1] * f1, rel=1e-14)
+        assert tau[0] == pytest.approx(T_TAU[row][1] * (1.0 if hold == "tau" else f1), rel=1e-14)
+    one = table_cell(r_temp_c=(23.0,), r0_table=T_R0[:1], r1_table=T_R1[:1], tau1_table=T_TAU[:1], rc_hold=hold)
+    r0, r1, _ = one.resistances(np.array([0.1, 0.1]), np.array([23.0, 10.0]))
+    np.testing.assert_allclose(r0, 3e-3 * np.array([1.0, temperature_factor(20000.0, 10.0, 23.0)]), rtol=1e-14)
+    np.testing.assert_allclose(r1, 6e-3 * np.array([1.0, temperature_factor(40000.0, 10.0, 23.0)]), rtol=1e-14)
+
+
+def test_hysteresis_bound_table_and_constant():
+    c = table_cell(hyst_soc=(0.0, 0.5, 1.0), hyst_table=(0.06, 0.02, 0.1), hyst_v=9.0)
+    np.testing.assert_allclose(c.hyst_bound(np.array([-0.1, 0.25, 0.5, 1.2])), [0.06, 0.04, 0.02, 0.1], rtol=1e-14)
+    np.testing.assert_allclose(table_cell(hyst_v=0.03).hyst_bound(np.array([0.1, 0.9])), 0.03)
+
+
+def test_tables_are_checked():
+    with pytest.raises(ValueError, match="given together"):
+        table_cell(tau1_table=())
+    with pytest.raises(ValueError, match="one row per temperature"):
+        table_cell(r0_table=T_R0[:1])
+    with pytest.raises(ValueError, match="increase"):
+        table_cell(r_soc=(0.1, 0.1, 0.9))
+    with pytest.raises(ValueError, match="hyst_table"):
+        table_cell(hyst_soc=(0.0, 1.0), hyst_table=(0.1,))
+
+
+def test_without_tables_the_resistances_are_the_constants_with_the_temperature_factor():
+    c = CellModel(ocv_soc=SOC, ocv_v=OCV_V, capacity_ah=100.0, r0_ohm=1e-3, r1_ohm=2e-3, tau1_s=30.0, ea_r1_j_mol=3e4)
+    r0, r1, tau = c.resistances(np.array([0.2, 0.8]), np.array([5.0, 25.0]))
+    f = temperature_factor(3e4, np.array([5.0, 25.0]))
+    np.testing.assert_allclose([r0, r1, tau], [[1e-3, 1e-3], 2e-3 * f, 30.0 * f], rtol=1e-14)
 
 
 # --- trajectory against the scalar reference ------------------------------------------------

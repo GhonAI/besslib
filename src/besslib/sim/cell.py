@@ -34,12 +34,20 @@ proportional to ``T / j0`` with an Arrhenius ``j0``), so ``r(T) = r_ref (T / T_r
 exp(Ea / R (1 / T - 1 / T_ref))``. Which resistance follows which process is this
 library's reading, not Ecker's.
 
+Tables: a cell can give its resistances and time constant against state of charge and
+temperature (``r0_table``, ``r1_table``, ``tau1_table``). Between the table's temperatures
+they are bilinear and the Arrhenius form is not used; beyond its coldest or warmest row, and
+always when there is one row, that row is scaled with the Arrhenius form from its own
+temperature. Beyond the table's states of charge the nearest column holds. The largest
+hysteresis voltage can also follow the state of charge (``hyst_table``).
+
 All arrays are per group, shape ``(G,)``, or per time and group, shape ``(K, G)``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 
@@ -53,7 +61,13 @@ class CellModel:
 
     ``rc_hold`` says what stays fixed when a resistance changes with temperature or age:
     ``"capacitance"`` (the RC capacitance; ``tau`` scales with ``r``) or ``"tau"`` (the
-    time constant, as ``tests/synth.py``).
+    time constant, as ``tests/synth.py``). With tables it applies to the part beyond the
+    table's temperatures (inside, ``tau1_table`` says it) and to ageing.
+
+    Tables hold one row per temperature of ``r_temp_c`` and one column per state of charge of
+    ``r_soc`` (ohm per cell, s). They are given together, and replace ``r0_ohm``, ``r1_ohm``,
+    ``tau1_s`` and ``t_ref_c`` (the second RC element keeps its own values and ``t_ref_c``).
+    ``hyst_soc`` with ``hyst_table`` replace ``hyst_v``.
     """
 
     ocv_soc: tuple
@@ -71,6 +85,13 @@ class CellModel:
     ea_r1_j_mol: float = 0.0
     rc_hold: str = "capacitance"
     name: str = ""
+    r_soc: tuple = ()  # the tables' states of charge, increasing
+    r_temp_c: tuple = ()  # the tables' temperatures, increasing; one is allowed
+    r0_table: tuple = ()  # ohm per cell, a row per temperature
+    r1_table: tuple = ()
+    tau1_table: tuple = ()  # s
+    hyst_soc: tuple = ()
+    hyst_table: tuple = ()  # largest hysteresis voltage per cell at each point of hyst_soc
 
     def __post_init__(self) -> None:
         soc = np.asarray(self.ocv_soc, dtype=float)
@@ -82,6 +103,84 @@ class CellModel:
             raise ValueError("a second RC element needs a positive tau2")
         if self.rc_hold not in ("capacitance", "tau"):
             raise ValueError("rc_hold is 'capacitance' or 'tau'")
+        tables = (self.r_soc, self.r_temp_c, self.r0_table, self.r1_table, self.tau1_table)
+        if any(len(t) for t in tables):
+            if not all(len(t) for t in tables):
+                raise ValueError("r_soc, r_temp_c, r0_table, r1_table and tau1_table are given together")
+            _ = self.tables  # checks the shapes
+        if len(self.hyst_soc) != len(self.hyst_table) or np.any(np.diff(np.asarray(self.hyst_soc, dtype=float)) <= 0):
+            raise ValueError("hyst_table needs one value per point of hyst_soc, which must increase")
+
+    @cached_property
+    def tables(self) -> "ResistanceTables | None":
+        return ResistanceTables(self) if len(self.r0_table) else None
+
+    def resistances(self, soc, temp_c):
+        """``(r0, r1, tau1)`` of one new cell (ohm, ohm, s) at these states of charge and temperatures."""
+        if self.tables is not None:
+            return self.tables(soc, temp_c)
+        s0 = temperature_factor(self.ea_r0_j_mol, temp_c, self.t_ref_c)
+        s1 = temperature_factor(self.ea_r1_j_mol, temp_c, self.t_ref_c)
+        tau = self.tau1_s * (np.ones_like(s1) if self.rc_hold == "tau" else s1)
+        return self.r0_ohm * s0, self.r1_ohm * s1, tau
+
+    def hyst_bound(self, soc):
+        """The largest hysteresis voltage (V per cell) at these states of charge."""
+        if len(self.hyst_table):
+            return np.interp(soc, self.hyst_soc, self.hyst_table)
+        return np.full(np.shape(soc), float(self.hyst_v))
+
+
+class ResistanceTables:
+    """``r0``, ``r1`` and ``tau1`` against state of charge and temperature (``CellModel``'s tables)."""
+
+    def __init__(self, cell: CellModel) -> None:
+        self.soc = np.asarray(cell.r_soc, dtype=float)
+        self.temp = np.asarray(cell.r_temp_c, dtype=float)
+        if np.any(np.diff(self.soc) <= 0) or np.any(np.diff(self.temp) <= 0):
+            raise ValueError("r_soc and r_temp_c must increase")
+        stack = [np.asarray(t, dtype=float) for t in (cell.r0_table, cell.r1_table, cell.tau1_table)]
+        if any(t.shape != (len(self.temp), len(self.soc)) for t in stack):
+            raise ValueError("a resistance table needs one row per temperature and one column per state of charge")
+        if min(float(t.min()) for t in stack[:2]) < 0 or float(stack[2].min()) <= 0:
+            raise ValueError("table resistances must not be negative, time constants must be positive")
+        self._flat = np.stack(stack).reshape(3, -1)
+        self._n = len(self.soc)
+        self._t0, self._t1 = float(self.temp[0]), float(self.temp[-1])
+        self.ea0, self.ea1 = cell.ea_r0_j_mol, cell.ea_r1_j_mol
+        self.hold_tau = cell.rc_hold == "tau"
+
+    @staticmethod
+    def _place(points: np.ndarray, x: np.ndarray):
+        """The interval's two indices and the weight of the upper one; flat beyond the ends."""
+        if len(points) == 1:
+            lo = np.zeros(np.shape(x), dtype=int)
+            return lo, lo, 0.0
+        hi = np.minimum(np.maximum(points.searchsorted(x, side="right"), 1), len(points) - 1)
+        lo = hi - 1
+        w = (x - points[lo]) / (points[hi] - points[lo])
+        return lo, hi, np.minimum(np.maximum(w, 0.0), 1.0)
+
+    def __call__(self, soc, temp_c):
+        soc, t = np.broadcast_arrays(np.asarray(soc, dtype=float), np.asarray(temp_c, dtype=float))
+        tc = np.minimum(np.maximum(t, self._t0), self._t1)
+        a, b, w = self._place(self.soc, soc)
+        f = self._flat
+        if len(self.temp) == 1:
+            r0, r1, tau = f.take(a, axis=1) * (1.0 - w) + f.take(b, axis=1) * w
+        else:
+            c, d, u = self._place(self.temp, tc)
+            c, d = c * self._n, d * self._n
+            cold = f.take(c + a, axis=1) * (1.0 - w) + f.take(c + b, axis=1) * w
+            warm = f.take(d + a, axis=1) * (1.0 - w) + f.take(d + b, axis=1) * w
+            r0, r1, tau = cold * (1.0 - u) + warm * u
+        if (t != tc).any():  # beyond the table: the Arrhenius form from the nearest row
+            s1 = temperature_factor(self.ea1, t, tc)
+            r0 = r0 * temperature_factor(self.ea0, t, tc)
+            r1 = r1 * s1
+            if not self.hold_tau:
+                tau = tau * s1
+        return r0, r1, tau
 
 
 class OcvCurve:
@@ -112,7 +211,7 @@ class OcvCurve:
         return f
 
 
-def temperature_factor(ea_j_mol, temp_c, t_ref_c: float = 25.0):
+def temperature_factor(ea_j_mol, temp_c, t_ref_c=25.0):
     """``(T / T_ref) exp(Ea / R (1 / T - 1 / T_ref))``: 1 at the reference temperature,
     above 1 when colder (Ecker et al. 2015, Eq. 2 inverted). ``Ea = 0`` gives exactly 1."""
     ea = np.asarray(ea_j_mol, dtype=float)
@@ -171,6 +270,11 @@ def _hyst_integral(h0, h_inf, beta, t):
     return h_inf * t + (h0 - h_inf) * frac
 
 
+def _has_h(params: GroupParams):
+    """Where the hysteresis voltage moves: also where the bound is 0 at this state of charge (it then decays)."""
+    return (params.h_max > 0) | (params.kappa > 0)
+
+
 def _targets(params: GroupParams, current, i_soc):
     has2 = params.r2 > 0
     t2 = np.where(has2, params.tau2, 1.0)
@@ -190,8 +294,9 @@ def trajectory(state: GroupState, params: GroupParams, ocv: OcvCurve, current, i
     target1, target2, t2, has2, beta, h_inf = _targets(params, current, i_soc)
     soc = state.soc + i_soc * t / (3600.0 * params.capacity_ah)
     p1 = _rc(state.p1, target1, params.tau1, t)
-    p2 = np.where(has2, _rc(state.p2, target2, t2, t), 0.0)
-    h = np.where(params.h_max > 0, _hyst(state.h, h_inf, beta, t), state.h)
+    p2 = np.where(has2, _rc(state.p2, target2, t2, t), 0.0) if has2.any() else 0.0
+    has_h = _has_h(params)
+    h = np.where(has_h, _hyst(state.h, h_inf, beta, t), state.h) if has_h.any() else state.h
     v = ocv(soc) * params.series + h + current * params.r0 + p1 + p2
     return soc, v
 
@@ -215,13 +320,15 @@ def advance(state: GroupState, params: GroupParams, ocv: OcvCurve, current, i_so
     dur = float(duration)
     soc1 = state.soc + i_soc * dur / (3600.0 * params.capacity_ah)
     p1 = _rc(state.p1, target1, params.tau1, dur)
-    p2 = np.where(has2, _rc(state.p2, target2, t2, dur), 0.0)
-    has_h = params.h_max > 0
-    h1 = np.where(has_h, _hyst(state.h, h_inf, beta, dur), state.h)
+    two = has2.any()
+    p2 = np.where(has2, _rc(state.p2, target2, t2, dur), 0.0) if two else np.zeros_like(p1)
+    has_h = _has_h(params)
+    hyst = has_h.any()
+    h1 = np.where(has_h, _hyst(state.h, h_inf, beta, dur), state.h) if hyst else state.h
 
     ip1 = _rc_integral(state.p1, target1, params.tau1, dur)
-    ip2 = np.where(has2, _rc_integral(state.p2, target2, t2, dur), 0.0)
-    ih = np.where(has_h, _hyst_integral(state.h, h_inf, beta, dur), state.h * dur)
+    ip2 = np.where(has2, _rc_integral(state.p2, target2, t2, dur), 0.0) if two else 0.0
+    ih = np.where(has_h, _hyst_integral(state.h, h_inf, beta, dur), state.h * dur) if hyst else state.h * dur
     # The open-circuit part: the integral over charge, and over time.
     df = ocv.integral(soc1) - ocv.integral(state.soc)  # V per unit state of charge, per cell
     stored_vs = 3600.0 * params.capacity_ah * df * params.series  # V A s

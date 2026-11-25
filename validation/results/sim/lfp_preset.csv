@@ -1,0 +1,360 @@
+item,temp_c,soc,value,unit,file,method
+capacity,25,,302.309,Ah,LIC_capacity_analysis.csv,read
+charge of the C/10 charge run,25,,302.649,Ah,25C_capacity.csv,"current times time, with the tail"
+charge of the C/10 discharge run,25,,302.301,Ah,25C_capacity.csv,current times time
+largest change made to keep the curve from falling,25,,0,mV,25C_capacity.csv,pool adjacent violators
+curve points,25,,70,,25C_capacity.csv,"2.5 % steps, then within 1 mV"
+ea_r0,,,21136.2,J/mol,LIC_hppc_analysis.csv,fit of ln(R/T) against 1/T
+ea_r0 RMS misfit,,,0.0227248,relative,LIC_hppc_analysis.csv,fit of ln(R/T) against 1/T
+ea_r1,,,16142.1,J/mol,LIC_hppc_analysis.csv,fit of ln(R/T) against 1/T
+ea_r1 RMS misfit,,,0.0508584,relative,LIC_hppc_analysis.csv,fit of ln(R/T) against 1/T
+spread of ln tau1 over temperature,,,0.0735486,,LIC_hppc_analysis.csv,mean of the standard deviations per state of charge
+spread of ln c1 over temperature,,,0.209824,,LIC_hppc_analysis.csv,mean of the standard deviations per state of charge
+r0,15,0.05,0.000585969,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.15,0.000578591,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.25,0.000582763,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.35,0.000589202,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.45,0.000589589,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.55,0.000583462,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.65,0.000563085,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.75,0.000556825,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.85,0.0005518,ohm,LIC_hppc_analysis.csv,read
+r0,15,0.95,0.00053938,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.05,0.000432359,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.15,0.0004254,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.25,0.000426085,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.35,0.000432361,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.45,0.000428743,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.55,0.000424273,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.65,0.000413965,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.75,0.000411854,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.85,0.000410185,ohm,LIC_hppc_analysis.csv,read
+r0,25,0.95,0.000403353,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.05,0.000353681,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.15,0.000348942,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.25,0.000347963,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.35,0.000349355,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.45,0.000347824,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.55,0.00034531,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.65,0.000341822,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.75,0.000340843,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.85,0.00034001,ohm,LIC_hppc_analysis.csv,read
+r0,35,0.95,0.000337357,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.05,0.000259533,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.15,0.000187842,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.25,0.000164483,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.35,0.000149941,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.45,0.00014839,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.55,0.000140003,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.65,0.000125689,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.75,0.000131732,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.85,0.000122449,ohm,LIC_hppc_analysis.csv,read
+r1,15,0.95,0.00010612,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.05,0.000187546,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.15,0.000160366,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.25,0.000146265,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.35,0.000132541,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.45,0.000131841,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.55,0.000124241,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.65,0.000111563,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.75,0.000116942,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.85,0.000108909,ohm,LIC_hppc_analysis.csv,read
+r1,25,0.95,9.56e-05,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.05,0.000130222,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.15,0.00012468,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.25,0.000117448,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.35,0.000108022,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.45,0.000106809,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.55,0.000100004,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.65,9.28e-05,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.75,9.44e-05,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.85,8.7e-05,ohm,LIC_hppc_analysis.csv,read
+r1,35,0.95,7.82e-05,ohm,LIC_hppc_analysis.csv,read
+c1,15,0.05,186633,F,LIC_hppc_analysis.csv,read
+c1,15,0.15,270626,F,LIC_hppc_analysis.csv,read
+c1,15,0.25,354157,F,LIC_hppc_analysis.csv,read
+c1,15,0.35,433356,F,LIC_hppc_analysis.csv,read
+c1,15,0.45,325417,F,LIC_hppc_analysis.csv,read
+c1,15,0.55,316784,F,LIC_hppc_analysis.csv,read
+c1,15,0.65,727111,F,LIC_hppc_analysis.csv,read
+c1,15,0.75,403810,F,LIC_hppc_analysis.csv,read
+c1,15,0.85,368911,F,LIC_hppc_analysis.csv,read
+c1,15,0.95,478185,F,LIC_hppc_analysis.csv,read
+c1,25,0.05,233832,F,LIC_hppc_analysis.csv,read
+c1,25,0.15,272949,F,LIC_hppc_analysis.csv,read
+c1,25,0.25,319350,F,LIC_hppc_analysis.csv,read
+c1,25,0.35,472456,F,LIC_hppc_analysis.csv,read
+c1,25,0.45,354203,F,LIC_hppc_analysis.csv,read
+c1,25,0.55,366699,F,LIC_hppc_analysis.csv,read
+c1,25,0.65,971221,F,LIC_hppc_analysis.csv,read
+c1,25,0.75,450769,F,LIC_hppc_analysis.csv,read
+c1,25,0.85,422448,F,LIC_hppc_analysis.csv,read
+c1,25,0.95,531782,F,LIC_hppc_analysis.csv,read
+c1,35,0.05,510134,F,LIC_hppc_analysis.csv,read
+c1,35,0.15,452922,F,LIC_hppc_analysis.csv,read
+c1,35,0.25,451415,F,LIC_hppc_analysis.csv,read
+c1,35,0.35,659335,F,LIC_hppc_analysis.csv,read
+c1,35,0.45,498246,F,LIC_hppc_analysis.csv,read
+c1,35,0.55,532336,F,LIC_hppc_analysis.csv,read
+c1,35,0.65,1.27174e+06,F,LIC_hppc_analysis.csv,read
+c1,35,0.75,585181,F,LIC_hppc_analysis.csv,read
+c1,35,0.85,543278,F,LIC_hppc_analysis.csv,read
+c1,35,0.95,689597,F,LIC_hppc_analysis.csv,read
+tau1,15,0.05,48.4374,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.15,50.835,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.25,58.2528,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.35,64.9778,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.45,48.2886,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.55,44.3507,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.65,91.3898,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.75,53.1947,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.85,45.1727,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,15,0.95,50.745,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.05,43.8543,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.15,43.7718,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.25,46.7097,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.35,62.6198,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.45,46.6984,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.55,45.5591,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.65,108.352,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.75,52.7138,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.85,46.0084,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,25,0.95,50.8383,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.05,66.4306,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.15,56.4703,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.25,53.0178,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.35,71.2227,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.45,53.2171,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.55,53.2357,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.65,118.018,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.75,55.2411,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.85,47.2652,s,LIC_hppc_analysis.csv,r1 times c1
+tau1,35,0.95,53.9265,s,LIC_hppc_analysis.csv,r1 times c1
+ocv,25,0,2.61517,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0,0.0807178,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.001,2.66026,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.001,0.07588,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.002,2.70295,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.002,0.0695582,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.003,2.73522,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.003,0.0657648,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.004,2.76195,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.004,0.0633289,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.005,2.78521,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.005,0.0614917,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.006,2.80605,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.006,0.05993,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.008,2.8424,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.008,0.0572755,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.009,2.85848,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.009,0.0561168,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.011,2.88744,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.011,0.0540572,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.013,2.91298,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.013,0.0522797,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.015,2.93586,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.015,0.0507263,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.017,2.95661,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.017,0.0493543,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.02,2.98452,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.02,0.047563,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.025,3.02445,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.025,0.0451206,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.031,3.06441,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.031,0.0428304,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.037,3.09805,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.037,0.0410337,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.043,3.12688,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.043,0.0396228,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.05,3.15546,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.05,0.0385525,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.056,3.17556,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.056,0.0386042,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.062,3.19036,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.062,0.039913,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.067,3.19724,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.067,0.0401304,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.075,3.20202,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.075,0.0386909,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.1,3.20887,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.1,0.0366388,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.125,3.2153,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.125,0.0378444,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.136,3.21971,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.136,0.0384181,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.15,3.22851,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.15,0.0373171,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.175,3.24266,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.175,0.0381634,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.2,3.25537,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.2,0.0387672,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.225,3.26548,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.225,0.0391331,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.25,3.27421,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.25,0.0410563,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.275,3.28043,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.275,0.040959,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.3,3.28529,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.3,0.0395566,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.325,3.28838,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.325,0.0375264,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.35,3.29064,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.35,0.0357607,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.375,3.29253,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.375,0.034463,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.4,3.29421,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.4,0.0334954,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.425,3.29577,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.425,0.0328217,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.45,3.29726,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.45,0.0324219,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.475,3.29872,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.475,0.0322766,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.5,3.30024,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.5,0.0323608,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.525,3.30192,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.525,0.0326919,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.55,3.30393,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.55,0.0333264,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.575,3.30658,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.575,0.0344332,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.6,3.3106,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.6,0.0361979,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.625,3.31722,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.625,0.0385064,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.65,3.32501,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.65,0.038247,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.675,3.3305,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.675,0.0351625,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.7,3.33392,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.7,0.0330723,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.725,3.33625,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.725,0.0319911,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.75,3.33794,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.75,0.0313795,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.775,3.33924,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.775,0.030995,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.8,3.34038,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.8,0.0308278,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.825,3.34153,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.825,0.0309186,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.85,3.34278,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.85,0.0312905,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.875,3.34421,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.875,0.0320225,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.9,3.34591,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.9,0.0331574,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.925,3.34811,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.925,0.0349206,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.95,3.3514,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.95,0.0380003,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.975,3.35814,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.975,0.0450333,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.983,3.36295,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.983,0.0502392,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.988,3.36854,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.988,0.0561186,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.992,3.37761,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.992,0.0646752,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.994,3.38671,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.994,0.0717904,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.995,3.39381,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.995,0.0766835,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.996,3.40378,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.996,0.083138,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.997,3.41799,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.997,0.0918792,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.998,3.43855,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.998,0.103815,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,0.999,3.46865,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,0.999,0.118686,V,25C_capacity.csv,half of the difference less R0 times the current
+ocv,25,1,3.50242,V,25C_capacity.csv,mean of the C/10 charge and discharge
+hysteresis bound,25,1,0.131318,V,25C_capacity.csv,half of the difference less R0 times the current
+RMS error at hyst_rate 0,,,75.4236,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1,,,27.2627,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.101,,,26.3339,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.212,,,25.5286,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.334,,,24.8236,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.468,,,24.1947,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.616,,,23.6172,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.778,,,23.0798,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1.957,,,22.5683,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2.154,,,22.0837,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2.371,,,21.6311,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2.61,,,21.2207,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2.873,,,20.8651,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 3.162,,,20.5755,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 3.481,,,20.3585,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 3.831,,,20.218,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 4.217,,,20.1506,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 4.642,,,20.15,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 5.109,,,20.2062,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 5.623,,,20.3083,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 6.19,,,20.4455,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 6.813,,,20.6073,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 7.499,,,20.7851,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 8.254,,,20.9717,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 9.085,,,21.1608,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 10,,,21.3471,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 11.01,,,21.5265,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 12.12,,,21.6941,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 13.34,,,21.8462,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 14.68,,,21.9798,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 16.16,,,22.093,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 17.78,,,22.183,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 19.57,,,22.2495,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 21.54,,,22.2915,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 23.71,,,22.3095,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 26.1,,,22.304,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 28.73,,,22.2763,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 31.62,,,22.2276,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 34.81,,,22.159,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 38.31,,,22.0721,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 42.17,,,21.9672,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 46.42,,,21.8451,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 51.09,,,21.7063,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 56.23,,,21.5506,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 61.9,,,21.3774,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 68.13,,,21.1873,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 74.99,,,20.9795,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 82.54,,,20.7539,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 90.85,,,20.5103,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 100,,,20.2486,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 110.1,,,19.9683,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 121.2,,,19.6711,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 133.4,,,19.3581,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 146.8,,,19.0311,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 161.6,,,18.6908,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 177.8,,,18.3435,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 195.7,,,17.9906,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 215.4,,,17.6392,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 237.1,,,17.2967,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 261,,,16.9722,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 287.3,,,16.6772,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 316.2,,,16.4248,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 348.1,,,16.2281,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 383.1,,,16.1036,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 421.7,,,16.0656,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 464.2,,,16.1286,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 510.9,,,16.3034,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 562.3,,,16.5974,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 619,,,17.014,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 681.3,,,17.5482,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 749.9,,,18.1921,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 825.4,,,18.9315,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 908.5,,,19.7487,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1000,,,20.6234,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1100.7,,,21.5329,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1211.5,,,22.4543,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1333.5,,,23.3658,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1467.8,,,24.2465,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1615.6,,,25.0775,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1778.3,,,25.8436,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 1957.3,,,26.5325,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2154.4,,,27.1369,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2371.4,,,27.6532,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2610.2,,,28.0816,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 2873,,,28.4266,mV,15C_hppc.csv 25C_hppc.csv 35C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 421.7,15,,15.3998,mV,15C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 421.7,25,,15.179,mV,25C_hppc.csv,"10-90 %, sample by sample"
+RMS error at hyst_rate 421.7,35,,17.5145,mV,35C_hppc.csv,"10-90 %, sample by sample"

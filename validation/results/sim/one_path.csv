@@ -1,0 +1,11 @@
+check,quantity,published,one_path
+V6,"V6: the band holds the expected usable fade (V6's rule, 85-95 %)",152 of 200 (76.0%),109 of 200 (54.5%)
+V6,"expected usable fade, points per year",-1.875,-1.875
+V6,information: the band holds the fade between the mean rest voltages,167 of 200 (83.5%),175 of 200 (87.5%)
+V6,"mean of estimate - fade between the mean rest voltages, points per year",+0.011,+0.000
+X3,"X3: the band at the date holds the charge between the stops (X3's rule, 85-95 %)",2278 of 4782 (47.6%),2285 of 4782 (47.8%)
+X3,"X3: mean lag, points (limit 2 sd / sqrt(n))",+0.473 (+-0.040),+0.474 (+-0.040)
+X3,information: the band holds the charge between the read-at rest voltages,4248 of 4562 (93.1%),3827 of 4569 (83.8%)
+X3,"information: its mean lag, points",-0.037 (+-0.038),-0.119 (+-0.038)
+W7,"W7: the band holds the true apparent charge loss (W7's rule, 85-95 %)",188 of 200 (94.0%),183 of 200 (91.5%)
+W7,"W7: mean error, mA (sd over packs)",-0.03 (0.19),-0.06 (0.23)

@@ -1,0 +1,67 @@
+# Case 1, overheating: 14 groups of the NMC cell scaled to 100 Ah, a thermal network with a fan that fails on
+# a random day in months 13-30, a summer afternoon of 35 degrees C, derating and a stop on temperature.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "overheating"
+description = "Heat from losses, a fan that fails, a hot summer, derating; the sensor sits at the housing"
+start = "2020-01-01"
+months = 36
+step_s = 10
+update_s = 1800  # the parameters follow state of charge and temperature
+cell_every_s = 600
+chemistry = "NMC"
+pack_name = "besslib overheating pack"
+
+[cell]
+preset = "nmc"
+scale_to_ah = 100.0
+ea_r0_j_mol = 17120.0  # Ecker et al. 2015 (doi:10.1149/2.0551509jes), measured on another cell, as in demo.toml
+ea_r1_j_mol = 53400.0
+rc_hold = "capacitance"
+
+[pack]
+groups = 14
+series = 1
+fade_points_per_year = 2.0  # example value, not from a source
+
+[thermal]
+mode = "network"
+c_group_j_k = 2000.0  # example value, not from a source
+c_housing_j_k = 20000.0  # example value, not from a source
+g_group_housing_w_k = 1.0  # example value, not from a source
+g_neighbour_w_k = 0.5  # example value, not from a source
+g_group_air_w_k = 0.0085  # example value, not from a source
+g_housing_air_w_k = 0.15  # example value, not from a source
+sensor = "housing"
+
+# Ambient: the warmest day is day 200 at 15:00, so the summer afternoon reaches mean + season + day = 35 degrees C.
+[temperature.ambient]
+mean_c = 20.0  # example value, not from a source
+season_amp_c = 8.0  # example value, not from a source
+daily_amp_c = 7.0  # example value, not from a source
+
+[bms]
+v_cell_max = 4.15  # example value, not from a source
+v_cell_min = 3.20  # example value, not from a source
+stop_sigma_v = 0.005  # example value, not from a source
+stop_rule = "cells"
+supply_a = 0.05  # example value, not from a source
+derate = [[45.0, 1.0, 1.0], [55.0, 0.0, 0.0]]  # (temperature, charge C-rate, discharge C-rate): to zero from 45 to 55 degrees C; # example value, not from a source
+stop_temp_c = 60.0  # example value, not from a source
+
+[[event]]
+kind = "fan_failure"
+from_month = 13
+to_month = 30
+factor = 0.25  # the air conductances fall to a quarter; # example value, not from a source
+
+[duty]
+kind = "home"
+capacity_ah = 100.0
+
+# Sensor temperature noise is 0 in this case: the hours per band are counted from the sensor's trace.
+[sensors]
+current_gain_max = 0.005
+current_noise_a = 0.05
+voltage_noise_v = 0.005
+voltage_gain_max = 0.0025

@@ -1,0 +1,63 @@
+# Case 5, the utility string: 396 groups (cells in series) of the LFP cell scaled to 280 Ah, the size of
+# Delta's "396S-1P" string, with a capacity spread over the cells, balancing on, and the sensors at Delta's
+# stated accuracy. The same duty, calibration settings, months and seeds as grid-duty.
+# Delta's stated accuracy (voltage +-0.5 %, current +-1 %, temperature +-2 degrees C) is taken as the bounds of a
+# constant error drawn per string: the reading of this library, not Delta's.
+# Simplification, said here: no BMS supply and no self-discharge, as in grid-duty.
+# Every value is an example value, not from a source, unless a comment says otherwise.
+[case]
+name = "grid-string"
+description = "A string of 396 LFP cells of 280 Ah on grid duty, with a capacity spread, balancing and field-grade sensors"
+start = "2020-01-01"
+months = 36
+step_s = 10
+sample_s = 10
+cell_every_s = 86400
+update_s = 1800
+chemistry = "LFP"
+nominal_cell_v = 3.2
+pack_name = "besslib string"
+per_cell_truth = true  # the truth's steps table also gives the voltage per cell and the current as a C-rate
+
+[cell]
+preset = "lfp"
+scale_to_ah = 280.0
+
+[pack]
+groups = 396
+series = 1
+capacity_spread_sd = 0.01  # example value, not from a source
+fade_points_per_year = 2.0  # example value, not from a source
+
+[thermal]
+mode = "prescribed"
+
+[temperature.pack]
+mean_c = 25.0
+
+[temperature.ambient]
+mean_c = 25.0
+
+[bms]
+v_cell_max = 3.60  # example value, not from a source
+v_cell_min = 2.80  # example value, not from a source
+stop_sigma_v = 0.005  # example value, not from a source
+stop_rule = "cells"
+supply_a = 0.0
+balance = true
+balance_v = 3.45  # example value, not from a source
+balance_spread_v = 0.010  # example value, not from a source
+bleed_ohm = 20.0  # example value, not from a source
+
+[duty]
+kind = "grid"
+capacity_ah = 280.0
+calibration_days = 7
+calibration_hours = 6.0
+
+[sensors]
+current_gain_max = 0.01
+voltage_gain_max = 0.005
+temp_offset_max_c = 2.0
+current_noise_a = 0.2  # example value, not from a source
+voltage_noise_v = 0.05  # example value, not from a source
