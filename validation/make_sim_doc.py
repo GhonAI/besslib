@@ -282,7 +282,10 @@ def findings(ctx: dict) -> list[dict]:
                    + " of the true capacity. It takes the edges of the daily window for full and empty.", "T5a")
         c7 = g[g["setting"].isin(["lfp-7", "string-7"])]
         if len(c7) and c7["mean_error_rest_ah"].notna().any():
-            add(5, "**A weekly full charge does not repair it on LFP**: the estimate lies " + " and ".join(
+            add(5, "**A weekly full charge does not repair it on any of the three**: the estimate is a median "
+                + ", ".join(f"{p['estimate_over_true_capacity'].median():.0%} ({k.upper() if k != 'string' else 'string'})"
+                            for k in ("nmc", "lfp", "string") for p in [g[g["setting"] == f"{k}-7"]] if len(p))
+                + " of the true capacity. On LFP it also lies " + " and ".join(
                 f"{abs(p['mean_error_rest_ah'].mean()):.0f} Ah {'below' if p['mean_error_rest_ah'].mean() < 0 else 'above'} T_rest ({name})"
                 for k, name in (("lfp", "16 cells of 280 Ah"), ("string", "the 396-cell string")) for p in [g[g['setting'] == f'{k}-7']] if len(p))
                 + ". The empty end is never reached.", "T5b")

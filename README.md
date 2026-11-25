@@ -152,7 +152,7 @@ Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every resu
 ## Limits
 
 1. **The capacity band does not hold the charge between the BMS stops.** On 200 synthetic packs the monthly 90 % band held the charge between the stops at the date in 2278 of 4782 month ends (48 %). It held the capacity between the rest voltages it reports in 4248 of 4562 (93 %), against a truth chosen after the first results.
-2. **Partial windows are not covered.** Storage that works at a middle state of charge gives no full-to-empty pairs and so no capacity. This comes after the pack simulator (besslib.sim).
+2. **Storage at a middle state of charge gets a wrong capacity.** Do not use the capacity (A1) on storage that works at a middle state of charge. Version 0.2 takes the edges of the daily window for full and empty and reports the charge between them as the capacity, with the status `estimated`. On simulated packs cycled daily between 25 and 75 % it reports a median 51 to 56 % of the true capacity (9 settings of 200 packs: a full charge every week, every month or never).
 3. Already published on the pages: the method needs regular full cycles; the first year of a record gives no capacity estimate; apparent charge loss is an upper bound for self-discharge; efficiency is DC at the battery terminals; resistance is a short-pulse value, not the impedance-spectroscopy one.
 
 Fixed in version 0.2, by the same rules: A4 bias, capacity at or below zero, power capability without resistance ([limits](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md)).

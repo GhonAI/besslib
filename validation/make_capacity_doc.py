@@ -1422,7 +1422,8 @@ def limits_block(ctx: dict, months: pd.DataFrame) -> list[str]:
         + ("; ".join(f"{reason}: {n}" for reason, n in reasons.items()) if len(reasons) else "none") + ".",
         "This is the designed answer: where the operation gives too few full and empty rests, the output says so and gives no value.",
         "This version covers home storage that reaches full and empty regularly. Storage that works at a middle state of",
-        "charge, or only in partial windows, gives no full-to-empty pairs and therefore no estimate.",
+        "charge, or only in partial windows, is not covered, and version 0.2 does not refuse it: it reads the edges of the",
+        "daily window as full and empty and gives too low a capacity ([limits](limits.md), [simulator](05_simulator.md)).",
         "",
     ]
     lag = ctx["lag"]

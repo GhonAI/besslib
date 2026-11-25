@@ -23,6 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from besslib.io import figgener
+from besslib.sim.duty import GridDuty
 from besslib.soh import _core
 from besslib.soh.config import CapacityConfig
 
@@ -222,20 +223,41 @@ def limit_band() -> dict:
     }
 
 
+def mid_range_text() -> str:
+    """What version 0.2 does on simulated mid-range storage (docs/05, case 5), from the results file."""
+    table = pd.read_csv(RESULTS / "sim" / "grid.csv")
+    table = table[table["seed_set"] == "held-out"]
+    if not (table["estimated_months"] > 0).all():
+        sys.exit("make_limits: a simulated grid-duty pack has no estimate; the sentence does not hold")
+    runs = table.groupby("setting")["estimate_over_true_capacity"]
+    share = runs.median() * 100
+    sizes = set(runs.size())
+    if len(sizes) != 1 or (share >= 100).any():
+        sys.exit("make_limits: the grid-duty settings do not support the sentence")
+    return (
+        "Do not use the capacity (A1) on storage that works at a middle state of charge. Version 0.2 takes the edges of the "
+        "daily window for full and empty and reports the charge between them as the capacity, with the status `estimated`. "
+        f"On simulated packs cycled daily between {GridDuty.cycle_low * 100:g} and {GridDuty.cycle_high * 100:g} % it reports "
+        f"a median {share.min():.0f} to {share.max():.0f} % of the true capacity ({len(share)} settings of {sizes.pop()} packs: "
+        "a full charge every week, every month or never)."
+    )
+
+
 def limit_partial_windows() -> dict:
-    text = ("Storage that works at a middle state of charge gives no full-to-empty pairs and so no capacity. "
-            "This comes after the pack simulator (besslib.sim).")  # fmt: skip
+    text = mid_range_text()
     return {
-        "title": "Partial windows are not covered",
+        "title": "Storage at a middle state of charge gets a wrong capacity",
         "short": "partial windows",
-        "what": "Systems without regular full cycles need the partial-window form of the capacity fit (Plett's form).",
+        "what": "Version 0.2 does not recognise storage that works in partial windows, and does not refuse it. Systems without "
+                "regular full cycles need the partial-window form of the capacity fit (Plett's form).",
         "found": text,
         "readme": text,
         "fixed": False,
-        "rule": "None: a method limit, not a finding.",
-        "status": "After the pack simulator, which tests it at middle state of charge.",
-        "systems": "method",
-        "files": "",
+        "rule": "The A1 estimate over the true capacity, median per setting, in case 5 of the pack simulator "
+                "([page](05_simulator.md#5-grid-duty-at-middle-state-of-charge)).",
+        "status": "Open: neither a refusal nor the partial-window form is built.",
+        "systems": "simulated packs",
+        "files": "validation/results/sim/grid.csv",
     }
 
 

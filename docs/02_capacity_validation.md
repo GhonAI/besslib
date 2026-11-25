@@ -463,7 +463,8 @@ band widens as they age, but no new measurement enters. The figures show these m
 **Tests without an estimate, by reason** (systems with results): not possible: no levels yet: 8; not possible: too few full-empty pairs: 6; not possible: no full-empty pair within the memory time: 1.
 This is the designed answer: where the operation gives too few full and empty rests, the output says so and gives no value.
 This version covers home storage that reaches full and empty regularly. Storage that works at a middle state of
-charge, or only in partial windows, gives no full-to-empty pairs and therefore no estimate.
+charge, or only in partial windows, is not covered, and version 0.2 does not refuse it: it reads the edges of the
+daily window as full and empty and gives too low a capacity ([limits](limits.md), [simulator](05_simulator.md)).
 
 **The band is on the capacity between two rest voltages, not on the charge between the BMS stops.** The trend term
 reads the value at the date. On 200 synthetic packs the band held the capacity between the rest voltages at

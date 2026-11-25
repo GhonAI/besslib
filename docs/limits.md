@@ -12,12 +12,13 @@ Every number on this page is written by `validation/make_limits.py` from the res
 - **File:** `validation/results/synthetic_lag.csv`
 - **Status:** A band term for the drift of the stops is planned. It will be tested first on the pack simulator. See the [version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with).
 
-### 2. Partial windows are not covered
+### 2. Storage at a middle state of charge gets a wrong capacity
 
-- **What:** Systems without regular full cycles need the partial-window form of the capacity fit (Plett's form).
-- **The number:** Storage that works at a middle state of charge gives no full-to-empty pairs and so no capacity. This comes after the pack simulator (besslib.sim).
-- **The rule that found it:** None: a method limit, not a finding.
-- **Status:** After the pack simulator, which tests it at middle state of charge.
+- **What:** Version 0.2 does not recognise storage that works in partial windows, and does not refuse it. Systems without regular full cycles need the partial-window form of the capacity fit (Plett's form).
+- **The number:** Do not use the capacity (A1) on storage that works at a middle state of charge. Version 0.2 takes the edges of the daily window for full and empty and reports the charge between them as the capacity, with the status `estimated`. On simulated packs cycled daily between 25 and 75 % it reports a median 51 to 56 % of the true capacity (9 settings of 200 packs: a full charge every week, every month or never).
+- **The rule that found it:** The A1 estimate over the true capacity, median per setting, in case 5 of the pack simulator ([page](05_simulator.md#5-grid-duty-at-middle-state-of-charge)).
+- **File:** `validation/results/sim/grid.csv`
+- **Status:** Open: neither a refusal nor the partial-window form is built.
 
 ## Fixed in version 0.2
 
