@@ -1,0 +1,241 @@
+{
+ "_note": "address is the absolute register address; expect is written by hand (ok, or the Modbus exception code); the result next to it is the encoder's, written by make_vectors.py. Values assume SoC_SF = -2.",
+ "state": "ordinary",
+ "requests": [
+  {
+   "what": "SoCRsvMin 5 to 30 %",
+   "address": 40080,
+   "values": [
+    3000
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SoCRsvMin above SocRsvMax",
+   "address": 40080,
+   "values": [
+    9600
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SoCRsvMin above 100 %",
+   "address": 40080,
+   "values": [
+    10001
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SocRsvMax 95 to 80 %",
+   "address": 40079,
+   "values": [
+    8000
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SocRsvMax below SoCRsvMin",
+   "address": 40079,
+   "values": [
+    400
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SocRsvMax not implemented value",
+   "address": 40079,
+   "values": [
+    65535
+   ],
+   "expect": 3
+  },
+  {
+   "what": "both reserves in one write",
+   "address": 40079,
+   "values": [
+    9000,
+    1000
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SetOp disconnect",
+   "address": 40120,
+   "values": [
+    2
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SetOp connect",
+   "address": 40120,
+   "values": [
+    1
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SetOp 3",
+   "address": 40120,
+   "values": [
+    3
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SetOp 0",
+   "address": 40120,
+   "values": [
+    0
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SetInvState standby",
+   "address": 40121,
+   "values": [
+    2
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SetInvState 4",
+   "address": 40121,
+   "values": [
+    4
+   ],
+   "expect": 3
+  },
+  {
+   "what": "AlmRst 1",
+   "address": 40090,
+   "values": [
+    1
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "AlmRst 0 does nothing",
+   "address": 40090,
+   "values": [
+    0
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "AlmRst 2",
+   "address": 40090,
+   "values": [
+    2
+   ],
+   "expect": 3
+  },
+  {
+   "what": "CtrlHb and AlmRst in one write",
+   "address": 40089,
+   "values": [
+    3,
+    1
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "DA its own value",
+   "address": 40068,
+   "values": [
+    1
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "DA another value",
+   "address": 40068,
+   "values": [
+    2
+   ],
+   "expect": 3
+  },
+  {
+   "what": "StrSetEna disable",
+   "address": 40190,
+   "values": [
+    2
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "StrSetCon 3",
+   "address": 40191,
+   "values": [
+    3
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SetEna enable",
+   "address": 40230,
+   "values": [
+    1
+   ],
+   "expect": "ok"
+  },
+  {
+   "what": "SetCon 3",
+   "address": 40231,
+   "values": [
+    3
+   ],
+   "expect": 3
+  },
+  {
+   "what": "SoC is read-only",
+   "address": 40081,
+   "values": [
+    5000
+   ],
+   "expect": 2
+  },
+  {
+   "what": "model 802 ID is read-only",
+   "address": 40070,
+   "values": [
+    802
+   ],
+   "expect": 2
+  },
+  {
+   "what": "serial number is read-only",
+   "address": 40052,
+   "values": [
+    0
+   ],
+   "expect": 2
+  },
+  {
+   "what": "writable and read-only point in one write, nothing is applied",
+   "address": 40080,
+   "values": [
+    3000,
+    5000
+   ],
+   "expect": 2
+  },
+  {
+   "what": "below the map",
+   "address": 39999,
+   "values": [
+    1
+   ],
+   "expect": 2
+  },
+  {
+   "what": "past the end marker",
+   "address": 40260,
+   "values": [
+    1
+   ],
+   "expect": 2
+  }
+ ]
+}

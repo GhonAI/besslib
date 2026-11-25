@@ -27,7 +27,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import besslib
 from besslib import sim
+from besslib.sim.bus import sunspec
 
 import sim_case_cold
 import sim_case_drift
@@ -38,6 +40,7 @@ import sim_s10
 import sim_truth
 from make_capacity_doc import DASH, num
 from make_reference_doc import AXIS, INK, INK2, MUTED, SURFACE, table
+from sim_drift_points import drift_terms
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "validation" / "results"
@@ -54,6 +57,7 @@ PNG = {"Software": None}
 BLUE, ORANGE, GREEN = "#2a78d6", "#eb6834", "#1baf7a"
 CASE_FILES = {"heat": "heat.csv", "imbalance": "imbalance.csv", "leak": "leak.csv", "cold": "cold.csv",
               "grid": "grid.csv", "drift": "drift.csv"}
+DRIFT_SETTING = re.compile(r"D\d+")
 WORD = {"True": "passes", "False": "fails", "": "information"}
 
 plt.rcParams.update({"font.size": 9, "axes.facecolor": SURFACE, "figure.facecolor": SURFACE, "axes.edgecolor": AXIS,
@@ -216,17 +220,6 @@ def fig_grid(t: pd.DataFrame) -> str | None:
     share_bar(axes[0], s, est, BLUE, "A1 estimate over the true capacity, median")
     share_bar(axes[1], s, held, ORANGE, "Band holds T_rest, month ends with a band (T5b)")
     return finish(fig, "05_grid.png")
-
-
-def drift_terms(t: pd.DataFrame) -> pd.DataFrame:
-    """Medians over the tests, per setting, in points of nominal capacity (nominal from the pack rows)."""
-    nominal = t[t["row"] == "pack"].groupby("setting")["nominal_ah"].median()
-    x = t[(t["row"] == "test") & (t["test_status"] == "ok")].copy()
-    x["nominal_ah"] = x["setting"].map(nominal)
-    for a, b, name in (("estimate_ah", "t_rest", "estimator"), ("t_rest", "t_ops", "drift"), ("t_ops", "t_test", "rate"),
-                       ("estimate_ah", "t_test", "miss"), ("t_fixed", "t_rest", "fixed_less_rest")):
-        x[name] = 100.0 * (x[a] - x[b]) / x["nominal_ah"]
-    return x.groupby("setting")[["estimator", "drift", "rate", "miss", "fixed_less_rest"]].median()
 
 
 def fig_drift(t: pd.DataFrame) -> str:
@@ -454,11 +447,65 @@ def drift_tables(ctx: dict) -> list[str]:
     return out
 
 
+def s7_counts(ctx: dict) -> dict | None:
+    """The counts of S7's row in sim_checks.csv (written by ``sim_checks.s7``); None while the row does not exist."""
+    row = ctx["own"][ctx["own"]["check"] == "S7"]
+    if not len(row):
+        return None
+    text = str(row["result"].iloc[0])
+    found = {k: re.search(rf"{k}: (\d+)", text) for k in ("cases", "runs", "points read", "writes", "mismatches",
+                                                               "effects not exercised")}
+    models = re.search(r"models: ([\d, ]+?);", text)
+    if models is None or not all(found.values()):
+        raise SystemExit(f"sim_checks.csv: the S7 row does not read as 'models: ..; cases: N; points read: N; writes: N; mismatches: N': {text}")
+    return {"models": [int(m) for m in models.group(1).split(",")], "cases": int(found["cases"].group(1)),
+            "points": int(found["points read"].group(1)), "writes": int(found["writes"].group(1)),
+            "mismatches": int(found["mismatches"].group(1)), "runs": int(found["runs"].group(1)),
+            "per_read": sum(p.type != "pad" for p in sunspec.points()),
+            "missed": int(found["effects not exercised"].group(1)),
+            "history": text[text.index("The first full run"):] if "The first full run" in text else ""}
+
+
+def bus_section(ctx: dict) -> list[str]:
+    """The bus section: empty while S7 has no row, so the page builds as before."""
+    n = s7_counts(ctx)
+    if n is None:
+        return []
+    names = sim.case_names()
+    unlimited = sum(not sim.load_case(c).get("bms", {}).get("derate") for c in names)
+    return [
+        "## The bus", "",
+        "`python -m besslib.sim serve --case failing-cell --port 5020` shows the pack's BMS as SunSpec models "
+        f"{', '.join(map(str, n['models'][:-1]))} and {n['models'][-1]} over Modbus TCP. The bus never shows the true capacity, the true "
+        "state of charge, the resistances, a leak or a planted event; its voltages, current and temperatures are the simulator's own, "
+        "without sensor errors. It binds to 127.0.0.1 by default, because Modbus has no login. These models hold no power command: a client can connect or "
+        "disconnect the battery and set its state-of-charge reserves. "
+        f"S7: pysunspec2, the SunSpec Alliance's client, made {n['points']} point reads over the {n['per_read']} points of the {len(n['models'])} models on {n['cases']} cases; "
+        f"{n['mismatches']} mismatches. It made {n['writes']} writes in {n['runs']} runs; {n['missed']} of their effects could not be "
+        "tried, because no current flowed for them to act on."
+        + (f" {n['history']}." if n["history"] else ""),
+        "",
+        "S7 checks the encoding and the effect of the set-points; the BMS state is checked against literal values in `tests/test_sim_bus.py`. "
+        f"`WChaRteMax` and `WDisChaRteMax`, mandatory in model 802, read 'not implemented' in the {unlimited} of {len(names)} cases that set no "
+        "current limit. The server needs `pip install \"besslib[modbus]\"`; the simulator and this extra are not in release "
+        f"{besslib.__version__} on PyPI.",
+        "",
+        "SunSpec's model files do not state the sign of A and W; besslib uses positive = discharging on the bus.", "",
+    ]
+
+
 def own_table(ctx: dict) -> list[str]:
     lines = []
     for r in ctx["own"].itertuples():
         if r.check == "S10":
             continue  # its own line below, from s10_lfp.csv
+        if r.check == "S7":
+            n = s7_counts(ctx)
+            lines.append({"Check": "S7", "What": "the SunSpec bus read and written by pysunspec2 over Modbus TCP",
+                          "Result": f"{n['points']} point reads over {n['per_read']} points of {len(n['models'])} models on {n['cases']} cases, {n['writes']} writes, "
+                                    f"{n['mismatches']} mismatches" if n else first(r.result),
+                          "Pass if": first(r.pass_if), "Outcome": word(r.passed)})
+            continue
         what = re.sub(r"\s*\[computed on [^\]]*\]", "", str(r.what)).split(":")[0]
         lines.append({"Check": r.check, "What": what, "Result": first(r.result), "Pass if": first(r.pass_if), "Outcome": word(r.passed)})
     s9 = ctx["checks"][ctx["checks"]["check"] == "S9"]
@@ -517,7 +564,7 @@ def setup_sentences(ctx: dict) -> dict[str, str]:
                 "No BMS supply and no self-discharge, so the BMS's state of charge is exact between calibrations.",
         "drift": f"{d['pack']['series']} {d['cell']['preset'].upper()} cells of {d['cell']['scale_to_ah']:.0f} Ah in series, {d['case']['months']} months, fade "
                  f"{d['pack']['fade_points_per_year']:.0f} points a year. The discharge stop falls linearly from month 12 to month {d['case']['months']} by D mV per "
-                 f"cell of relaxed empty rest voltage ({', '.join(k[1:] for k in sim_case_drift.SETTINGS if re.fullmatch(r'D\d+', k))}). A capacity test "
+                 f"cell of relaxed empty rest voltage ({', '.join(k[1:] for k in sim_case_drift.SETTINGS if DRIFT_SETTING.fullmatch(k))}). A capacity test "
                  f"(charge to full, rest, discharge at {tests['c_discharge']:.2f} C) runs in months 18, 30, 42, 54 and 66; its stop is {low:.3f} V per cell, the "
                  f"median lowest voltage of the field's LMO/NMC tests. The settings {' and '.join(f'`{k}`' for k in onestop)} end the test at the operational "
                  "stop instead. The test's stop and the drift scaling were set after development runs and before any held-out run.",
@@ -642,6 +689,7 @@ def document(ctx: dict) -> str:
         cases += [fig.get(n) or nofig, ""]
         mine = [f for f in found if f["case"] == n]
         cases += shows(found, n) if mine else ["**What this shows.** No finding in this build's rows.", ""]
+    packs = ", ".join(f"{k} {t['seed'].nunique()}" for k, t in cs.items())
     story = []
     for k, f in enumerate(found, 1):
         text = f["text"]
@@ -667,7 +715,7 @@ def document(ctx: dict) -> str:
         "",
         "## What it found",
         "",
-        "Version 0.2 of besslib, run on the six cases " + (f"({', '.join(f'{k} {t['seed'].nunique()}' for k, t in cs.items())} packs per setting, "
+        "Version 0.2 of besslib, run on the six cases " + (f"({packs} packs per setting, "
                                                             "development seeds)." if DEV else "(200 packs per setting, held-out seeds).") + " Most important first.",
         "",
         *story, "",
@@ -680,10 +728,12 @@ def document(ctx: dict) -> str:
         *first_table(ctx),
         "## The simulator's own checks",
         "",
-        "S1 to S4 check the plant (charge, energy, closed forms, the BMS's limits); S5 and S6 the files and the data contract; S8 the speed. "
+        "S1 to S4 check the plant (charge, energy, closed forms, the BMS's limits); S5 and S6 the files and the data contract; "
+        + ("S7 the SunSpec bus; " if s7_counts(ctx) else "") + "S8 the speed. "
         "S0 compares the `synth` case with the pack of the 0.1 and 0.2 checks.",
         "",
         *own_table(ctx),
+        *bus_section(ctx),
         "## The cases",
         "",
         *cases,

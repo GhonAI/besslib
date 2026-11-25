@@ -10,7 +10,8 @@ its band and the field capacity tests) and ``validation/results/quickstart_05.cs
 output of the quickstart, which this script runs).
 
 Placeholders: ``{{name}}``, ``{{url:PATH}}`` (the file on GitHub at the release tag) and
-``{{raw:PATH}}`` (the raw file at the release tag).
+``{{raw:PATH}}`` (the raw file at the release tag); ``{{url_main:PATH}}`` is the file on the main branch, for pages
+that the release tag holds in an older form or not at all.
 
 Usage:
     python validation/make_readme.py
@@ -42,6 +43,7 @@ from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
 from make_reference_doc import GRID, INK, INK2, MUTED, SURFACE  # noqa: F401  (also sets the plot style)
 from check_v02 import TAG, tag_file
+from sim_drift_points import drift_points
 from tune_capacity import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,7 +62,7 @@ record = besslib.soh.annex_vii(None, spec, reduced=reduced)
 print(record.to_frame())"""
 
 ALLOWED = [
-    r"2023/1542", r"CC BY-NC-ND 4\.0", r"CC BY 4\.0", r"BSD-3-Clause", r"\b[AB][1-5]\b", r"10\.\d{4}/\S+",
+    r"2023/1542", r"CC BY-NC-ND 4\.0", r"CC BY 4\.0", r"BSD-3-Clause", r"Apache-2\.0", r"\b[AB][1-5]\b", r"10\.\d{4}/\S+",
 ]  # fmt: skip
 
 
@@ -211,9 +213,9 @@ def version_sentence() -> str:
         f"**Version {VERSION_PAGE[0]}** is closer to the held-out field tests where it gives an estimate (median error "
         f"{e_old:.2f} → {e_new:.2f} points over the {n_est} tests with one), but the median over all {n_all}, which V2 "
         f"judges, rose ({a_old:.2f} → {a_new:.2f}); its band narrowed (median width {w_old:.2f} → {w_new:.2f} points) "
-        f"and held fewer tests ({s_old} % → {s_new} %). The band is built for the capacity between two rest voltages and "
-        "leaves out the drift of the BMS stops the tests run to; which band change narrowed it most is not separated. "
-        f"[Why →]({{{{url:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
+        f"and held fewer tests ({s_old} % → {s_new} %). The band is built for the capacity between two rest voltages, "
+        "not for the charge a test measures between the stops; which band change narrowed it most is not separated. "
+        f"[Why →]({{{{url_main:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
     )
 
 
@@ -231,13 +233,18 @@ def data_showed() -> str:
             changes.append(1000 * (e["ref_empty_v"].iloc[-1] - e["ref_empty_v"].iloc[0]) / spec.cells_in_series)
     if not changes or max(changes) >= 0:
         refuse("the drift line no longer fits the numbers: write it again")
+    d = drift_points()
     low, high = sorted(abs(round(c)) for c in changes)[0], sorted(abs(round(c)) for c in changes)[-1]
     return (
         f"**What the data showed.** On the {len(changes)} LMO/NMC systems the relaxed voltage of the empty rests fell by "
         f"{low} to {high} mV per cell between the first and the last month end that has one: the systems were "
-        "discharged to a lower voltage as they aged (cause not verified). So the capacity between fixed rest voltages "
-        "and the charge a field test measures between the stops drift apart, and a band must carry that drift. "
-        f"[Data →]({{{{url:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
+        "discharged to a lower voltage as they aged (cause not verified). On simulated LMO packs a discharge stop that "
+        f"lowers the empty rest voltage by {d['mv']} mV per cell hides fade in A1: the capacity between the first year's rest voltages is "
+        f"{d['hidden_last']:.1f} points below the capacity between the voltages A1 is read at ({d['hidden_none']:.1f} without "
+        f"drift). In this simulation, whose test stop falls with the daily stop, the drift does not account for the missed tests: the estimate reads {d['miss_none']:.2f} points above the simulated "
+        f"test without drift and {d['miss_last']:.2f} with it. The cause of the field misses is not verified. "
+        f"[Data →]({{{{url_main:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with) "
+        "[Simulator →]({{url_main:docs/05_simulator.md}}#6-a-drifting-stop)"
     )
 
 
@@ -296,7 +303,7 @@ def limits_list() -> str:
     )
     if len(fixed):
         lines += ["", f"Fixed in version {VERSION_PAGE[0]}, by the same rules: " + ", ".join(fixed["short"])
-                  + " ([limits]({{url:docs/limits.md}}))."]  # fmt: skip
+                  + " ([limits]({{url_main:docs/limits.md}}))."]  # fmt: skip
     return "\n".join(lines)
 
 
@@ -461,6 +468,7 @@ def fill(template: str, values: dict, project_values: dict) -> str:
         text = text.replace("{{" + name + "}}", value)
     # Links last, so a filled value may carry a {{url:PATH}} of its own.
     text = re.sub(r"\{\{url:([^}]+)\}\}", lambda m: f"{project_values['source']}/blob/v{version}/{m.group(1)}", text)
+    text = re.sub(r"\{\{url_main:([^}]+)\}\}", lambda m: f"{project_values['source']}/blob/main/{m.group(1)}", text)
     text = re.sub(r"\{\{raw:([^}]+)\}\}", lambda m: f"{RAW}/v{version}/{m.group(1)}", text)
     left = re.findall(r"\{\{[^}]*\}\}", text)
     if left:
@@ -484,7 +492,7 @@ def main() -> None:
         data_showed=data_showed(),
         limits_list=limits_list(),
         previous_release=TAG.lstrip("v"),
-        version_page_link=f"[version {VERSION_PAGE[0]} page]({{{{url:{VERSION_PAGE[1]}}}}})",
+        version_page_link=f"[version {VERSION_PAGE[0]} page]({{{{url_main:{VERSION_PAGE[1]}}}}})",
         data_credit=figgener.CREDIT,
         paper_credit=figgener.PAPER,
     )

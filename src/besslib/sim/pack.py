@@ -239,8 +239,8 @@ class Engine:
         return float(later[0]) if len(later) else math.inf
 
     # --- the run -------------------------------------------------------------------------
-    def run(self, pieces: list[Piece], day_limits: np.ndarray, start: pd.Timestamp, months: int):
-        """Yield ``Month`` objects. ``day_limits[d]`` = the day's random errors (upper, lower)."""
+    def _start(self) -> None:
+        """The pack's states at the start of a run."""
         p = self.pack
         g = p.groups
         self.state = GroupState(soc=p._per_group(p.soc0, 0.5), p1=np.zeros(g), p2=np.zeros(g), h=np.zeros(g))
@@ -249,6 +249,11 @@ class Engine:
         self.bms_soc = float(np.mean(self.state.soc))
         self.bms_cap = p.nominal_ah * p.bms.soh_percent / 100.0
         self.model = [float(self.state.soc[0]), 0.0] if p.bms.stop_rule == "synth" else None
+
+    def run(self, pieces: list[Piece], day_limits: np.ndarray, start: pd.Timestamp, months: int):
+        """Yield ``Month`` objects. ``day_limits[d]`` = the day's random errors (upper, lower)."""
+        g = self.pack.groups
+        self._start()
         bounds = pd.date_range(start, start + pd.DateOffset(months=months), freq="MS")
         if len(bounds) != months + 1 or bounds[0] != start:
             raise ValueError("a run starts at midnight on the first day of a month")

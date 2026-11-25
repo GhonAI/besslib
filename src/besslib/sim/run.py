@@ -260,13 +260,24 @@ class MonthOut:
     events: list = field(default_factory=list)  # the case's events as drawn (``events``)
 
 
-def run(case, months: int | None = None, seed: int = 0, overrides: dict | None = None,
-        measured: bool = True, log_blocks: bool = True):
-    """Run a case: yield one ``MonthOut`` per month.
+@dataclass
+class _Prepared:
+    """What a run needs before its first step, batch or live."""
 
-    ``measured=False`` skips the sensors' noise (``frame`` is then the true signals too) and
-    draws none of its random numbers."""
-    data = load_case(case, overrides)
+    pack: PackModel
+    settings: dict
+    drawn: list
+    months: int
+    start: pd.Timestamp
+    step_s: float
+    engine: Engine
+    pieces: list
+    limits: np.ndarray  # per day, the BMS's random errors (upper, lower)
+    rng: np.random.Generator  # the main stream, after the duty's plan and the limits
+
+
+def _prepare(data: dict, months: int | None, seed: int, log_blocks: bool = True) -> _Prepared:
+    """The pack, the engine, the duty's plan and the daily limit errors, drawn in the fixed order."""
     pack, settings, drawn = _build(data, seed)
     months = int(months if months is not None else settings.get("months", 12))
     start = pd.Timestamp(settings.get("start", "2020-01-01"))
@@ -283,6 +294,20 @@ def run(case, months: int | None = None, seed: int = 0, overrides: dict | None =
     for d in range(days):
         pieces.extend(duty.day(rng, d))
         limits[d] = pack.bms.draw_day(rng)
+    return _Prepared(pack, settings, drawn, months, start, step_s, engine, pieces, limits, rng)
+
+
+def run(case, months: int | None = None, seed: int = 0, overrides: dict | None = None,
+        measured: bool = True, log_blocks: bool = True):
+    """Run a case: yield one ``MonthOut`` per month.
+
+    ``measured=False`` skips the sensors' noise (``frame`` is then the true signals too) and
+    draws none of its random numbers."""
+    data = load_case(case, overrides)
+    plan = _prepare(data, months, seed, log_blocks)
+    settings, drawn = plan.settings, plan.drawn
+    months, start, step_s, engine, rng = plan.months, plan.start, plan.step_s, plan.engine, plan.rng
+    pieces, limits = plan.pieces, plan.limits
     sensor_dict = dict(data.get("sensors", {}))
     offset_max = float(sensor_dict.pop("temp_offset_max_c", 0.0))
     sensor_settings = SensorSettings(**_only(SensorSettings, sensor_dict, "sensors"))

@@ -1,0 +1,20 @@
+run,case,start,points,writes,not_exercised,mismatches,seed,text,machine
+first,cell-imbalance,2020-02-01,4032,11,0,0,1,,x86_64
+first,cold,2020-02-01,4032,11,8,0,1,,x86_64
+first,demo,2020-02-01,4032,11,0,0,1,,x86_64
+first,drifting-stop,2020-02-01,4032,11,0,0,1,,x86_64
+first,failing-cell,2022-01-01,4032,11,0,0,1,,x86_64
+first,grid-duty,2020-02-01,4032,11,0,0,1,,x86_64
+first,grid-string,2020-02-01,4032,11,0,0,1,,x86_64
+first,overheating,2022-07-01,4032,11,0,1,1,overheating snapshot 2: write 802/SocRsvMax=13.62: the current still flows after the step (-3.738764604534464 A),x86_64
+first,synth,2020-02-01,4032,11,0,0,1,,x86_64
+final,cell-imbalance,2020-02-01,4032,11,0,0,1,,x86_64
+final,cold,2020-02-01,4032,11,8,0,1,,x86_64
+final,cold,2020-05-01,4032,11,0,0,1,,x86_64
+final,demo,2020-02-01,4032,11,0,0,1,,x86_64
+final,drifting-stop,2020-02-01,4032,11,0,0,1,,x86_64
+final,failing-cell,2022-01-01,4032,11,0,0,1,,x86_64
+final,grid-duty,2020-02-01,4032,11,0,0,1,,x86_64
+final,grid-string,2020-02-01,4032,11,0,0,1,,x86_64
+final,overheating,2022-07-01,4032,11,1,0,1,,x86_64
+final,synth,2020-02-01,4032,11,0,0,1,,x86_64

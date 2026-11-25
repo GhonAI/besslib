@@ -9,6 +9,8 @@ check can run on its own.
   with the published files byte for byte (``S0b`` compares files already rebuilt).
 * S1, S2, S3, S4 (``sim_plant_checks.py``): charge, energy, closed forms, BMS limits.
 * S5, S6, S8 (``sim_run_checks.py``): reproducible files, the data contract, speed.
+* S7 (``sim_s7.py``): the SunSpec bus read and written by pysunspec2 on every shipped case; not in the default run
+  (it needs pymodbus and pysunspec2 and takes long: ``python validation/sim_checks.py S7``).
 * S10 (``sim_s10.py``): the LFP preset against measured HPPC currents at 20 and 30 degrees C.
 S1-S6 and S8 run on every shipped case (``besslib.sim.case_names()``); the 396-group string runs 2 months in S1, S2
 and S4, and S6 runs 3 packs of 14 months of every case, the string included (about 10 s per pack-month).
@@ -31,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "validation"))
 RESULTS = ROOT / "validation" / "results" / "sim_checks.csv"
 COLUMNS = ["check", "what", "result", "pass_if", "passed"]
-ORDER = ["S0a", "S0b V6", "S0b X3", "S0b W7", "S0c", "S1", "S2", "S3", "S4", "S5", "S6", "S8", "S10"]
+ORDER = ["S0a", "S0b V6", "S0b X3", "S0b W7", "S0c", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S10"]
 
 
 def s0a() -> list[dict]:
@@ -107,6 +109,64 @@ def s10() -> list[dict]:
     out = sim_s10.check_s10()
     rows = [out] if isinstance(out, dict) else list(out)
     return [{c: row[c] for c in COLUMNS} for row in rows]
+
+
+S7_FILE = ROOT / "validation" / "results" / "sim" / "s7.csv"  # both full runs: "first" and "final"
+
+
+def s7() -> list[dict]:
+    """The SunSpec bus against pysunspec2: every point of models 1, 802, 803, 804 on every case, two snapshots each."""
+    import platform
+
+    import sim_s7
+
+    return s7_row(sim_s7.check_s7(), platform.machine())
+
+
+def s7_table(rows: list[dict], run: str, machine_name: str) -> pd.DataFrame:
+    return pd.DataFrame([{"run": run, **{k: v for k, v in r.items() if k != "text"}, "text": " | ".join(r["text"]),
+                          "machine": machine_name} for r in rows])
+
+
+def s7_history() -> str:
+    """What the first full run gave, in words, from its rows."""
+    if not S7_FILE.exists():
+        return ""
+    t = pd.read_csv(S7_FILE, keep_default_na=False)
+    t = t[t["run"] == "first"]
+    if not len(t) or not t["mismatches"].sum():
+        return ""
+    bad = t[t["mismatches"] > 0]
+    return (f". The first full run had {bad['mismatches'].sum()} mismatch{'es' if bad['mismatches'].sum() > 1 else ''} ({', '.join(bad['case'])}), a fault of the check: the "
+            "test value was computed before the current flowed. The check was corrected and the cold case's second start added, with the bus and "
+            "the pass number unchanged. The run shown here came after a review that changed the bus (the serial number, refused function codes, "
+            "write handling) and widened the check")
+
+
+def s7_row(rows: list[dict], machine_name: str) -> list[dict]:
+    import sim_s7
+
+    old = pd.read_csv(S7_FILE, keep_default_na=False) if S7_FILE.exists() else None
+    keep = [] if old is None else [old[old["run"] != "final"]]
+    pd.concat(keep + [s7_table(rows, "final", machine_name)], ignore_index=True).to_csv(S7_FILE, index=False)
+
+    points = sum(r["points"] for r in rows)
+    writes = sum(r["writes"] for r in rows)
+    bad = sum(r["mismatches"] for r in rows)
+    missed = sum(r["not_exercised"] for r in rows)
+    first = "; ".join(t for r in rows for t in r["text"][:3])
+    return [{
+        "check": "S7",
+        "what": f"the SunSpec bus read by pysunspec2 over Modbus TCP on 127.0.0.1: every point of models "
+                f"{', '.join(map(str, sim_s7.MODELS))}, seed 1, 2 snapshots of each run "
+                f"({', '.join(r['case'] + ' from ' + r['start'] for r in rows)}); "
+                "each writable point written, read back and its effect checked at the next step",
+        "result": f"models: {', '.join(map(str, sim_s7.MODELS))}; cases: {len({r['case'] for r in rows})}; runs: {len(rows)}; points read: {points}; "
+                  f"writes: {writes}; mismatches: {bad}; effects not exercised: {missed}" + (f" ({', '.join(r['case'] + ' from ' + r['start'] + ': ' + str(r['not_exercised']) for r in rows if r['not_exercised'])})" if missed else "")
+                  + (f". First: {first}" if bad else "") + s7_history(),
+        "pass_if": "0 mismatches",
+        "passed": bad == 0,
+    }]
 
 
 def s8() -> list[dict]:
@@ -240,7 +300,7 @@ def s3() -> dict:
             "pass_if": "<= 1e-12 V; <= 1e-06 relative", "passed": bool(elec <= 1e-12 and therm <= 1e-6)}
 
 
-RUNS = {"S0a": s0a, "S0b": s0b, "S0b-rebuild": s0b_rebuild, "S0c": s0c, "plant": plant, "S5": s5, "S6": s6, "S8": s8,
+RUNS = {"S0a": s0a, "S0b": s0b, "S0b-rebuild": s0b_rebuild, "S0c": s0c, "plant": plant, "S5": s5, "S6": s6, "S7": s7, "S8": s8,
         "S10": s10}
 DEFAULT = ["S0a", "S0c", "plant", "S5", "S6", "S8", "S10"]
 

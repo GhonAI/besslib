@@ -46,7 +46,7 @@ The pass rules were fixed before any result and never moved. These set-ups were 
 
 ## The simulator's own checks
 
-S1 to S4 check the plant (charge, energy, closed forms, the BMS's limits); S5 and S6 the files and the data contract; S8 the speed. S0 compares the `synth` case with the pack of the 0.1 and 0.2 checks.
+S1 to S4 check the plant (charge, energy, closed forms, the BMS's limits); S5 and S6 the files and the data contract; S7 the SunSpec bus; S8 the speed. S0 compares the `synth` case with the pack of the 0.1 and 0.2 checks.
 
 | Check | What | Result | Pass if | Outcome |
 |---|---|---|---|---|
@@ -61,11 +61,20 @@ S1 to S4 check the plant (charge, energy, closed forms, the BMS's limits); S5 an
 | S4 | BMS limits and stops | synth (rule synth): 0 stops outside their step of 12667, 63596 samples with current beyond the limit of 28408320 | 0 | passes |
 | S5 | each case written twice with seed 1 and once with seed 2, 2 months | same seed: 0 files differ | 0 files differ with the same seed | passes |
 | S6 | 3 packs of each case (cell-imbalance, cold, demo, drifting-stop, failing-cell, grid-duty, grid-string, overheating, synth), 14 months | 0 failures | 0 failures | passes |
+| S7 | the SunSpec bus read and written by pysunspec2 over Modbus TCP | 40320 point reads over 168 points of 4 models on 9 cases, 110 writes, 0 mismatches | 0 mismatches | passes |
 | S8 | information | synth (3 months): 0.29 s per pack-month, 200 packs x 36 months about 0.6 h on one core (extrapolated) | information | information |
 | S9 | the field statistic (docs/04) on simulated packs against the planted fall of the empty stop (case 6) | D0: 200 of 200 packs; D50: 197 of 200 packs; D100: 146 of 200 packs; D157: 65 of 200 packs | >= 95% of packs within 10 mV | D0 passes; D50 passes; D100 fails; D157 fails |
 | S10 | the LFP cell against measured HPPC current at 20 and 30 °C, not in its tables | 20 °C: RMS 15.1 mV; 30 °C: RMS 16.4 mV | RMS <= 20 mV between 10 % and 90 % state of charge | passes |
 
 Full rows, with the packs and months of each: `validation/results/sim_checks.csv`.
+
+## The bus
+
+`python -m besslib.sim serve --case failing-cell --port 5020` shows the pack's BMS as SunSpec models 1, 802, 803 and 804 over Modbus TCP. The bus never shows the true capacity, the true state of charge, the resistances, a leak or a planted event; its voltages, current and temperatures are the simulator's own, without sensor errors. It binds to 127.0.0.1 by default, because Modbus has no login. These models hold no power command: a client can connect or disconnect the battery and set its state-of-charge reserves. S7: pysunspec2, the SunSpec Alliance's client, made 40320 point reads over the 168 points of the 4 models on 9 cases; 0 mismatches. It made 110 writes in 10 runs; 9 of their effects could not be tried, because no current flowed for them to act on. The first full run had 1 mismatch (overheating), a fault of the check: the test value was computed before the current flowed. The check was corrected and the cold case's second start added, with the bus and the pass number unchanged. The run shown here came after a review that changed the bus (the serial number, refused function codes, write handling) and widened the check.
+
+S7 checks the encoding and the effect of the set-points; the BMS state is checked against literal values in `tests/test_sim_bus.py`. `WChaRteMax` and `WDisChaRteMax`, mandatory in model 802, read 'not implemented' in the 8 of 9 cases that set no current limit. The server needs `pip install "besslib[modbus]"`; the simulator and this extra are not in release 0.2.0 on PyPI.
+
+SunSpec's model files do not state the sign of A and W; besslib uses positive = discharging on the bus.
 
 ## The cases
 

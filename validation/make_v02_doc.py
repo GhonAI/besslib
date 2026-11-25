@@ -8,7 +8,7 @@ other settings.
 Reads ``checks_v02.csv``, ``checks_phase2.csv``, ``checks_phase3.csv``, ``phase2_tests.csv``
 (today and at the tag), ``w7_cause.csv`` (X1), ``synthetic_lag.csv`` (X3),
 ``capacity_chains.csv`` (X7), ``synthetic_coverage.csv`` (V6), ``phase2/system_*_monthly.csv``
-and ``phase2/system_*_summary.json`` (today and at the tag), and the records of both.
+and ``phase2/system_*_summary.json`` (today and at the tag), and the records of both, and ``sim/drift.csv`` (case 6 of the simulator).
 
 Usage:
     python validation/make_v02_doc.py
@@ -32,6 +32,7 @@ from besslib.soh.config import _V0_1, CapacityConfig, RecordConfig, config_hash
 
 from check_v02 import TAG, tag_file
 from make_capacity_doc import DASH, ids_text, num, sid_text
+from sim_drift_points import OTHER_SET_UPS, drift_points
 from tune_capacity import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -468,7 +469,7 @@ def mismatch_block(ctx: dict) -> list[str]:
                   "Truth fixed before the results: charge between the stops": f"{int(cov['held'].sum())} of {len(cov)} ({cov['held'].mean():.1%})",
                   "Capacity between the rest voltages (information)": f"{int(cov['held_window'].sum())} of {len(cov)} ({cov['held_window'].mean():.1%})"})  # fmt: skip
 
-    d = drift_rows(ctx)
+    d, gap = drift_rows(ctx), drift_points()
     lmo = d[d["chem"] == "LMO/NMC"]
     rest = d[d["chem"] != "LMO/NMC"]
     rest_max = rest["empty_mv"].abs().max()
@@ -525,8 +526,9 @@ def mismatch_block(ctx: dict) -> list[str]:
         "",
         f"They are two quantities. Against the capacity between the rest voltages, a truth chosen after the first results, the "
         f"monthly band held {100 * rheld / rtot:.0f} % of month ends (X3) and the fade-rate band {100 * cov['held_window'].mean():.1f} % "
-        f"(V6, rule {v6_rule}); neither band includes the drift of the stops. A band term for that drift is planned; it will be tested first on the pack simulator (besslib.sim), where "
-        "the true drift is known, before it touches field data.",
+        f"(V6, rule {v6_rule}); neither band includes the drift of the stops. On simulated packs, where the true drift is known and the test stop falls with the daily stop, the drift does not "
+        f"carry the gap to a capacity test ({gap['miss_none']:+.2f} points without drift, {gap['miss_last']:+.2f} at {gap['mv']} mV per cell; "
+        f"[simulator](05_simulator.md#6-a-drifting-stop)). {OTHER_SET_UPS.format(**gap)} No band term for it is planned. The cause of the field misses is not verified.",
     ]
 
 

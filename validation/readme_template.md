@@ -18,7 +18,7 @@ On the {{n_heldout}} held-out systems (not used to tune any threshold; their rel
 
 - LMO/NMC and NMC, {{v2_tests}} tests: median error {{v2_value}} points of nominal capacity, a test without an estimate counted as infinite (target ≤ {{v2_target}}): **{{v2_result}}**; over the {{v2_have}} tests with an estimate, {{v2_est_error}} points.
 - LFP, {{v3_tests}} tests: {{v3_missing}} have no estimate ({{v3_reasons}}) and the other {{v3_have}} read a median {{v3_bias}} points {{v3_direction}} (target: median error ≤ {{v3_target}} points, a test without an estimate counted as infinite): **{{v3_result}}**.
-- The {{band_level}} % band held the measured value in {{v4_share}} % of {{v4_tests}} tests (target {{v4_target}} %): **{{v4_result}}**. [Why →]({{url:docs/limits.md}})
+- The {{band_level}} % band held the measured value in {{v4_share}} % of {{v4_tests}} tests (target {{v4_target}} %): **{{v4_result}}**. [Why →]({{url_main:docs/limits.md}})
 
 {{version_sentence}}
 
@@ -79,7 +79,7 @@ Configuration hashes: capacity `{{capacity_hash}}`, record `{{record_hash}}`. Ev
 
 {{limits_list}}
 
-All limits, with their numbers and pages: [`docs/limits.md`]({{url:docs/limits.md}}).
+All limits, with their numbers and pages: [`docs/limits.md`]({{url_main:docs/limits.md}}).
 
 ## Rebuild every number
 
@@ -110,4 +110,4 @@ Islam Ghonaiem, ghonaiem@vgtai.com. Issues: [GitHub]({{issues_url}}).
 
 ## Licence
 
-Code: BSD-3-Clause, see [`LICENSE`]({{url:LICENSE}}). The shipped sample: CC BY 4.0 (see above).
+Code: BSD-3-Clause, see [`LICENSE`]({{url:LICENSE}}). The shipped sample: CC BY 4.0 (see above). The SunSpec model files in `besslib.sim.bus` are Apache-2.0.

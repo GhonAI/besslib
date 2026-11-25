@@ -18,11 +18,11 @@ On the 14 held-out systems (not used to tune any threshold; their release 0.1.0 
 
 - LMO/NMC and NMC, 28 tests: median error 2.99 points of nominal capacity, a test without an estimate counted as infinite (target ≤ 3): **passed**; over the 22 tests with an estimate, 1.54 points.
 - LFP, 10 tests: 5 have no estimate (2 in the first year, 3 with too few full-to-empty pairs) and the other 5 read a median 4.48 points high (target: median error ≤ 5 points, a test without an estimate counted as infinite): **failed**.
-- The 90 % band held the measured value in 29 % of 28 tests (target 80 %): **failed**. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md)
+- The 90 % band held the measured value in 29 % of 28 tests (target 80 %): **failed**. [Why →](https://github.com/GhonAI/besslib/blob/main/docs/limits.md)
 
-**Version 0.2** is closer to the held-out field tests where it gives an estimate (median error 2.13 → 1.54 points over the 22 tests with one), but the median over all 28, which V2 judges, rose (2.62 → 2.99); its band narrowed (median width 2.90 → 1.30 points) and held fewer tests (43 % → 29 %). The band is built for the capacity between two rest voltages and leaves out the drift of the BMS stops the tests run to; which band change narrowed it most is not separated. [Why →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
+**Version 0.2** is closer to the held-out field tests where it gives an estimate (median error 2.13 → 1.54 points over the 22 tests with one), but the median over all 28, which V2 judges, rose (2.62 → 2.99); its band narrowed (median width 2.90 → 1.30 points) and held fewer tests (43 % → 29 %). The band is built for the capacity between two rest voltages, not for the charge a test measures between the stops; which band change narrowed it most is not separated. [Why →](https://github.com/GhonAI/besslib/blob/main/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
 
-**What the data showed.** On the 6 LMO/NMC systems the relaxed voltage of the empty rests fell by 50 to 157 mV per cell between the first and the last month end that has one: the systems were discharged to a lower voltage as they aged (cause not verified). So the capacity between fixed rest voltages and the charge a field test measures between the stops drift apart, and a band must carry that drift. [Data →](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)
+**What the data showed.** On the 6 LMO/NMC systems the relaxed voltage of the empty rests fell by 50 to 157 mV per cell between the first and the last month end that has one: the systems were discharged to a lower voltage as they aged (cause not verified). On simulated LMO packs a discharge stop that lowers the empty rest voltage by 157 mV per cell hides fade in A1: the capacity between the first year's rest voltages is 6.3 points below the capacity between the voltages A1 is read at (0.5 without drift). In this simulation, whose test stop falls with the daily stop, the drift does not account for the missed tests: the estimate reads 1.72 points above the simulated test without drift and 1.95 with it. The cause of the field misses is not verified. [Data →](https://github.com/GhonAI/besslib/blob/main/docs/04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with) [Simulator →](https://github.com/GhonAI/besslib/blob/main/docs/05_simulator.md#6-a-drifting-stop)
 
 Every number on this page is written by `validation/make_readme.py` from a results file in `validation/results/`.
 
@@ -100,7 +100,7 @@ Thresholds were tuned on 7 development systems and frozen. The results below com
 14 held-out systems and from synthetic packs with a known truth. The held-out systems were run once at the
 settings of release 0.1.0 and once more at the settings of this version. The capacity plausibility
 rules and the power-capability rule of this version were found on them. What changed, with every check before and
-after: [version 0.2 page](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/04_version_0_2.md). A failed check is published as failed, with its reason.
+after: [version 0.2 page](https://github.com/GhonAI/besslib/blob/main/docs/04_version_0_2.md). A failed check is published as failed, with its reason.
 
 Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every result file carries them.
 
@@ -151,13 +151,13 @@ Configuration hashes: capacity `b3959941c19b`, record `d49cbfdcd5b6`. Every resu
 
 ## Limits
 
-1. **The capacity band does not hold the charge between the BMS stops.** On 200 synthetic packs the monthly 90 % band held the charge between the stops at the date in 2278 of 4782 month ends (48 %). It held the capacity between the rest voltages it reports in 4248 of 4562 (93 %), against a truth chosen after the first results.
+1. **The capacity band does not hold the charge between the BMS stops.** On 200 synthetic packs the monthly 90 % band held the charge between the stops at the date in 2278 of 4782 month ends (48 %). It held the capacity between the rest voltages it reports in 4248 of 4562 (93 %), against a truth chosen after the first results. On the same seeds with one state-of-charge path (a pack whose BMS copy equals its plant) it held 3827 of 4569 (84 %); [simulator](https://github.com/GhonAI/besslib/blob/main/docs/05_simulator.md#the-rerun-on-one-state-of-charge-path).
 2. **Storage at a middle state of charge gets a wrong capacity.** Do not use the capacity (A1) on storage that works at a middle state of charge. Version 0.2 takes the edges of the daily window for full and empty and reports the charge between them as the capacity, with the status `estimated`. On simulated packs cycled daily between 25 and 75 % it reports a median 51 to 56 % of the true capacity (9 settings of 200 packs: a full charge every week, every month or never).
 3. Already published on the pages: the method needs regular full cycles; the first year of a record gives no capacity estimate; apparent charge loss is an upper bound for self-discharge; efficiency is DC at the battery terminals; resistance is a short-pulse value, not the impedance-spectroscopy one.
 
-Fixed in version 0.2, by the same rules: A4 bias, capacity at or below zero, power capability without resistance ([limits](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md)).
+Fixed in version 0.2, by the same rules: A4 bias, capacity at or below zero, power capability without resistance ([limits](https://github.com/GhonAI/besslib/blob/main/docs/limits.md)).
 
-All limits, with their numbers and pages: [`docs/limits.md`](https://github.com/GhonAI/besslib/blob/v0.2.0/docs/limits.md).
+All limits, with their numbers and pages: [`docs/limits.md`](https://github.com/GhonAI/besslib/blob/main/docs/limits.md).
 
 ## Rebuild every number
 
@@ -188,4 +188,4 @@ Islam Ghonaiem, ghonaiem@vgtai.com. Issues: [GitHub](https://github.com/GhonAI/b
 
 ## Licence
 
-Code: BSD-3-Clause, see [`LICENSE`](https://github.com/GhonAI/besslib/blob/v0.2.0/LICENSE). The shipped sample: CC BY 4.0 (see above).
+Code: BSD-3-Clause, see [`LICENSE`](https://github.com/GhonAI/besslib/blob/v0.2.0/LICENSE). The shipped sample: CC BY 4.0 (see above). The SunSpec model files in `besslib.sim.bus` are Apache-2.0.

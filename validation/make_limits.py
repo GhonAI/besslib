@@ -28,6 +28,7 @@ from besslib.soh import _core
 from besslib.soh.config import CapacityConfig
 
 from check_v02 import TAG, tag_file
+from sim_drift_points import OTHER_SET_UPS, drift_points
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "validation" / "results"
@@ -192,17 +193,26 @@ def limit_band() -> dict:
     table = pd.read_csv(RESULTS / "synthetic_lag.csv")
     total, at_date = int(table["n_band"].sum()), int(table["n_held_at_date"].sum())
     ref_total, ref_held = int(table["n_reference"].sum()), int(table["n_held_reference"].sum())
+    one_path = pd.read_csv(RESULTS / "sim" / "one_path_x3.csv")
+    path_total, path_held = int(one_path["n_reference"].sum()), int(one_path["n_held_reference"].sum())
+    if set(one_path["seed"]) != set(range(1, len(table) + 1)) or path_held / path_total >= ref_held / ref_total:
+        sys.exit("make_limits: the one-path rerun does not support the sentence")
+    same_seeds = (" On the same seeds with one state-of-charge path (a pack whose BMS copy equals its plant) it held "
+                  f"{path_held} of {path_total} ({path_held / path_total * 100:.0f} %); [simulator]({{link}}).")
+    d = drift_points()
     found = (
         f"On {len(table)} synthetic packs the monthly {BAND} band held the charge between the stops at the date in "
         f"{at_date} of {total} month ends ({at_date / total * 100:.0f} %); the estimate reads "
         f"{table['mean_lag_points'].mean():+.2f} points of nominal capacity above it on average. Against the capacity "
         f"between the rest voltages it reports, the band held {ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %), "
         f"{table['mean_lag_reference_points'].mean():+.2f} points on average; that truth was chosen after the first results."
+        + same_seeds.format(link="05_simulator.md#the-rerun-on-one-state-of-charge-path")
     )
     readme = (
         f"On {len(table)} synthetic packs the monthly {BAND} band held the charge between the stops at the date in {at_date} of "
         f"{total} month ends ({at_date / total * 100:.0f} %). It held the capacity between the rest voltages it reports in "
         f"{ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %), against a truth chosen after the first results."
+        + same_seeds.format(link="{{url_main:docs/05_simulator.md}}#the-rerun-on-one-state-of-charge-path")
     )
     return {
         "title": "The capacity band does not hold the charge between the BMS stops",
@@ -216,7 +226,10 @@ def limit_band() -> dict:
         "fixed": False,
         "rule": "Share of month ends whose band holds the true charge between the stops at the date (release 0.1.0's rule), "
                 "with the share against the capacity between the rest voltages beside it.",
-        "status": "A band term for the drift of the stops is planned. It will be tested first on the pack simulator. See the "
+        "status": "On simulated packs whose test stop falls with the daily stop, the drift of the stops does not carry the gap to a capacity test: estimate less test is "
+                  f"{d['miss_none']:+.2f} points without drift and {d['miss_last']:+.2f} at {d['mv']} mV per cell "
+                  f"([simulator](05_simulator.md#6-a-drifting-stop)). {OTHER_SET_UPS.format(**d)} No band term for it is planned. The cause of the field "
+                  "misses is not verified. See the "
                   f"[version 0.2 page]({MISMATCH}).",
         "systems": "synthetic packs",
         "files": "validation/results/synthetic_lag.csv",

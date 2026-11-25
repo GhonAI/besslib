@@ -1,0 +1,24 @@
+{
+  "ordinary": {
+    "manufacturer": "besslib", "model": "demo pack", "version": "0.2.0", "serial": "S-0001", "device_address": 1,
+    "ah_rating": 100.0, "wh_rating": 5000.0, "charge_w_max": 4000.0, "discharge_w_max": 4000.0,
+    "soc_pct": 62.5, "soh_pct": 97.25, "soc_reserve_min_pct": 5.0, "soc_reserve_max_pct": 95.0,
+    "heartbeat": 12, "control_heartbeat": 0, "alarm_reset": 0, "battery_type": 4, "state": 3, "charge_status": 4,
+    "events": [], "pack_v": 50.4, "v_max": 58.8, "v_min": 42.0,
+    "cell_v_max": 3.612, "cell_v_min": 3.598, "cell_v_avg": 3.6, "cell_v_max_index": 3, "cell_v_min_index": 11,
+    "current_a": -20.0, "power_w": -1008.0, "charge_a_max": 80.0, "discharge_a_max": 80.0,
+    "temp_max_c": 27.5, "temp_min_c": 24.0, "temp_avg_c": 25.5, "cells_balancing": 0, "cells": 14,
+    "connected": true, "enabled": true, "set_op": 1, "set_inv_state": 3
+  },
+  "no_limits_alarms": {
+    "manufacturer": "besslib", "model": "grid pack", "version": "0.2.0", "serial": "S-0002", "device_address": 1,
+    "ah_rating": 280.0, "wh_rating": 1200000.0, "charge_w_max": null, "discharge_w_max": null,
+    "soc_pct": 100.0, "soh_pct": 88.5, "soc_reserve_min_pct": 10.0, "soc_reserve_max_pct": 90.0,
+    "heartbeat": 40000, "control_heartbeat": 7, "alarm_reset": 0, "battery_type": 4, "state": 5, "charge_status": 5,
+    "events": ["OVER_TEMP_ALARM", "OVER_SOC_MAX_WARNING"], "pack_v": 1287.9, "v_max": 1425.6, "v_min": 1030.0,
+    "cell_v_max": 3.651, "cell_v_min": 3.239, "cell_v_avg": 3.25, "cell_v_max_index": 396, "cell_v_min_index": 2,
+    "current_a": 150.0, "power_w": 193185.0, "charge_a_max": null, "discharge_a_max": null,
+    "temp_max_c": -3.5, "temp_min_c": -8.0, "temp_avg_c": -5.0, "cells_balancing": 4, "cells": 396,
+    "connected": false, "enabled": false, "set_op": 2, "set_inv_state": 1
+  }
+}

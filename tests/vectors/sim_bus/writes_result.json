@@ -1,0 +1,304 @@
+[
+ {
+  "address": 40080,
+  "values": [
+   3000
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "SoCRsvMin",
+    "value": 30.0
+   }
+  ]
+ },
+ {
+  "address": 40080,
+  "values": [
+   9600
+  ],
+  "error": 3
+ },
+ {
+  "address": 40080,
+  "values": [
+   10001
+  ],
+  "error": 3
+ },
+ {
+  "address": 40079,
+  "values": [
+   8000
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "SocRsvMax",
+    "value": 80.0
+   }
+  ]
+ },
+ {
+  "address": 40079,
+  "values": [
+   400
+  ],
+  "error": 3
+ },
+ {
+  "address": 40079,
+  "values": [
+   65535
+  ],
+  "error": 3
+ },
+ {
+  "address": 40079,
+  "values": [
+   9000,
+   1000
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "SocRsvMax",
+    "value": 90.0
+   },
+   {
+    "model": 802,
+    "path": "",
+    "point": "SoCRsvMin",
+    "value": 10.0
+   }
+  ]
+ },
+ {
+  "address": 40120,
+  "values": [
+   2
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "SetOp",
+    "value": 2
+   }
+  ]
+ },
+ {
+  "address": 40120,
+  "values": [
+   1
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "SetOp",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "address": 40120,
+  "values": [
+   3
+  ],
+  "error": 3
+ },
+ {
+  "address": 40120,
+  "values": [
+   0
+  ],
+  "error": 3
+ },
+ {
+  "address": 40121,
+  "values": [
+   2
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "SetInvState",
+    "value": 2
+   }
+  ]
+ },
+ {
+  "address": 40121,
+  "values": [
+   4
+  ],
+  "error": 3
+ },
+ {
+  "address": 40090,
+  "values": [
+   1
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "AlmRst",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "address": 40090,
+  "values": [
+   0
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "AlmRst",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "address": 40090,
+  "values": [
+   2
+  ],
+  "error": 3
+ },
+ {
+  "address": 40089,
+  "values": [
+   3,
+   1
+  ],
+  "setpoints": [
+   {
+    "model": 802,
+    "path": "",
+    "point": "CtrlHb",
+    "value": 3
+   },
+   {
+    "model": 802,
+    "path": "",
+    "point": "AlmRst",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "address": 40068,
+  "values": [
+   1
+  ],
+  "setpoints": [
+   {
+    "model": 1,
+    "path": "",
+    "point": "DA",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "address": 40068,
+  "values": [
+   2
+  ],
+  "error": 3
+ },
+ {
+  "address": 40190,
+  "values": [
+   2
+  ],
+  "setpoints": [
+   {
+    "model": 803,
+    "path": "string/0",
+    "point": "StrSetEna",
+    "value": 2
+   }
+  ]
+ },
+ {
+  "address": 40191,
+  "values": [
+   3
+  ],
+  "error": 3
+ },
+ {
+  "address": 40230,
+  "values": [
+   1
+  ],
+  "setpoints": [
+   {
+    "model": 804,
+    "path": "",
+    "point": "SetEna",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "address": 40231,
+  "values": [
+   3
+  ],
+  "error": 3
+ },
+ {
+  "address": 40081,
+  "values": [
+   5000
+  ],
+  "error": 2
+ },
+ {
+  "address": 40070,
+  "values": [
+   802
+  ],
+  "error": 2
+ },
+ {
+  "address": 40052,
+  "values": [
+   0
+  ],
+  "error": 2
+ },
+ {
+  "address": 40080,
+  "values": [
+   3000,
+   5000
+  ],
+  "error": 2
+ },
+ {
+  "address": 39999,
+  "values": [
+   1
+  ],
+  "error": 2
+ },
+ {
+  "address": 40260,
+  "values": [
+   1
+  ],
+  "error": 2
+ }
+]

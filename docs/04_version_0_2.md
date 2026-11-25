@@ -173,7 +173,7 @@ The checks' truths are charges between BMS stops. In the simulator these are the
 
 So the capacity between fixed voltages and the charge between the stops drift apart: on the LMO/NMC systems the 0.2 fade is steeper on 5 of 6. LMO/NMC fade, 0.1.0 → 0.2, points per year: 01 -1.80 → -2.76, 02 -4.10 → -3.55, 03 -3.19 → -3.76, 04 -1.80 → -4.13, 05 -2.50 → -3.39, 06 -2.76 → -3.27; held-out mean -3.14 → -3.49 (V5 passes in 0.1.0, passes in 0.2). On the field tests the band held 43 % of the held-out LMO/NMC and NMC tests in 0.1.0 and 29 % in 0.2 (V4 fails); their median error is 2.62 and 2.99 points (V2 passes in 0.1.0, passes in 0.2).
 
-They are two quantities. Against the capacity between the rest voltages, a truth chosen after the first results, the monthly band held 93 % of month ends (X3) and the fade-rate band 83.5 % (V6, rule 85-95 %); neither band includes the drift of the stops. A band term for that drift is planned; it will be tested first on the pack simulator (besslib.sim), where the true drift is known, before it touches field data.
+They are two quantities. Against the capacity between the rest voltages, a truth chosen after the first results, the monthly band held 93 % of month ends (X3) and the fade-rate band 83.5 % (V6, rule 85-95 %); neither band includes the drift of the stops. On simulated packs, where the true drift is known and the test stop falls with the daily stop, the drift does not carry the gap to a capacity test (+1.72 points without drift, +1.95 at 157 mV per cell; [simulator](05_simulator.md#6-a-drifting-stop)). With other test set-ups it moves: -0.72 to -1.74 at C/10, +15.80 to +10.71 with one stop for tests and daily operation. No band term for it is planned. The cause of the field misses is not verified.
 
 ## Rebuild
 
