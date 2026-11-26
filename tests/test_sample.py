@@ -39,23 +39,15 @@ def _validation_mask(system_id: int):
 
 def test_sample_reproduces_the_held_out_record(sample):
     """The shipped sample, reduced once with the frozen settings, gives the held-out record of
-    system 05 at the settings that file carries (today's, or release 0.2.0's until the
-    release rebuild) exactly: every field, band, count, method text and hash."""
+    system 05 at today's settings exactly: every field, band, count, method text and hash."""
     import json
 
     expected = VALIDATION / "results" / "phase3" / "system_05_record.json"
     if not expected.exists():
         pytest.skip("validation/ is not present (the check needs the repository checkout)")
-    from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
-
     reduced, spec = sample
-    published = json.loads(expected.read_text())
-    # until the results are rebuilt for a release, the file holds the last release's settings: use those
-    capacity_config = next(c for c in (CapacityConfig(), CapacityConfig().v0_2())
-                           if config_hash(c) == published["capacity_config_hash"])
-    config = next(c for c in (RecordConfig(), RecordConfig().v0_2()) if config_hash(c) == published["record_config_hash"])
-    record = annex_vii(None, spec, reduced=reduced, mask=_validation_mask(5), config=config, capacity_config=capacity_config)
-    assert json.loads(record.to_json()) == published
+    record = annex_vii(None, spec, reduced=reduced, mask=_validation_mask(5))
+    assert json.loads(record.to_json()) == json.loads(expected.read_text())
 
 
 def test_metadata_in_every_file():

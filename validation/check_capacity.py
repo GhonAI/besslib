@@ -120,7 +120,11 @@ def main() -> None:
         mine = summaries[(summaries["chemistry"] == chem) & (summaries["set"] == "held-out")]["rate_points_per_year"].dropna()
         every = summaries[summaries["chemistry"] == chem]["rate_points_per_year"].dropna()
         mean = float(mine.mean()) if len(mine) else np.nan
-        rows.append(("V5", f"held-out {chem} ({len(mine)} systems)", f"mean fade {mean:+.2f} points/year; paper {paper:+.1f}" if len(mine) else "no held-out results yet (0 systems)", "within +-0.5", bool(abs(mean - paper) <= 0.5) if len(mine) else NOT_RUN))
+        value = f"mean fade {mean:+.2f} points/year; paper {paper:+.1f}" if len(mine) else "no held-out results yet (0 systems)"
+        if len(mine) > 1:  # leave one out: the mean without each system in turn (information; the rule reads the mean)
+            loo = [float(mine.drop(i).mean()) for i in mine.index]
+            value += f"; without one system {min(loo):+.2f} to {max(loo):+.2f}"
+        rows.append(("V5", f"held-out {chem} ({len(mine)} systems)", value, "within +-0.5", bool(abs(mean - paper) <= 0.5) if len(mine) else NOT_RUN))
         rows.append(("V5 info", f"all {chem} ({len(every)} systems)", f"mean fade {every.mean():+.2f} points/year" if len(every) else "no results yet (0 systems)", "information", None))
     synth_path = RESULTS / "synthetic_coverage.csv"
     if synth_path.exists():

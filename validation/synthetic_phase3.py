@@ -269,14 +269,10 @@ def w2_value_reason(table: pd.DataFrame) -> str:
     warm = table["w2_value_held_25c"].fillna(False).astype(bool)
     temp = float(((value - table["w2_value_truth_25c"]) / table["w2_value_truth_25c"]).median())
     return (
-        f"same-days truth {int(held.sum())} of {n}: too wide, because that truth shares every day with the estimate, "
-        f"so the day-to-day scatter the statistical half-width stands for (median {stat:.2%} of the value) is not in "
-        f"the difference; the largest difference is {worst:.2%}, and the systematic half-width alone "
-        f"(median {sys_rel:.2%}) holds {systematic} of {n}. "
-        f"At the date {int(date.sum())} of {n}: the estimate lags the growing resistance (the value at the date is a "
-        f"median {lag:.1%} above it). "
-        f"At 25 degrees C {int(warm.sum())} of {n}: the days in the band read a median {temp:+.1%} against 25 degrees C, "
-        f"and the estimator has no temperature model"
+        f"same days {int(held.sum())} of {n} (too wide: that truth shares every day with the estimate; the systematic "
+        f"half-width alone holds {systematic}); at the date {int(date.sum())} of {n} (the estimate lags the growing "
+        f"resistance by a median {lag:.1%}); at 25 degrees C {int(warm.sum())} of {n} (no temperature model; the days "
+        f"read a median {temp:+.1%})"
     )
 
 

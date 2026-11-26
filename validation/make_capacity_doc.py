@@ -46,6 +46,7 @@ from make_reference_doc import AXIS, COLOUR, INK, INK2, LABEL, MUTED, ORDER, SUR
 from tune_capacity import DEVELOPMENT, MIN_COVERAGE, masks_for
 
 V0_1 = config_hash(CapacityConfig().v0_1())  # release 0.1.0, read from the settings
+V0_2 = config_hash(CapacityConfig().v0_2())  # release 0.2.0, read from the settings
 MISMATCH = "04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with"
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -178,6 +179,7 @@ def load() -> dict:
 
     lag = pd.read_csv(RESULTS / "synthetic_lag.csv", dtype={"capacity_config_hash": str})
     trend_tuning = pd.read_csv(RESULTS / "tuning_trend.csv", dtype={"config_hash": str})
+    quad_tuning = pd.read_csv(RESULTS / "tuning_quadratic.csv", dtype={"config_hash": str})
     hashes = set(summaries["config_hash"]) | set(per_test["config_hash"]) | set(checks["config_hash"])
     hashes |= set(lag["capacity_config_hash"])
     for frame in monthly.values():
@@ -214,6 +216,7 @@ def load() -> dict:
         "synth": pd.read_csv(RESULTS / "synthetic_coverage.csv"),
         "lag": lag,
         "trend_tuning": trend_tuning,
+        "quad_tuning": quad_tuning,
         "zenodo": json.loads((RESULTS / "zenodo_files.json").read_text()),
     }
 
@@ -738,8 +741,8 @@ def headline(ctx: dict) -> list[str]:
     held = tests[(tests["set"] == "held-out") & tests["run"]]
     all_held = tests[tests["set"] == "held-out"]
     lines = [f"- **Configuration:** `{ctx['hash']}`, frozen on the development systems {ids_text(DEVELOPMENT)} "
-             f"and on synthetic packs before the held-out systems were run at it. They had been run once before, at "
-             f"the release 0.1.0 settings `{V0_1}`."]  # fmt: skip
+             f"and on synthetic packs before the held-out systems were run at it. They had been run before, at "
+             f"the settings of releases 0.1.0 (`{V0_1}`) and 0.2.0 (`{V0_2}`)."]  # fmt: skip
     lines.append(f"- **Held-out systems with results:** {len(held_ids)} of {len(HELD_OUT)}"
                  + (f" (missing: {ids_text([i for i in HELD_OUT if i not in s.index])})." if len(held_ids) < len(HELD_OUT) else "."))  # fmt: skip
     lines += verdict(ctx)
@@ -784,7 +787,9 @@ def development_block(ctx: dict) -> list[str]:
     tuning = ctx["tuning"]
     rest_search = tuning[tuning["selected"]].iloc[0]
     trend = ctx["trend_tuning"]
-    chosen = trend[trend["selected"].astype(bool)].iloc[0]
+    gate = trend[trend["selected"].astype(bool)].iloc[0]
+    quad = ctx["quad_tuning"]
+    chosen = quad[quad["selected"].astype(bool)].iloc[0]
     same = chosen["config_hash"] == ctx["hash"]
     now = dev[dev["run"]]
     a = accuracy(now) if len(now) else None
@@ -801,8 +806,9 @@ def development_block(ctx: dict) -> list[str]:
         table(pd.DataFrame(rows)),
         "",
         f"The rest search and the memory time were chosen in version 0.1 (`{rest_search['config_hash']}`) and kept. "
-        f"Version 0.2 tuned one setting on these {int(chosen['n_tests'])} tests, the trend gate (`validation/tune_trend.py`). "
-        f"It chose `{chosen['config_hash']}`, "
+        f"Version 0.2 tuned one setting on these {int(gate['n_tests'])} tests, the trend gate (`validation/tune_trend.py`; "
+        f"it chose `{gate['config_hash']}`, the 0.2 configuration). Version 0.3 tuned one more, the gate of the quadratic voltage "
+        f"terms (`validation/tune_quadratic.py`). It chose `{chosen['config_hash']}`, "
         + ("the frozen configuration" if same else f"not the frozen `{ctx['hash']}`")
         + f": median absolute error {num(chosen['median_abs_error_points'])} points, "
         f"{int(chosen['n_estimated'])} with an estimate, band coverage {chosen['coverage']:.0%}. "
@@ -1358,7 +1364,8 @@ def settings_block(ctx: dict) -> list[str]:
                       "development tests." if chosen["coverage"] < c.level else ""))  # fmt: skip
     return [
         "The settings of release 0.1.0 were fixed on the development systems, by rules written before any estimate was compared "
-        "with a test. What version 0.2 changed, and where each change was found: [version 0.2 page](04_version_0_2.md).",
+        "with a test. What version 0.2 changed, and where each change was found: [version 0.2 page](04_version_0_2.md); "
+        "version 0.3: [version 0.3 page](06_version_0_3.md).",
         "",
         f"- **Grid search** ({len(tuning)} settings: {'; '.join(f'{k} {v}' for k, v in grid.items())}). Rule: the lowest median",
         f"  absolute error among the settings whose {BAND} band holds at least {MIN_COVERAGE:.0%} of the development tests;".replace("0%", "0 %"),
@@ -1680,8 +1687,8 @@ def document(ctx: dict, months: pd.DataFrame, system_figures: dict) -> str:
         "",
         f"besslib estimates the capacity between two stated rest voltages of a home storage system from its daily operation, with a {BAND} band, and",
         "compares it with the field capacity tests measured again on the reference page ([`01_reference.md`](01_reference.md)). The settings were",
-        f"tuned on the {len(DEVELOPMENT)} development systems, then frozen. The {len(HELD_OUT)} held-out systems were run once "
-        "at the settings of release 0.1.0 and once at these ([what changed](04_version_0_2.md))"
+        f"tuned on the {len(DEVELOPMENT)} development systems, then frozen. The {len(HELD_OUT)} held-out systems were run "
+        "at the settings of releases 0.1.0 and 0.2.0, then once at these ([what changed](06_version_0_3.md))"
         + ("." if all(i in ctx["summaries"].index for i in HELD_OUT) else
            f" ({sum(i in ctx['summaries'].index for i in HELD_OUT)} of {len(HELD_OUT)} have results)."),
         "The headline comes from held-out systems only.",

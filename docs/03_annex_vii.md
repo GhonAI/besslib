@@ -8,10 +8,10 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 
 ## Result
 
-- **Configuration:** capacity `b3959941c19b` (unchanged from the capacity page), record `d49cbfdcd5b6`, frozen on the development systems 01, 04, 07, 11, 14, 17 and 19 and on synthetic packs before the held-out systems were run at them. They had been run once before, at the release 0.1.0 settings (capacity `109e9eb1efa5`, record `c2f7f545cebb`).
+- **Configuration:** capacity `b30137b3f868` (unchanged from the capacity page), record `d49cbfdcd5b6`, frozen on the development systems 01, 04, 07, 11, 14, 17 and 19 and on synthetic packs before the held-out systems were run at them. They had been run before, at the settings of releases 0.1.0 (capacity `109e9eb1efa5`, record `c2f7f545cebb`) and 0.2.0 (capacity `b3959941c19b`, record `d49cbfdcd5b6`).
 - **Held-out records:** 14 of 14.
 - **Passed:** W1, W2 growth, W5, W7, W8, X5, W4, W9, W10. **Failed:** W2 value, W6. **Not possible:** W3. **Not run:** none.
-  - W2 value failed (200 synthetic packs: resistance at the weighted mean age of the days in memory): fails under each truth. same-days truth 200 of 200: too wide, because that truth shares every day with the estimate, so the day-to-day scatter the statistical half-width stands for (median 0.62% of the value) is not in the difference; the largest difference is 0.77%, and the systematic half-width alone (median 0.53%) holds 187 of 200. At the date 0 of 200: the estimate lags the growing resistance (the value at the date is a median 2.3% above it). At 25 degrees C 90 of 200: the days in the band read a median +0.9% against 25 degrees C, and the estimator has no temperature model (rule 85-95 %).
+  - W2 value failed (200 synthetic packs: resistance at the weighted mean age of the days in memory): fails under each truth: same days 200 of 200 (too wide: that truth shares every day with the estimate; the systematic half-width alone holds 187); at the date 0 of 200 (the estimate lags the growing resistance by a median 2.3%); at 25 degrees C 90 of 200 (no temperature model; the days read a median +0.9%) (rule 85-95 %).
   - W6 failed (held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed)): 39 of 55 (71%) (rule >= 80%).
   - W3 not possible (held-out capacity tests): 18 of 38 tests have a reference: not possible (rule >= 30 references, then <= 20 %). The rule, fixed before the held-out run, publishes this case as `not possible`. In version 0.1 the check script first wrote it as `fail`, and that label was corrected after that run, with no result changed.
 
@@ -21,13 +21,13 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 |---|---|---|---|---|
 | W1 info | development records | 7 of 7 records; 0 fields break the rule | 0 | information |
 | W1 | held-out records | 14 of 14 records; 0 fields break the rule | 0 | pass |
-| W2 | 200 synthetic packs: resistance at the weighted mean age of the days in memory | fails under each truth. same-days truth 200 of 200: too wide, because that truth shares every day with the estimate, so the day-to-day scatter the statistical half-width stands for (median 0.62% of the value) is not in the difference; the largest difference is 0.77%, and the systematic half-width alone (median 0.53%) holds 187 of 200. At the date 0 of 200: the estimate lags the growing resistance (the value at the date is a median 2.3% above it). At 25 degrees C 90 of 200: the days in the band read a median +0.9% against 25 degrees C, and the estimator has no temperature model | 85-95 % | **fail** |
+| W2 | 200 synthetic packs: resistance at the weighted mean age of the days in memory | fails under each truth: same days 200 of 200 (too wide: that truth shares every day with the estimate; the systematic half-width alone holds 187); at the date 0 of 200 (the estimate lags the growing resistance by a median 2.3%); at 25 degrees C 90 of 200 (no temperature model; the days read a median +0.9%) | 85-95 % | **fail** |
 | W2 | 200 synthetic packs: resistance growth per year, whole record, against the simulator's known growth (median 4.93 % per year at the fit's origin; this truth was chosen after the first results) | band held the truth in 184 of 200 (92.0%); same-days truth (information): 199 of 200 (99.5%) | 85-95 % | pass |
 | W5 | 200 synthetic packs: round-trip efficiency, full-to-full loops | band held the truth in 176 of 200 (88.0%) | 85-95 % | pass |
-| W7 | 200 synthetic packs: apparent charge loss (hidden drain) | band held the truth in 188 of 200 (94.0%) | 85-95 % | pass |
+| W7 | 200 synthetic packs: apparent charge loss (hidden drain) | band held the truth in 182 of 200 (91.0%) | 85-95 % | pass |
 | W8 | 200 synthetic packs: Ah, kWh, cycles; planted events (pack B: current gain error only) | largest relative error 0.498%; events exact on 200 of 200; 200 of 200 packs within the rule | <= 0.6 % and exact, every pack | pass |
 | W8 info | 200 synthetic packs: the same on pack B with current and voltage noise | largest relative error 0.498%; events exact on 189 of 200; 189 of 200 packs within the rule | information | information |
-| W3 info | development capacity tests | median \|difference\| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry {'LFP': 64.1, 'LMO/NMC': -8.2, 'NMC': -11.5} | information | information |
+| W3 info | development capacity tests | median \|difference\| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry LFP +64.1 %, LMO/NMC -8.2 %, NMC -11.5 % | information | information |
 | W3 | held-out capacity tests | 18 of 38 tests have a reference: not possible | >= 30 references, then <= 20 % | not possible |
 | X5 | development: W4 table, system-days with more than one row | 0 | 0 | pass |
 | W4 info | development: neighbouring 5-degree bands: the colder reads higher | 50 of 58 (86%) | >= 80% | information |
@@ -39,9 +39,9 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 | W6 | held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed) | 39 of 55 (71%) | >= 80% | **fail** |
 | W9 | core against batch, resistance: 240 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06)) | max relative difference 3.6e-14 (64-bit); 2.6e-06 (32-bit, information) | <= 1e-6 | pass |
 | W9 | core against batch, efficiency: 10 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06)) | max relative difference 0.0e+00 (64-bit); 1.3e-06 (32-bit, information) | <= 1e-6 | pass |
-| W9 | daily counters against rest counters: 138814 rests, systems [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21] | max relative difference 8.7e-13 (throughput, system 13) | <= 1e-6 | pass |
-| W10 | phase 2 rebuilt for 21 systems | 0 of 60 files differ | 0 differences | pass |
-| W10 | record A1 against the phase 2 capacity run, every month end, 21 systems | 0 values differ over 1139 month ends (21 systems with a file) | 0 differences, every system | pass |
+| W9 | daily counters against rest counters: 138814 rests, 21 systems (1-21) | max relative difference 8.7e-13 (throughput, system 13) | <= 1e-6 | pass |
+| W10 | capacity run rebuilt for 21 systems | 0 of 60 files differ | 0 differences | pass |
+| W10 | record A1 against the capacity run, every month end, 21 systems | 0 values differ over 1139 month ends (21 systems with a file) | 0 differences, every system | pass |
 | W10 | records rebuilt twice for 21 systems | 0 differences over 42 files | 0 differences | pass |
 
 W1, W3, W4 and W6 pass or fail on the held-out systems; their development and all-systems lines are information. A check without results says `not run`, never pass or fail. Every word in the Result column is the one in `validation/results/checks_phase3.csv`.
@@ -61,12 +61,12 @@ System 05 is a held-out system; it was named for this page before any result exi
 - **Date of the record:** 2022-09-12 23:59:59 (the last sample).
 - **Pack:** Figgener 2024, system 05; LMO/NMC; 40 cells in series, 1 in parallel; nominal 15 Ah, 2.2 kWh. Reference capacity: 15 Ah.
 - **Sampling interval:** 1 s. **Band level:** 90 %.
-- **Configuration:** capacity `b3959941c19b`, record `d49cbfdcd5b6`.
+- **Configuration:** capacity `b30137b3f868`, record `d49cbfdcd5b6`.
 - **Field list:** Regulation (EU) 2023/1542, Annex VII, consolidated version of 31 July 2025.
 
 | Code | Annex VII field | What is computed | Value [band] | Unit | Events | Status |
 |---|---|---|---|---|---|---|
-| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops | 11.37 [11.32, 11.43] | Ah (75.8 % of 15 Ah) | 207.4 | `estimated` |
+| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops; full and empty are the ends of the observed window; not checked against voltage limits | 11.41 [11.36, 11.47] | Ah (76.1 % of 15 Ah) | 207.4 | `estimated` |
 | A2 | "where possible, the remaining power capability" | power capability share, derived from the 1-second resistance, not measured | 72.7 [65.6, 79.8] | % of the first day | 282 | `estimated` |
 | A3 | "where possible, the remaining round trip efficiency" | round-trip efficiency (DC, at the battery terminals) over full-to-full loops | 96.07 [96.04, 96.10] | % | 96.1 | `estimated` |
 | A4 | "the evolution of self-discharging rates" | apparent charge loss (an upper bound for self-discharge) | 5.7 [4.9, 6.4] | mA | 207.4 | `estimated` |
@@ -81,7 +81,7 @@ Events: A1 pairs of full and empty rests in memory (decayed count); A2 days with
 
 **Method and source of each field, as the record states it:**
 
-- **A1:** capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed voltage of each rest (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); read at the mean full and empty rest voltages of the memory time, which the record gives.
+- **A1:** capacity between full and empty rests by coulomb counting, fitted with the offset current and the relaxed voltage of each rest, a linear and a quadratic term at each end (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); read at the mean full and empty rest voltages of the memory time, which the record gives.
 - **A2:** ratio of the resistance on the first day to the resistance at the date, from dV/dI of current steps between consecutive samples (Barai et al., Sci. Rep. 8, 21 (2018), doi:10.1038/s41598-017-18424-5; Schweiger et al., Sensors 10, 5604 (2010), doi:10.3390/s100605604); no power test.
 - **A3:** energy out / energy in, summed over closed loops from one full rest to the next (Regulation (EU) 2023/1542, Annex IV (6)); band: how far that ratio can be off because a loop does not end at exactly the state of charge it started from; the size of that error is learnt from the loops themselves (mean lag-2 product of the loop scores minus the mean lag-1 product).
 - **A4:** minus the offset current of the capacity fit (Figgener et al., Nature Energy 9, 1438 (2024), doi:10.1038/s41560-024-01620-9); band with the current sensor's gain error.
@@ -96,18 +96,18 @@ Events: A1 pairs of full and empty rests in memory (decayed count); A2 days with
 
 **A3.** Coulombic part 99.05 %, voltage part 96.99 %; degrees of freedom 8.0; rest error 34 Wh; lag-1 correlation of the loop scores -0.33. Empty-to-empty loops (cross-check W6, 110.8 loops in memory): `not possible from this data: the loop scores show no state-of-charge error at the shared rests (their lag-1 products are not below their lag-2 products)`. Limits as the record states them: DC at the battery terminals, not the AC efficiency of the plant; depends on the use (Schimpe et al., Applied Energy 210, 211 (2018), doi:10.1016/j.apenergy.2017.10.129); the band holds the ratio over these loops, not the efficiency under other use; a change of the loops' own efficiency within two loops makes the band too narrow; below one degree of freedom there is no band; the energy in also restores the charge the meter does not see; the band holds no zero offset of the current sensor.
 
-**A4.** 5.7 mA is 27.7 % [24.0, 31.3] of 15 Ah per month (730.5 h). It holds the charge the battery loses that its meter does not see: cell self-discharge, BMS supply, balancing and the current sensor's zero offset; mostly not cell self-discharge.
+**A4.** 5.7 mA is 27.6 % [23.9, 31.3] of 15 Ah per month (730.5 h). It holds the charge the battery loses that its meter does not see: cell self-discharge, BMS supply, balancing and the current sensor's zero offset; mostly not cell self-discharge.
 
 | Last value of the calendar year | Apparent charge loss, mA [band] | Pairs in memory |
 |---|---|---|
 | 2017-12-31 | 9.4 [8.1, 10.6] | 46.1 |
-| 2018-12-31 | 8.1 [7.2, 9.0] | 104.0 |
-| 2019-12-31 | 9.0 [8.1, 9.9] | 150.4 |
+| 2018-12-31 | 8.2 [7.3, 9.1] | 104.0 |
+| 2019-12-31 | 9.1 [8.2, 10.0] | 150.4 |
 | 2020-12-31 | 8.3 [7.6, 9.0] | 134.0 |
-| 2021-02-28 | 8.3 [7.5, 9.0] | 96.5 |
+| 2021-02-28 | 8.3 [7.6, 9.0] | 96.5 |
 | 2022-09-12 | 5.7 [4.9, 6.4] | 207.4 |
 
-Evolution (a weighted line through the last value of each calendar year): -0.67 mA per year [-1.23, -0.12] over 6 year-end values.
+Evolution (a weighted line through the last value of each calendar year): -0.69 mA per year [-1.26, -0.12] over 6 year-end values.
 
 **A5.** Every 5-degree band of pack temperature; the headline is the band at 25 °C. The voltage step over the current step between two samples 1 s apart; it depends on that timescale, the state of charge and the temperature, and is not the cell's ohmic resistance alone.
 
@@ -148,27 +148,27 @@ Bands with no measured hour are left out of the table.
 
 | System | Set | Chemistry | Record date | A1, % of nominal | A2, % of first day | A3, % | A4, mA | A5 at 25 °C, mΩ | A5 growth, % per year | B1 put into service | B2, kWh | B3, Ah | B4, empty rests | B5, cycles |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 01 | development | LMO/NMC | 2022-12-31 | 77.4 [77.0, 77.9] | 64.7 [62.1, 67.4] | 92.33 [92.24, 92.42] | 13.0 [11.1, 14.9] | 124.21 [118.59, 129.82] | +7.3 [+6.5, +8.1] | 2015-03-12 | 5135 [5108, 5162] | 34087 [33925, 34249] | 796 | 1136 [1131, 1142] |
-| 02 | held-out | LMO/NMC | 2022-12-31 | 63.4 [62.8, 64.0] | 30.0 [27.3, 32.7] | 91.40 [91.15, 91.65] | 14.7 [12.0, 17.5] | 204.72 [196.19, 213.24] | +33.2 [+28.9, +37.5] | 2014-12-18 | 6153 [6121, 6186] | 40305 [40113, 40496] | 775 | 1343 [1337, 1350] |
-| 03 | held-out | LMO/NMC | 2022-12-31 | 74.4 [74.0, 74.8] | 61.2 [48.8, 73.7] | 93.53 [93.50, 93.56] | 8.3 [6.8, 9.8] | 143.21 [138.10, 148.31] | +10.2 [+4.8, +15.5] | 2015-05-14 | 5796 [5765, 5826] | 38227 [38045, 38408] | 912 | 1274 [1268, 1280] |
-| 04 | development | LMO/NMC | 2022-12-31 | 69.4 [69.0, 69.8] | 33.0 [24.7, 41.4] | 90.67 [90.61, 90.72] | 18.8 [11.4, 26.3] | 159.00 [155.79, 162.20] | +31.5 [+19.6, +43.4] | 2016-01-19 | 6202 [6169, 6235] | 40925 [40731, 41120] | 865 | 1364 [1358, 1371] |
-| 05 | held-out | LMO/NMC | 2022-09-12 | 75.8 [75.5, 76.2] | 72.7 [65.6, 79.8] | 96.07 [96.04, 96.10] | 5.7 [4.9, 6.4] | 140.53 [134.03, 147.02] | +6.8 [+4.4, +9.3] | 2014-11-21 | 5646 [5616, 5676] | 37246 [37069, 37423] | 566 | 1242 [1236, 1247] |
-| 06 | held-out | LMO/NMC | 2022-12-31 | 73.0 [72.7, 73.4] | 58.1 [37.0, 79.2] | 95.66 [95.60, 95.72] | 3.7 [3.0, 4.4] | 153.34 [139.06, 167.63] | +13.0 [+1.7, +24.3] | 2014-09-21 | 4969 [4943, 4996] | 32861 [32705, 33017] | 894 | 1095 [1090, 1101] |
-| 07 | development | NMC | 2022-12-31 | 61.3 [49.9, 72.7] | 82.2 [79.1, 85.3] | 94.60 [94.54, 94.66] | 97.3 [80.8, 113.7] | 17.43 [16.08, 18.78] | +3.0 [+2.4, +3.7] | 2014-07-14 | 19386 [19283, 19489] | 390546 [388692, 392400] | 118 | 1085 [1080, 1090] |
-| 08 | held-out | NMC | 2022-12-31 | 82.5 [82.0, 83.0] | not possible (a) | 96.05 [96.03, 96.08] | 41.0 [31.2, 50.9] | not possible (b) | +1.5 [-0.6, +3.6] | 2015-08-31 | 21096 [20984, 21208] | 439856 [437768, 441945] | 278 | 1170 [1164, 1175] |
+| 01 | development | LMO/NMC | 2022-12-31 | 78.0 [77.5, 78.4] | 64.7 [62.1, 67.4] | 92.33 [92.24, 92.42] | 13.1 [11.2, 15.0] | 124.21 [118.59, 129.82] | +7.3 [+6.5, +8.1] | 2015-03-12 | 5135 [5108, 5162] | 34087 [33925, 34249] | 796 | 1136 [1131, 1142] |
+| 02 | held-out | LMO/NMC | 2022-12-31 | 63.9 [63.4, 64.4] | 30.0 [27.3, 32.7] | 91.40 [91.15, 91.65] | 14.8 [12.0, 17.7] | 204.72 [196.19, 213.24] | +33.2 [+28.9, +37.5] | 2014-12-18 | 6153 [6121, 6186] | 40305 [40113, 40496] | 775 | 1343 [1337, 1350] |
+| 03 | held-out | LMO/NMC | 2022-12-31 | 74.9 [74.6, 75.3] | 61.2 [48.8, 73.7] | 93.53 [93.50, 93.56] | 8.3 [6.8, 9.9] | 143.21 [138.10, 148.31] | +10.2 [+4.8, +15.5] | 2015-05-14 | 5796 [5765, 5826] | 38227 [38045, 38408] | 912 | 1274 [1268, 1280] |
+| 04 | development | LMO/NMC | 2022-12-31 | 69.6 [69.2, 70.0] | 33.0 [24.7, 41.4] | 90.67 [90.61, 90.72] | 18.9 [11.4, 26.4] | 159.00 [155.79, 162.20] | +31.5 [+19.6, +43.4] | 2016-01-19 | 6202 [6169, 6235] | 40925 [40731, 41120] | 865 | 1364 [1358, 1371] |
+| 05 | held-out | LMO/NMC | 2022-09-12 | 76.1 [75.7, 76.5] | 72.7 [65.6, 79.8] | 96.07 [96.04, 96.10] | 5.7 [4.9, 6.4] | 140.53 [134.03, 147.02] | +6.8 [+4.4, +9.3] | 2014-11-21 | 5646 [5616, 5676] | 37246 [37069, 37423] | 566 | 1242 [1236, 1247] |
+| 06 | held-out | LMO/NMC | 2022-12-31 | 73.4 [73.0, 73.7] | 58.1 [37.0, 79.2] | 95.66 [95.60, 95.72] | 3.7 [3.0, 4.4] | 153.34 [139.06, 167.63] | +13.0 [+1.7, +24.3] | 2014-09-21 | 4969 [4943, 4996] | 32861 [32705, 33017] | 894 | 1095 [1090, 1101] |
+| 07 | development | NMC | 2022-12-31 | 60.1 [49.0, 71.3] | 82.2 [79.1, 85.3] | 94.60 [94.54, 94.66] | 96.4 [79.4, 113.5] | 17.43 [16.08, 18.78] | +3.0 [+2.4, +3.7] | 2014-07-14 | 19386 [19283, 19489] | 390546 [388692, 392400] | 118 | 1085 [1080, 1090] |
+| 08 | held-out | NMC | 2022-12-31 | 82.8 [82.4, 83.3] | not possible (a) | 96.05 [96.03, 96.08] | 40.7 [30.5, 50.8] | not possible (b) | +1.5 [-0.6, +3.6] | 2015-08-31 | 21096 [20984, 21208] | 439856 [437768, 441945] | 278 | 1170 [1164, 1175] |
 | 09 | held-out | NMC | 2022-12-31 | not possible (c) | not possible (d) | not possible (e) | not possible (c) | not possible (f) | not possible (f) | 2014-11-25 | 18713 [18614, 18812] | 376715 [374926, 378504] | 138 | 1046 [1041, 1051] |
-| 10 | held-out | NMC | 2022-12-31 | 86.7 [86.2, 87.2] | 105.4 [98.9, 111.8] | not possible (g) | 35.3 [27.9, 42.8] | 12.98 [12.72, 13.25] | -0.8 [-1.8, +0.1] | 2016-06-15 | 15016 [14936, 15096] | 316852 [315348, 318356] | 271 | 843 [839, 847] |
-| 11 | development | NMC | 2022-12-31 | 96.5 [95.8, 97.2] | 75.5 [72.8, 78.2] | 94.64 [94.59, 94.69] | 425.8 [394.3, 457.4] | 14.05 [13.75, 14.34] | +8.4 [+7.2, +9.6] | 2019-04-03 | 14403 [14326, 14479] | 333636 [332052, 335220] | 330 | 972 [968, 977] |
-| 12 | held-out | NMC | 2022-12-31 | 100.2 [99.1, 101.4] | 78.5 [74.4, 82.6] | not possible (g) | 491.7 [416.4, 567.0] | 10.97 [10.63, 11.31] | +7.2 [+5.5, +9.0] | 2019-04-23 | 11679 [11617, 11741] | 270528 [269243, 271812] | 160 | 591 [588, 594] |
-| 13 | held-out | NMC | 2022-12-31 | 69.0 [68.7, 69.3] | 94.5 [90.6, 98.4] | not possible (g) | 336.7 [333.3, 340.0] | 6.52 [6.39, 6.65] | +1.7 [+0.4, +3.0] | 2018-03-22 | 11206 [11146, 11265] | 260371 [259134, 261607] | 434 | 689 [686, 692] |
-| 14 | development | LFP | 2020-09-20 | 90.0 [89.5, 90.6] | 87.8 [80.2, 95.5] | 88.98 [88.81, 89.15] | 273.9 [262.8, 284.9] | 35.02 [32.69, 37.36] | +2.7 [+0.8, +4.6] | 2015-05-05 | 13920 [13846, 13994] | 264314 [263059, 265569] | 205 | 836 [832, 840] |
-| 15 | held-out | LFP | 2022-12-31 | 84.8 [83.8, 85.8] | 102.3 [88.7, 115.9] | 86.66 [86.49, 86.83] | 600.1 [576.8, 623.4] | 11.48 [11.14, 11.82] | -0.3 [-2.4, +1.7] | 2015-07-24 | 16957 [16867, 17047] | 397755 [395866, 399644] | 232 | 1020 [1015, 1025] |
-| 16 | held-out | LFP | 2022-12-31 | 90.6 [90.2, 91.1] | 94.4 [93.9, 94.9] | not possible (h) | 215.1 [213.2, 217.1] | 23.60 [23.46, 23.75] | +1.6 [+1.4, +1.8] | 2017-10-17 | 14049 [13975, 14124] | 265789 [264527, 267051] | 280 | 841 [837, 845] |
-| 17 | development | LFP | 2022-12-31 | 98.4 [97.0, 99.8] | 96.2 [95.4, 97.1] | not possible (h) | 263.6 [258.6, 268.6] | 23.37 [23.22, 23.53] | +1.0 [+0.8, +1.3] | 2018-01-21 | 11222 [11162, 11281] | 213487 [212474, 214501] | 191 | 676 [672, 679] |
+| 10 | held-out | NMC | 2022-12-31 | 86.7 [86.1, 87.2] | 105.4 [98.9, 111.8] | not possible (g) | 35.3 [27.7, 42.9] | 12.98 [12.72, 13.25] | -0.8 [-1.8, +0.1] | 2016-06-15 | 15016 [14936, 15096] | 316852 [315348, 318356] | 271 | 843 [839, 847] |
+| 11 | development | NMC | 2022-12-31 | 96.8 [96.2, 97.5] | 75.5 [72.8, 78.2] | 94.64 [94.59, 94.69] | 426.1 [394.2, 458.0] | 14.05 [13.75, 14.34] | +8.4 [+7.2, +9.6] | 2019-04-03 | 14403 [14326, 14479] | 333636 [332052, 335220] | 330 | 972 [968, 977] |
+| 12 | held-out | NMC | 2022-12-31 | 100.3 [99.2, 101.4] | 78.5 [74.4, 82.6] | not possible (g) | 491.8 [415.9, 567.7] | 10.97 [10.63, 11.31] | +7.2 [+5.5, +9.0] | 2019-04-23 | 11679 [11617, 11741] | 270528 [269243, 271812] | 160 | 591 [588, 594] |
+| 13 | held-out | NMC | 2022-12-31 | 69.1 [68.7, 69.4] | 94.5 [90.6, 98.4] | not possible (g) | 336.9 [334.0, 339.9] | 6.52 [6.39, 6.65] | +1.7 [+0.4, +3.0] | 2018-03-22 | 11206 [11146, 11265] | 260371 [259134, 261607] | 434 | 689 [686, 692] |
+| 14 | development | LFP | 2020-09-20 | 90.1 [89.5, 90.7] | 87.8 [80.2, 95.5] | 88.98 [88.81, 89.15] | 274.1 [262.8, 285.4] | 35.02 [32.69, 37.36] | +2.7 [+0.8, +4.6] | 2015-05-05 | 13920 [13846, 13994] | 264314 [263059, 265569] | 205 | 836 [832, 840] |
+| 15 | held-out | LFP | 2022-12-31 | 84.9 [83.9, 86.0] | 102.3 [88.7, 115.9] | 86.66 [86.49, 86.83] | 600.1 [576.7, 623.5] | 11.48 [11.14, 11.82] | -0.3 [-2.4, +1.7] | 2015-07-24 | 16957 [16867, 17047] | 397755 [395866, 399644] | 232 | 1020 [1015, 1025] |
+| 16 | held-out | LFP | 2022-12-31 | 90.6 [90.2, 91.1] | 94.4 [93.9, 94.9] | not possible (h) | 215.2 [213.2, 217.2] | 23.60 [23.46, 23.75] | +1.6 [+1.4, +1.8] | 2017-10-17 | 14049 [13975, 14124] | 265789 [264527, 267051] | 280 | 841 [837, 845] |
+| 17 | development | LFP | 2022-12-31 | 99.5 [98.4, 100.6] | 96.2 [95.4, 97.1] | not possible (h) | 262.2 [256.8, 267.6] | 23.37 [23.22, 23.53] | +1.0 [+0.8, +1.3] | 2018-01-21 | 11222 [11162, 11281] | 213487 [212474, 214501] | 191 | 676 [672, 679] |
 | 18 | held-out | LFP | 2019-07-08 | not possible (i) | not possible (j) | not possible (g) | not possible (i) | not possible (k) | -0.8 [-3.3, +1.7] | 2015-10-23 | 3990 [3969, 4011] | 75274 [74917, 75631] | 35 | 238 [237, 239] |
 | 19 | development | LFP | 2022-03-20 | not possible (i) | not possible (l) | not possible (h) | not possible (i) | not possible (m) | -0.3 [-2.3, +1.7] | 2015-03-23 | 12379 [12313, 12445] | 334349 [332762, 335937] | 232 | 836 [832, 840] |
 | 20 | held-out | LFP | 2022-04-20 | not possible (i) | not possible (j) | not possible (e) | not possible (i) | not possible (k) | -5.6 [-7.4, -3.9] | 2015-08-27 | 14407 [14330, 14483] | 390311 [388458, 392164] | 162 | 976 [971, 980] |
-| 21 | held-out | LFP | 2020-12-19 | 95.3 [78.6, 112.0] | 104.8 [101.1, 108.6] | not possible (e) | 881.5 [689.7, 1073.3] | 4.88 [4.74, 5.02] | -0.9 [-1.5, -0.2] | 2014-11-10 | 19273 [19170, 19375] | 520645 [518173, 523117] | 140 | 868 [864, 872] |
+| 21 | held-out | LFP | 2020-12-19 | 96.7 [82.8, 110.7] | 104.8 [101.1, 108.6] | not possible (e) | 885.0 [684.9, 1085.1] | 4.88 [4.74, 5.02] | -0.9 [-1.5, -0.2] | 2014-11-10 | 19273 [19170, 19375] | 520645 [518173, 523117] | 140 | 868 [864, 872] |
 
 Value [90 % band] where the status is `estimated`; otherwise the reason, below. Records: 21 of 21. A5 is the headline temperature band. B1, date of manufacture, on all 21 records: `not possible from this data: not in the dataset`. B2, B3 and B5 count since the first day of data.
 
@@ -369,7 +369,7 @@ Full-to-full reads higher than empty-to-empty in 75 of 86 system-years. A system
 | W2 value, at 25 °C | 200 | 90 | 45.0% | no temperature model; the days in the band are not all at 25 °C |
 | W2 growth | 200 | 184 | 92.0% | against the known 5 % per year; median estimate 5.08 % per year |
 | W5 | 200 | 176 | 88.0% | 195 with a band, 176 held among them; median degrees of freedom 10.3 |
-| W7 | 200 | 188 | 94.0% | truth 50 mA; mean error -0.03 mA |
+| W7 | 200 | 182 | 91.0% | truth 50 mA; mean error -0.08 mA |
 | W8 | 200 | 200 | 100.0% | pack with the current gain error only; within the rule |
 
 ## Method and limits per field
@@ -378,7 +378,7 @@ Annex IV of the Regulation ([consolidated text](https://eur-lex.europa.eu/legal-
 
 | Code | Annex VII field | besslib computes | Annex IV definition | Limits |
 |---|---|---|---|---|
-| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops | – | The capacity estimator of the capacity page: no value in the first year (the full and empty levels need a year of history). It is the capacity between the mean full and empty rest voltages of the memory time, which the record gives. The band does not hold the drift of the BMS stops against those voltages ([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)). |
+| A1 | "the remaining capacity" | remaining capacity between a full and an empty rest at two stated relaxed voltages (the record gives both); not the charge between the BMS stops; full and empty are the ends of the observed window; not checked against voltage limits | – | The capacity estimator of the capacity page: no value in the first year (the full and empty levels need a year of history). It is the capacity between the mean full and empty rest voltages of the memory time, which the record gives. The band does not hold the drift of the BMS stops against those voltages ([version 0.2 page](04_version_0_2.md#what-the-capacity-measures-and-what-the-checks-compare-it-with)). |
 | A2 | "where possible, the remaining power capability" | power capability share, derived from the 1-second resistance, not measured | (4) "'Power fade' means the decrease over time and upon usage in the amount of power that a battery can deliver at the rated voltage." | Derived from the 1-second resistance, not measured: no power test. With an ohmic model the power at a fixed voltage limit goes as 1 ÷ R. The resistance grows with the length of the pulse (Barai 2018; Schweiger 2010), so the power of a pulse longer than one sample is lower than this share suggests. Watts need the pack's voltage limits, which the dataset does not give. Since version 0.2 it is `estimated` only when A5 is `estimated` at the same date. |
 | A3 | "where possible, the remaining round trip efficiency" | round-trip efficiency (DC, at the battery terminals) over full-to-full loops | (6) "'Energy round trip efficiency' means the ratio of the net energy delivered by a battery during a discharge test to the total energy required to restore the initial state of charge by a standard charge." | DC at the battery terminals, not the AC efficiency of the plant: Schimpe et al. (2018) give AC system figures well below the battery's, and are cited for that scale only. It depends on the use. The energy in also restores the charge the meter does not see. A sensor gain error cancels in the ratio; a zero offset does not, and is not in the band. No value in the first year. |
 | A4 | "the evolution of self-discharging rates" | apparent charge loss (an upper bound for self-discharge) | – | "Apparent charge loss": an upper bound for self-discharge. It holds cell self-discharge, BMS supply, balancing and the current sensor's zero offset, so it is mostly not cell self-discharge. |
@@ -411,7 +411,7 @@ Not verified: any published resistance or efficiency figure for these 21 systems
 
 ## Settings
 
-Record settings (`RecordConfig()`, hash `d49cbfdcd5b6`). The capacity settings (`CapacityConfig()`, hash `b3959941c19b`) are those of the capacity page, unchanged.
+Record settings (`RecordConfig()`, hash `d49cbfdcd5b6`). The capacity settings (`CapacityConfig()`, hash `b30137b3f868`) are those of the capacity page, unchanged.
 
 | Setting | Value | Meaning |
 |---|---|---|
@@ -448,7 +448,7 @@ The current-step filter was tuned in version 0.1 (the record hashes above) and k
 
 ## Version 0.2
 
-Version 0.2 changes the capacity fit (rest-voltage terms, a trend, the band's forgetting, plausibility rules) and makes A2 follow A5. The held-out systems were seen once before, at the release 0.1.0 settings. What changed, and every check before and after, is on the [version 0.2 page](04_version_0_2.md).
+Version 0.2 changed the capacity fit (rest-voltage terms, a trend, the band's forgetting, plausibility rules) and made A2 follow A5 ([version 0.2 page](04_version_0_2.md)). Version 0.3 adds a quadratic term at each end of the fit, takes the time of a pair between the moments its rests are read, and refuses a capacity whose levels are not the pack's. The held-out systems were seen at the settings of releases 0.1.0 and 0.2.0 before. What changed, and every check before and after, is on the [version 0.3 page](06_version_0_3.md).
 
 ## Rebuild
 
@@ -462,7 +462,7 @@ python validation/check_annex_vii.py                # the checks W1-W10
 python validation/make_annex_vii_doc.py             # this page and its figures
 ```
 
-The current-step filter is tuned again with `validation/tune_resistance.py`. Every result row carries both configuration hashes; this page refuses to build from results of any hash other than capacity `b3959941c19b` and record `d49cbfdcd5b6`.
+The current-step filter is tuned again with `validation/tune_resistance.py`. Every result row carries both configuration hashes; this page refuses to build from results of any hash other than capacity `b30137b3f868` and record `d49cbfdcd5b6`.
 
 ## Source and credit
 

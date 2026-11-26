@@ -1,5 +1,5 @@
 test_id,set,system_id,chemistry,test_capacity_ah,test_c_rate,test_status,time,capacity_ah,capacity_ah_low,capacity_ah_high,offset_current_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,error_points,band_points,held,config_hash
-15/1,held-out,15,LFP,168.10460,0.18160,ok,2017-06-04 18:00:24,,,,,0.00000,0.00000,0.00000,,,not possible from this data: not enough history yet to set the full and empty levels,,,False,b3959941c19b
-15/2,held-out,15,LFP,174.82170,0.39450,ok,2018-03-04 14:19:27,,,,,18.38022,1.87310,16.50711,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,b3959941c19b
-15/3,held-out,15,LFP,168.81810,0.43010,ok,2019-10-11 12:12:01,,,,,7.68066,1.18452,6.49614,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,b3959941c19b
-15/4,held-out,15,LFP,157.12270,0.43090,ok,2022-11-12 09:23:14,165.85573,164.42053,167.29093,-0.58718,73.20039,20.16760,53.03279,0.97467,0.44700,estimated,4.47848,1.47200,False,b3959941c19b
+15/1,held-out,15,LFP,168.10460,0.18160,ok,2017-06-04 18:00:24,,,,,0.00000,0.00000,0.00000,,,not possible from this data: not enough history yet to set the full and empty levels,,,False,b30137b3f868
+15/2,held-out,15,LFP,174.82170,0.39450,ok,2018-03-04 14:19:27,,,,,18.38022,1.87310,16.50711,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,b30137b3f868
+15/3,held-out,15,LFP,168.81810,0.43010,ok,2019-10-11 12:12:01,,,,,7.68066,1.18452,6.49614,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,False,b30137b3f868
+15/4,held-out,15,LFP,157.12270,0.43090,ok,2022-11-12 09:23:14,166.13184,164.44954,167.81415,-0.58706,73.20039,20.16760,53.03279,0.96971,0.47241,estimated,4.62007,1.72544,False,b30137b3f868

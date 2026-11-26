@@ -56,6 +56,7 @@ HELD_OUT = tuple(i for i in figgener.SYSTEM_IDS if i not in DEVELOPMENT)
 RECORD_SYSTEM = 5  # the system whose full record is shown: held-out, named before any result
 FROZEN = {"capacity": config_hash(CapacityConfig()), "record": config_hash(RecordConfig())}  # read from the settings
 V0_1 = {"capacity": config_hash(CapacityConfig().v0_1()), "record": config_hash(RecordConfig().v0_1())}  # release 0.1.0
+V0_2 = {"capacity": config_hash(CapacityConfig().v0_2()), "record": config_hash(RecordConfig().v0_2())}  # release 0.2.0
 NOT_RUN = "not run"
 NOT_POSSIBLE_CHECK = "not possible"  # a check whose rule says so when its references are too few (W3)
 NOT_POSSIBLE = "not possible from this data: "
@@ -292,10 +293,10 @@ def mask_text() -> str:
 
 
 def series(ctx: dict, sid: int, quantity: str) -> pd.DataFrame:
-    """One quantity of one system over its year ends; of two rows on the same day only the later is kept."""
+    """One quantity of one system over its year ends; of two dates on the same day the earlier is kept, as the
+    checks W4 and W6 keep it (``one_row_per_day``)."""
     t = ctx["yearly"][sid]
-    t = t[t["quantity"] == quantity].sort_values("date")
-    return t.groupby(t["date"].dt.normalize(), sort=True).tail(1).reset_index(drop=True)
+    return one_row_per_day(t[t["quantity"] == quantity]).sort_values("date").reset_index(drop=True)
 
 
 # ----------------------------------------------------------------------------- formatting
@@ -622,8 +623,9 @@ def verdict_block(ctx: dict) -> list[str]:
     lines = [
         f"- **Configuration:** capacity `{ctx['hashes']['capacity']}` (unchanged from the capacity page), record "
         f"`{ctx['hashes']['record']}`, frozen on the development systems {ids_text(DEVELOPMENT)} and on synthetic packs "
-        f"before the held-out systems were run at them. They had been run once before, at the release 0.1.0 settings "
-        f"(capacity `{V0_1['capacity']}`, record `{V0_1['record']}`).",
+        f"before the held-out systems were run at them. They had been run before, at the settings of releases 0.1.0 "
+        f"(capacity `{V0_1['capacity']}`, record `{V0_1['record']}`) and 0.2.0 (capacity `{V0_2['capacity']}`, record "
+        f"`{V0_2['record']}`).",
         f"- **Held-out records:** {len(held)} of {len(HELD_OUT)}"
         + (f" (not run: {ids_text([s for s in HELD_OUT if s not in held])})." if len(held) < len(HELD_OUT) else "."),
         f"- **Passed:** {', '.join(k for k in order if word[k] == 'pass') or 'none'}. "
@@ -937,8 +939,7 @@ def over_time_block(ctx: dict, band_c: float, figures: dict) -> list[str]:
         lines += [f"![Efficiency over time](img/{figures['efficiency']})", ""]
     yearly = pd.concat([ctx["yearly"][sid] for sid in sorted(ctx["yearly"])], ignore_index=True) if ctx["yearly"] else pd.DataFrame()
     if len(yearly):
-        e = yearly[yearly["quantity"] == "efficiency_full_loops"].copy()
-        e = e.groupby(["system_id", e["date"].dt.normalize()]).tail(1)
+        e = one_row_per_day(yearly[yearly["quantity"] == "efficiency_full_loops"])  # the earlier date of a day, as W4 and W6
         n_ok = int((e["status"] == ESTIMATED).sum())
         counts = e.loc[e["status"] != ESTIMATED, "status"].value_counts().sort_index()
         lines += [
@@ -1187,9 +1188,11 @@ def settings_block(ctx: dict) -> list[str]:
 
 def version_block(ctx: dict) -> list[str]:
     return [
-        "Version 0.2 changes the capacity fit (rest-voltage terms, a trend, the band's forgetting, plausibility rules) "
-        "and makes A2 follow A5. The held-out systems were seen once before, at the release 0.1.0 settings. What "
-        "changed, and every check before and after, is on the [version 0.2 page](04_version_0_2.md).",
+        "Version 0.2 changed the capacity fit (rest-voltage terms, a trend, the band's forgetting, plausibility rules) "
+        "and made A2 follow A5 ([version 0.2 page](04_version_0_2.md)). Version 0.3 adds a quadratic term at each end of "
+        "the fit, takes the time of a pair between the moments its rests are read, and refuses a capacity whose levels "
+        "are not the pack's. The held-out systems were seen at the settings of releases 0.1.0 and 0.2.0 before. What "
+        "changed, and every check before and after, is on the [version 0.3 page](06_version_0_3.md).",
     ]
 
 

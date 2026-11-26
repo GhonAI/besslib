@@ -2,7 +2,7 @@
 
 Written by `validation/make_v02_doc.py` from `validation/results/` and from the files of release 0.1.0 (tag `v0.1.0`). No number on this page is typed by hand.
 
-## Seen once
+## The held-out systems were seen before
 
 The 14 held-out systems were seen once before, at the settings of release 0.1.0 (tagged 20 November 2026). Two faults this version fixes were found in those results: a capacity at or below zero marked `estimated` (held-out 09) and power capability `estimated` without a resistance (held-out 08, 18 and 20; development 19). The 0.2 settings were fixed on synthetic packs and the 7 development systems, except the plausibility rules and the power-capability rule, which answer the two faults found in the held-out results; then the held-out systems were run once with them. **The 0.2 held-out results are a second look, not a blind test.**
 

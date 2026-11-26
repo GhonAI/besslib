@@ -5,3 +5,5 @@ F1 v0.1.0 hashes,the release's,"109e9eb1efa5, c2f7f545cebb",pass,
 F1 v0.2.0 files,0 differences,0 of 102 files differ,pass,"21 systems compared; 0 records differ only in keys later versions add; columns and keys added later, not compared: ['gamma_empty2_ah_per_v2', 'gamma_empty2_sigma_ah_per_v2', 'gamma_full2_ah_per_v2', 'gamma_full2_sigma_ah_per_v2']"
 F1 v0.2.0 vectors,0 differences,0 of 8 test-vector files differ,pass,byte for byte against the tag; the core's agreement with them is test_core.py
 F1 v0.2.0 hashes,the release's,"b3959941c19b, d49cbfdcd5b6",pass,
+R2,0 removed,0 of 303 month ends that 0.2.0 estimated on the 7 development systems are refused by rule A,pass,settings b30137b3f868; held-out systems not read
+W7,85-95 % and mean error within 2 sd / sqrt(n) of zero,"band held the hidden drain in 182 of 200 packs (91.0%); mean error -0.084 mA, limit +-0.024 (200 packs with an estimate)",fail,settings b30137b3f868; release 0.2.0 judged the share only

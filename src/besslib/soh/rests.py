@@ -259,6 +259,7 @@ def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", lo
         pieces.append(cur)
         if nxt is not None:
             pieces.append(nxt.loc[: bound + margin])
+        pieces = [p for p in pieces if len(p)]  # an empty piece adds nothing (and warns on pandas 2.2)
         frame = pd.concat(pieces) if len(pieces) > 1 else cur
         frame = frame[~frame.index.duplicated(keep="first")]
         mine = []
@@ -292,7 +293,11 @@ def detect_rests_in_parts(parts, spec: PackSpec, configs, margin: str = "1D", lo
         prev, cur = cur, part
     if cur is not None:
         flush(prev, cur, None)
-    out = [pd.concat(t, ignore_index=True) if t else pd.DataFrame(columns=REST_COLUMNS) for t in tables]
+    out = []
+    for t in tables:
+        full = [x for x in t if len(x)]  # empty tables add nothing (and warn on pandas 2.2)
+        out.append(pd.concat(full, ignore_index=True) if full else t[0].reset_index(drop=True) if t
+                   else pd.DataFrame(columns=REST_COLUMNS))
     return out[0] if single else out
 
 

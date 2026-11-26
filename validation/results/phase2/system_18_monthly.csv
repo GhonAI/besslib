@@ -1,23 +1,23 @@
-time,capacity_ah,capacity_ah_low,capacity_ah_high,soh_capacity,soh_capacity_low,soh_capacity_high,reference_capacity_ah,offset_current_a,offset_current_sigma_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,dof,offset_dof,ref_full_v,ref_empty_v,trend_ah_per_year,gamma_full_ah_per_v,gamma_full_sigma_ah_per_v,gamma_empty_ah_per_v,gamma_empty_sigma_ah_per_v,terms,config_hash
-2017-09-30,,,,,,,158.00000,,,2.72776,0.90216,1.82560,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2017-10-31,,,,,,,158.00000,,,3.21525,0.75943,2.45582,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2017-11-30,,,,,,,158.00000,,,3.57545,0.64284,2.93261,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2017-12-31,,,,,,,158.00000,,,3.00979,0.54114,2.46864,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-01-31,,,,,,,158.00000,,,6.42054,0.45553,5.96502,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-02-28,132.31312,109.91753,154.70871,0.83742,0.69568,0.97917,158.00000,-0.22768,0.04831,15.59219,4.09912,11.49308,2.52385,-0.22569,estimated,4.25178,3.38663,54.43079,49.96838,-55.02982,-12.89940,7.36659,-2.44151,8.23831,C+beta+r+gamma_full+gamma_empty,b3959941c19b
-2018-03-31,121.79454,102.01121,141.57786,0.77085,0.64564,0.89606,158.00000,-0.20899,0.06203,14.95206,4.29493,10.65713,2.65938,-0.20559,estimated,4.38727,4.05980,54.43248,49.92971,-73.46533,-8.77564,6.11019,-12.51477,15.77815,C+beta+r+gamma_full+gamma_empty,b3959941c19b
-2018-04-30,123.72089,87.89503,159.54676,0.78304,0.55630,1.00979,158.00000,-0.14539,0.07753,18.83596,4.51284,14.32312,10.93520,-0.05247,estimated,5.79464,5.94943,54.44572,49.94090,-17.67079,48.59159,25.48387,13.59825,20.08396,C+beta+r+gamma_full+gamma_empty,b3959941c19b
-2018-05-31,122.22111,73.90786,170.53437,0.77355,0.46777,1.07933,158.00000,-0.14539,0.08030,15.85596,3.79887,12.05709,11.73201,-0.05247,estimated,4.50953,4.66803,54.44572,49.94090,-17.67079,48.59159,26.39601,13.59825,20.80282,C+beta+r+gamma_full+gamma_empty,b3959941c19b
-2018-06-30,120.76971,55.88760,185.65183,0.76437,0.35372,1.17501,158.00000,-0.14539,0.08388,13.42178,3.21568,10.20610,12.80131,-0.05247,estimated,3.48001,3.62134,54.44572,49.94090,-17.67079,48.59159,27.57270,13.59825,21.73017,C+beta+r+gamma_full+gamma_empty,b3959941c19b
-2018-07-31,,,,,,,158.00000,,,11.29835,2.70693,8.59142,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-08-31,,,,,,,158.00000,,,9.51086,2.27867,7.23219,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-09-30,,,,,,,158.00000,,,8.05077,1.92886,6.12191,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-10-31,,,,,,,158.00000,,,6.77707,1.62369,5.15338,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-11-30,,,,,,,158.00000,,,5.73667,1.37443,4.36224,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2018-12-31,,,,,,,158.00000,,,4.82908,1.15698,3.67210,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2019-01-31,,,,,,,158.00000,,,4.06508,0.97394,3.09114,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2019-02-28,,,,,,,158.00000,,,3.47947,0.83363,2.64583,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2019-03-31,,,,,,,158.00000,,,2.92899,0.70175,2.22724,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2019-04-30,,,,,,,158.00000,,,2.47933,0.59401,1.88532,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2019-05-31,,,,,,,158.00000,,,5.03262,2.45434,2.57828,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
-2019-06-30,,,,,,,158.00000,,,6.81951,2.07755,4.74196,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,b3959941c19b
+time,capacity_ah,capacity_ah_low,capacity_ah_high,soh_capacity,soh_capacity_low,soh_capacity_high,reference_capacity_ah,offset_current_a,offset_current_sigma_a,n_pairs,n_full_empty,n_same_kind,birge,rho,status,dof,offset_dof,ref_full_v,ref_empty_v,trend_ah_per_year,gamma_full_ah_per_v,gamma_full_sigma_ah_per_v,gamma_empty_ah_per_v,gamma_empty_sigma_ah_per_v,gamma_full2_ah_per_v2,gamma_full2_sigma_ah_per_v2,gamma_empty2_ah_per_v2,gamma_empty2_sigma_ah_per_v2,terms,config_hash
+2017-09-30,,,,,,,158.00000,,,2.72776,0.90216,1.82560,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2017-10-31,,,,,,,158.00000,,,3.21525,0.75943,2.45582,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2017-11-30,,,,,,,158.00000,,,3.57545,0.64284,2.93261,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2017-12-31,,,,,,,158.00000,,,3.00979,0.54114,2.46864,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-01-31,,,,,,,158.00000,,,6.42054,0.45553,5.96502,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-02-28,133.35257,104.79525,161.90988,0.84400,0.66326,1.02475,158.00000,-0.22728,0.04900,15.59219,4.09912,11.49308,2.81233,-0.15594,estimated,3.38295,2.48671,54.43080,49.96838,-41.63120,-10.02871,10.18110,49.11297,71.86281,-16.01422,10.69510,-169.26570,261.13767,C+beta+r+gamma_full+gamma_empty+gamma_full2+gamma_empty2,b30137b3f868
+2018-03-31,122.98302,97.54068,148.42536,0.77837,0.61735,0.93940,158.00000,-0.20611,0.06743,14.95206,4.29493,10.65713,3.16626,-0.13442,estimated,3.46510,3.31101,54.43248,49.92971,-71.01707,-6.21728,7.50306,-23.88377,41.31079,-13.68445,10.41083,44.40353,138.84392,C+beta+r+gamma_full+gamma_empty+gamma_full2+gamma_empty2,b30137b3f868
+2018-04-30,131.99512,105.31938,158.67087,0.83541,0.66658,1.00425,158.00000,-0.17553,0.06278,18.83596,4.51284,14.32312,6.49348,-0.14465,estimated,4.83853,4.84639,54.44573,49.94090,-13.55937,29.30393,8.67076,-10.67118,42.59282,-73.25106,26.76168,47.23865,123.42820,C+beta+r+gamma_full+gamma_empty+gamma_full2+gamma_empty2,b30137b3f868
+2018-05-31,130.84429,93.23473,168.45385,0.82813,0.59009,1.06616,158.00000,-0.17553,0.06659,15.85596,3.79887,12.05709,7.30550,-0.14465,estimated,3.61532,3.62619,54.44573,49.94090,-13.55937,29.30393,9.19694,-10.67118,45.17755,-73.25106,28.38571,47.23865,130.91840,C+beta+r+gamma_full+gamma_empty+gamma_full2+gamma_empty2,b30137b3f868
+2018-06-30,129.73059,74.95263,184.50854,0.82108,0.47438,1.16778,158.00000,-0.17553,0.07195,13.42178,3.21568,10.20610,8.52801,-0.14465,estimated,2.61872,2.62948,54.44573,49.94090,-13.55937,29.30393,9.93670,-10.67118,48.81143,-73.25106,30.66893,47.23865,141.44890,C+beta+r+gamma_full+gamma_empty+gamma_full2+gamma_empty2,b30137b3f868
+2018-07-31,,,,,,,158.00000,,,11.29835,2.70693,8.59142,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-08-31,,,,,,,158.00000,,,9.51086,2.27867,7.23219,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-09-30,,,,,,,158.00000,,,8.05077,1.92886,6.12191,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-10-31,,,,,,,158.00000,,,6.77707,1.62369,5.15338,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-11-30,,,,,,,158.00000,,,5.73667,1.37443,4.36224,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2018-12-31,,,,,,,158.00000,,,4.82908,1.15698,3.67210,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2019-01-31,,,,,,,158.00000,,,4.06508,0.97394,3.09114,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2019-02-28,,,,,,,158.00000,,,3.47947,0.83363,2.64583,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2019-03-31,,,,,,,158.00000,,,2.92899,0.70175,2.22724,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2019-04-30,,,,,,,158.00000,,,2.47933,0.59401,1.88532,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2019-05-31,,,,,,,158.00000,,,5.03262,2.45434,2.57828,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868
+2019-06-30,,,,,,,158.00000,,,6.81951,2.07755,4.74196,,,not possible from this data: too few full-to-empty or empty-to-full pairs,,,,,,,,,,,,,,,b30137b3f868

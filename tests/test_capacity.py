@@ -9,7 +9,8 @@ import pandas as pd
 import pytest
 
 from besslib.soh.capacity import estimate_capacity, fade_rate, run_core, voltage_terms
-from besslib.soh.config import CapacityConfig, config_hash
+from besslib.frames import PackSpec
+from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 from besslib.soh import _core
 from besslib.soh.rests import classify_rests, detect_rests_in_parts, levels_from, rest_chain, rest_pairs
 from synth import SynthPack, frames
@@ -320,6 +321,9 @@ def test_settings_keep_their_release_hashes():
     assert CapacityConfig().quad_min_rests == 2.0  # the gate as tuned (tune_quadratic.py)
     assert config_hash(CapacityConfig().v0_2()) == "b3959941c19b"
     assert config_hash(CapacityConfig().v0_1()) == "109e9eb1efa5"
+    # the release settings do not depend on the order they are asked in
+    assert config_hash(CapacityConfig().v0_1().v0_2()) == "b3959941c19b"
+    assert config_hash(RecordConfig().v0_1().v0_2()) == config_hash(RecordConfig()) == "d49cbfdcd5b6"
     assert len({config_hash(c) for c in (CapacityConfig(), CapacityConfig().v0_2(), CapacityConfig().v0_1())}) == 3
     # every 0.3 setting moves the hash
     base = CapacityConfig().v0_2()
@@ -343,3 +347,17 @@ def test_the_gate_of_the_quadratic_terms_reaches_the_estimate(candidates):
     assert not closed.str.contains("2").any()  # linear terms only
     assert closed.str.contains("gamma_full").all() and closed.str.contains("gamma_empty").all()
     assert (some != open_).any() and (some == open_).any()  # a month end with too few rests drops them
+
+
+@pytest.mark.parametrize("limits, message", [
+    (dict(voltage_max_v=float("nan"), voltage_min_v=40.0), "positive number"),
+    (dict(voltage_max_v=58.4, voltage_min_v=-1.0), "positive number"),
+    (dict(voltage_max_v=40.0, voltage_min_v=58.4), "must lie above"),
+    (dict(voltage_max_v=3.65, voltage_min_v=2.5), "not of one cell"),  # one cell's limits given for the pack
+    (dict(voltage_max_v=3.65), "not of one cell"),
+    (dict(voltage_min_v=52.0), "at or above the pack's nominal voltage"),
+])
+def test_pack_spec_refuses_limits_that_are_not_the_packs(limits, message):
+    with pytest.raises(ValueError, match=message):
+        PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.12, cells_in_series=16, **limits)
+    PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.12, cells_in_series=16, voltage_max_v=58.4, voltage_min_v=40.0)

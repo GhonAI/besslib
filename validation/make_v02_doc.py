@@ -1,8 +1,9 @@
 """Write ``docs/04_version_0_2.md``: what version 0.2 changed, and what it does on the same data.
 
-Every number comes from ``validation/results/`` (today's files) or from the files of release
-0.1.0 (``git show v0.1.0:<path>``), or from the settings themselves (``CapacityConfig()``,
-``RecordConfig()`` and their ``v0_1()``); none is typed. It refuses to build from results of
+Every number comes from the files of release 0.2.0 (``git show v0.2.0:<path>``: the results this
+page was first built from, kept as they were when later versions rewrite ``validation/results/``) or
+of release 0.1.0 (``git show v0.1.0:<path>``), or from the settings themselves (``CapacityConfig().v0_2()``,
+``RecordConfig().v0_2()`` and their ``v0_1()``); none is typed. It refuses to build from results of
 other settings.
 
 Reads ``checks_v02.csv``, ``checks_phase2.csv``, ``checks_phase3.csv``, ``phase2_tests.csv``
@@ -41,7 +42,9 @@ PHASE2 = RESULTS / "phase2"
 DOCS = ROOT / "docs"
 PAGE = "04_version_0_2.md"
 HELD_OUT = tuple(i for i in figgener.SYSTEM_IDS if i not in DEVELOPMENT)
-FROZEN = {"capacity": config_hash(CapacityConfig()), "record": config_hash(RecordConfig())}
+FROZEN = {"capacity": config_hash(CapacityConfig().v0_2()), "record": config_hash(RecordConfig().v0_2())}
+#: The release whose results this page shows; its files are read from the tag, so later versions can rewrite ``validation/results/``.
+SHOWN = "v0.2.0"
 V0_1 = {"capacity": config_hash(CapacityConfig().v0_1()), "record": config_hash(RecordConfig().v0_1())}
 RELEASE = TAG.lstrip("v")
 
@@ -66,6 +69,19 @@ def refuse(name: str, found) -> None:
                      f"{FROZEN}: rebuild them first")  # fmt: skip
 
 
+def shown_text(path: str) -> str | None:
+    """A file of release 0.2.0 (``SHOWN``) as text; ``None`` when the tag does not have it."""
+    done = subprocess.run(["git", "show", f"{SHOWN}:{path}"], cwd=ROOT, capture_output=True, text=True)
+    return done.stdout if done.returncode == 0 else None
+
+
+def shown_csv(name: str, **kw) -> pd.DataFrame:
+    text = shown_text(f"validation/results/{name}")
+    if text is None:
+        raise SystemExit(f"{SHOWN} has no validation/results/{name}")
+    return pd.read_csv(io.StringIO(text), **kw)
+
+
 def tag_csv(name: str) -> pd.DataFrame:
     text = tag_file(f"validation/results/{name}")
     if text is None:
@@ -77,7 +93,7 @@ def records(tag: bool) -> dict[int, dict]:
     out = {}
     for sid in figgener.SYSTEM_IDS:
         name = f"validation/results/phase3/system_{sid:02d}_record.json"
-        text = tag_file(name) if tag else ((ROOT / name).read_text() if (ROOT / name).exists() else None)
+        text = tag_file(name) if tag else shown_text(name)
         if text is not None:
             out[sid] = json.loads(text)
     return out
@@ -87,16 +103,20 @@ def records(tag: bool) -> dict[int, dict]:
 
 
 def load() -> dict:
-    checks_v02 = pd.read_csv(RESULTS / "checks_v02.csv", keep_default_na=False)
-    p2 = pd.read_csv(RESULTS / "checks_phase2.csv", keep_default_na=False)
-    p3 = pd.read_csv(RESULTS / "checks_phase3.csv", keep_default_na=False)
-    tests = pd.read_csv(RESULTS / "phase2_tests.csv")
-    lag = pd.read_csv(RESULTS / "synthetic_lag.csv", dtype={"capacity_config_hash": str})
-    coverage = pd.read_csv(RESULTS / "synthetic_coverage.csv", dtype={"config_hash": str})
-    chains = pd.read_csv(RESULTS / "capacity_chains.csv", dtype={"config_hash": str})
-    cause = pd.read_csv(RESULTS / "w7_cause.csv", dtype={"capacity_config_hash": str, "record_config_hash": str})
-    monthly = {int(p.stem.split("_")[1]): pd.read_csv(p, parse_dates=["time"]) for p in sorted(PHASE2.glob("system_*_monthly.csv"))}
-    summaries = {int(p.stem.split("_")[1]): json.loads(p.read_text()) for p in sorted(PHASE2.glob("system_*_summary.json"))}
+    checks_v02 = shown_csv("checks_v02.csv", keep_default_na=False)
+    p2 = shown_csv("checks_phase2.csv", keep_default_na=False)
+    p3 = shown_csv("checks_phase3.csv", keep_default_na=False)
+    tests = shown_csv("phase2_tests.csv")
+    lag = shown_csv("synthetic_lag.csv", dtype={"capacity_config_hash": str})
+    coverage = shown_csv("synthetic_coverage.csv", dtype={"config_hash": str})
+    chains = shown_csv("capacity_chains.csv", dtype={"config_hash": str})
+    cause = shown_csv("w7_cause.csv", dtype={"capacity_config_hash": str, "record_config_hash": str})
+    monthly, summaries = {}, {}
+    for sid in figgener.SYSTEM_IDS:
+        name = f"phase2/system_{sid:02d}"
+        if shown_text(f"validation/results/{name}_monthly.csv") is not None:
+            monthly[sid] = shown_csv(f"{name}_monthly.csv", parse_dates=["time"])
+            summaries[sid] = json.loads(shown_text(f"validation/results/{name}_summary.json"))
 
     capacity = (set(checks_v02["capacity_config_hash"]) | set(p2["config_hash"]) | set(p3["capacity_config_hash"])
                 | set(tests["config_hash"]) | set(lag["capacity_config_hash"]) | set(coverage["config_hash"])
@@ -108,8 +128,8 @@ def load() -> dict:
     if set(cause["capacity_config_hash"]) != {V0_1["capacity"]} or set(cause["record_config_hash"]) != {V0_1["record"]}:
         refuse("w7_cause.csv", set(cause["capacity_config_hash"]) | set(cause["record_config_hash"]))
     # X7 is judged at gain term 0 (its own hash); the frozen gain term is information.
-    tau = CapacityConfig().tau_days
-    expect = {("0.2, gain 0", tau): config_hash(CapacityConfig().with_(gain_error=0.0)),
+    tau = CapacityConfig().v0_2().tau_days
+    expect = {("0.2, gain 0", tau): config_hash(CapacityConfig().v0_2().with_(gain_error=0.0)),
               ("0.2, frozen gain term", tau): FROZEN["capacity"]}  # fmt: skip
     for (setting, t), digest in expect.items():
         got = set(chains.loc[(chains["setting"] == setting) & (chains["tau_days"] == t), "config_hash"])
@@ -182,7 +202,7 @@ def value_text(v) -> str:
 
 
 def setting_text(cls, name: str) -> str:
-    old, new = _V0_1[cls.__name__][name], asdict(cls())[name]
+    old, new = _V0_1[cls.__name__][name], asdict(cls().v0_2())[name]
     if old == new:  # a new setting whose 0.1 value only keeps the 0.1 hash
         return f"`{name}` = {value_text(new)}"
     return f"`{name}`: {value_text(old)} → {value_text(new)}"
@@ -539,7 +559,7 @@ def document(ctx: dict) -> str:
         "Written by `validation/make_v02_doc.py` from `validation/results/` and from the files of release "
         f"{RELEASE} (tag `{TAG}`). No number on this page is typed by hand.",
         "",
-        "## Seen once",
+        "## The held-out systems were seen before",
         "",
         *seen_block(ctx),
         "",

@@ -1,25 +1,25 @@
 check,scope,value,pass_if,result,capacity_config_hash,record_config_hash
-W1 info,development records,7 of 7 records; 0 fields break the rule,0,,b3959941c19b,d49cbfdcd5b6
-W1,held-out records,14 of 14 records; 0 fields break the rule,0,pass,b3959941c19b,d49cbfdcd5b6
-W2,200 synthetic packs: resistance at the weighted mean age of the days in memory,"fails under each truth. same-days truth 200 of 200: too wide, because that truth shares every day with the estimate, so the day-to-day scatter the statistical half-width stands for (median 0.62% of the value) is not in the difference; the largest difference is 0.77%, and the systematic half-width alone (median 0.53%) holds 187 of 200. At the date 0 of 200: the estimate lags the growing resistance (the value at the date is a median 2.3% above it). At 25 degrees C 90 of 200: the days in the band read a median +0.9% against 25 degrees C, and the estimator has no temperature model",85-95 %,fail,b3959941c19b,d49cbfdcd5b6
-W2,"200 synthetic packs: resistance growth per year, whole record, against the simulator's known growth (median 4.93 % per year at the fit's origin; this truth was chosen after the first results)",band held the truth in 184 of 200 (92.0%); same-days truth (information): 199 of 200 (99.5%),85-95 %,pass,b3959941c19b,d49cbfdcd5b6
-W5,"200 synthetic packs: round-trip efficiency, full-to-full loops",band held the truth in 176 of 200 (88.0%),85-95 %,pass,b3959941c19b,d49cbfdcd5b6
-W7,200 synthetic packs: apparent charge loss (hidden drain),band held the truth in 188 of 200 (94.0%),85-95 %,pass,b3959941c19b,d49cbfdcd5b6
-W8,"200 synthetic packs: Ah, kWh, cycles; planted events (pack B: current gain error only)",largest relative error 0.498%; events exact on 200 of 200; 200 of 200 packs within the rule,"<= 0.6 % and exact, every pack",pass,b3959941c19b,d49cbfdcd5b6
-W8 info,200 synthetic packs: the same on pack B with current and voltage noise,largest relative error 0.498%; events exact on 189 of 200; 189 of 200 packs within the rule,information,,b3959941c19b,d49cbfdcd5b6
-W3 info,development capacity tests,"median |difference| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry {'LFP': 64.1, 'LMO/NMC': -8.2, 'NMC': -11.5}",information,,b3959941c19b,d49cbfdcd5b6
-W3,held-out capacity tests,18 of 38 tests have a reference: not possible,">= 30 references, then <= 20 %",not possible,b3959941c19b,d49cbfdcd5b6
-X5,"development: W4 table, system-days with more than one row",0,0,pass,b3959941c19b,d49cbfdcd5b6
-W4 info,development: neighbouring 5-degree bands: the colder reads higher,50 of 58 (86%),>= 80%,,b3959941c19b,d49cbfdcd5b6
-X5,"development: W6 table, system-days with more than one row",0,0,pass,b3959941c19b,d49cbfdcd5b6
-W6 info,development: full-to-full against empty-to-empty loop ratios within 1 point (no band needed),21 of 31 (68%),>= 80%,,b3959941c19b,d49cbfdcd5b6
-X5,"held-out: W4 table, system-days with more than one row",0,0,pass,b3959941c19b,d49cbfdcd5b6
-W4,held-out: neighbouring 5-degree bands: the colder reads higher,94 of 101 (93%),>= 80%,pass,b3959941c19b,d49cbfdcd5b6
-X5,"held-out: W6 table, system-days with more than one row",0,0,pass,b3959941c19b,d49cbfdcd5b6
-W6,held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed),39 of 55 (71%),>= 80%,fail,b3959941c19b,d49cbfdcd5b6
-W9,"core against batch, resistance: 240 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06))","max relative difference 3.6e-14 (64-bit); 2.6e-06 (32-bit, information)",<= 1e-6,pass,b3959941c19b,d49cbfdcd5b6
-W9,"core against batch, efficiency: 10 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06))","max relative difference 0.0e+00 (64-bit); 1.3e-06 (32-bit, information)",<= 1e-6,pass,b3959941c19b,d49cbfdcd5b6
-W9,"daily counters against rest counters: 138814 rests, systems [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]","max relative difference 8.7e-13 (throughput, system 13)",<= 1e-6,pass,b3959941c19b,d49cbfdcd5b6
-W10,phase 2 rebuilt for 21 systems,0 of 60 files differ,0 differences,pass,b3959941c19b,d49cbfdcd5b6
-W10,"record A1 against the phase 2 capacity run, every month end, 21 systems",0 values differ over 1139 month ends (21 systems with a file),"0 differences, every system",pass,b3959941c19b,d49cbfdcd5b6
-W10,records rebuilt twice for 21 systems,0 differences over 42 files,0 differences,pass,b3959941c19b,d49cbfdcd5b6
+W1 info,development records,7 of 7 records; 0 fields break the rule,0,,b30137b3f868,d49cbfdcd5b6
+W1,held-out records,14 of 14 records; 0 fields break the rule,0,pass,b30137b3f868,d49cbfdcd5b6
+W2,200 synthetic packs: resistance at the weighted mean age of the days in memory,fails under each truth: same days 200 of 200 (too wide: that truth shares every day with the estimate; the systematic half-width alone holds 187); at the date 0 of 200 (the estimate lags the growing resistance by a median 2.3%); at 25 degrees C 90 of 200 (no temperature model; the days read a median +0.9%),85-95 %,fail,b30137b3f868,d49cbfdcd5b6
+W2,"200 synthetic packs: resistance growth per year, whole record, against the simulator's known growth (median 4.93 % per year at the fit's origin; this truth was chosen after the first results)",band held the truth in 184 of 200 (92.0%); same-days truth (information): 199 of 200 (99.5%),85-95 %,pass,b30137b3f868,d49cbfdcd5b6
+W5,"200 synthetic packs: round-trip efficiency, full-to-full loops",band held the truth in 176 of 200 (88.0%),85-95 %,pass,b30137b3f868,d49cbfdcd5b6
+W7,200 synthetic packs: apparent charge loss (hidden drain),band held the truth in 182 of 200 (91.0%),85-95 %,pass,b30137b3f868,d49cbfdcd5b6
+W8,"200 synthetic packs: Ah, kWh, cycles; planted events (pack B: current gain error only)",largest relative error 0.498%; events exact on 200 of 200; 200 of 200 packs within the rule,"<= 0.6 % and exact, every pack",pass,b30137b3f868,d49cbfdcd5b6
+W8 info,200 synthetic packs: the same on pack B with current and voltage noise,largest relative error 0.498%; events exact on 189 of 200; 189 of 200 packs within the rule,information,,b30137b3f868,d49cbfdcd5b6
+W3 info,development capacity tests,"median |difference| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry LFP +64.1 %, LMO/NMC -8.2 %, NMC -11.5 %",information,,b30137b3f868,d49cbfdcd5b6
+W3,held-out capacity tests,18 of 38 tests have a reference: not possible,">= 30 references, then <= 20 %",not possible,b30137b3f868,d49cbfdcd5b6
+X5,"development: W4 table, system-days with more than one row",0,0,pass,b30137b3f868,d49cbfdcd5b6
+W4 info,development: neighbouring 5-degree bands: the colder reads higher,50 of 58 (86%),>= 80%,,b30137b3f868,d49cbfdcd5b6
+X5,"development: W6 table, system-days with more than one row",0,0,pass,b30137b3f868,d49cbfdcd5b6
+W6 info,development: full-to-full against empty-to-empty loop ratios within 1 point (no band needed),21 of 31 (68%),>= 80%,,b30137b3f868,d49cbfdcd5b6
+X5,"held-out: W4 table, system-days with more than one row",0,0,pass,b30137b3f868,d49cbfdcd5b6
+W4,held-out: neighbouring 5-degree bands: the colder reads higher,94 of 101 (93%),>= 80%,pass,b30137b3f868,d49cbfdcd5b6
+X5,"held-out: W6 table, system-days with more than one row",0,0,pass,b30137b3f868,d49cbfdcd5b6
+W6,held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed),39 of 55 (71%),>= 80%,fail,b30137b3f868,d49cbfdcd5b6
+W9,"core against batch, resistance: 240 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06))","max relative difference 3.6e-14 (64-bit); 2.6e-06 (32-bit, information)",<= 1e-6,pass,b30137b3f868,d49cbfdcd5b6
+W9,"core against batch, efficiency: 10 daily estimates (months of tests 01/1 (2017-06), 07/1 (2017-06), 17/2 (2020-06))","max relative difference 0.0e+00 (64-bit); 1.3e-06 (32-bit, information)",<= 1e-6,pass,b30137b3f868,d49cbfdcd5b6
+W9,"daily counters against rest counters: 138814 rests, 21 systems (1-21)","max relative difference 8.7e-13 (throughput, system 13)",<= 1e-6,pass,b30137b3f868,d49cbfdcd5b6
+W10,capacity run rebuilt for 21 systems,0 of 60 files differ,0 differences,pass,b30137b3f868,d49cbfdcd5b6
+W10,"record A1 against the capacity run, every month end, 21 systems",0 values differ over 1139 month ends (21 systems with a file),"0 differences, every system",pass,b30137b3f868,d49cbfdcd5b6
+W10,records rebuilt twice for 21 systems,0 differences over 42 files,0 differences,pass,b30137b3f868,d49cbfdcd5b6

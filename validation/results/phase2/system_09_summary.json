@@ -13,9 +13,9 @@
  },
  "masked_windows": 2,
  "reference_capacity_ah": 180.0,
- "config_hash": "b3959941c19b",
+ "config_hash": "b30137b3f868",
  "n_pairs": 441,
- "status": "not possible from this data: the capacity is implausible at 2020-06-30 (a pair has the wrong sign)",
+ "status": "not possible from this data: the capacity is implausible at 2020-06-30 (charges end above the full level)",
  "span_years": 6.115735227013462,
  "n_full_empty": 85,
  "n_same_kind": 356,
@@ -23,7 +23,7 @@
  "rate_points_per_year_low": null,
  "rate_points_per_year_high": null,
  "first_implausible_date": "2020-06-30 00:00:00",
- "first_implausible_rule": 3,
- "paper_offset_current_a": 0.0002533777451557656,
+ "first_implausible_rule": 6,
+ "paper_offset_current_a": 0.003917677748650962,
  "paper_offset_pairs": 356
 }

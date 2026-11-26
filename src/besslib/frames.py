@@ -12,6 +12,7 @@ the battery and its state of charge rises. Discharging is negative.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -62,7 +63,9 @@ class PackSpec:
 
     ``voltage_max_v`` and ``voltage_min_v`` are the documented limits of the whole pack (V, at
     its terminals). With both, the capacity estimate checks that the full and empty levels it
-    finds lie near them (``CapacityConfig.limits_share``); without them it cannot.
+    finds lie near them (``CapacityConfig.limits_share``); without them it cannot. A limit that
+    is not a positive number, limits in the wrong order, or a limit on the wrong side of the
+    nominal voltage (``1000 * nominal_energy_kwh / nominal_capacity_ah``) raise ``ValueError``.
     """
 
     nominal_capacity_ah: float
@@ -86,3 +89,28 @@ class PackSpec:
             raise ValueError("cell counts must be at least 1")
         if self.reference_capacity_ah is None:
             object.__setattr__(self, "reference_capacity_ah", self.nominal_capacity_ah)
+        self._check_limits()
+
+    def _check_limits(self) -> None:
+        """The documented voltage limits: finite, positive, in order, and of the whole pack.
+
+        The pack's nominal voltage, ``1000 * nominal_energy_kwh / nominal_capacity_ah``, lies
+        inside its voltage window; a limit on the wrong side of it is not the pack's (a limit of
+        one cell given for the pack is the usual slip)."""
+        limits = {"voltage_max_v": self.voltage_max_v, "voltage_min_v": self.voltage_min_v}
+        for name, value in limits.items():
+            if value is not None and not (math.isfinite(value) and value > 0):
+                raise ValueError(f"{name} must be a positive number of volts, not {value!r}")
+        nominal = 1000.0 * self.nominal_energy_kwh / self.nominal_capacity_ah
+        if self.voltage_max_v is not None and self.voltage_min_v is not None and not self.voltage_max_v > self.voltage_min_v:
+            raise ValueError(f"voltage_max_v ({self.voltage_max_v} V) must lie above voltage_min_v ({self.voltage_min_v} V)")
+        if self.voltage_max_v is not None and not self.voltage_max_v > nominal:
+            raise ValueError(
+                f"voltage_max_v ({self.voltage_max_v} V) lies at or below the pack's nominal voltage ({nominal:.4g} V, "
+                "nominal energy over nominal capacity): the limits are of the whole pack, at its terminals, not of one cell"
+            )
+        if self.voltage_min_v is not None and not self.voltage_min_v < nominal:
+            raise ValueError(
+                f"voltage_min_v ({self.voltage_min_v} V) lies at or above the pack's nominal voltage ({nominal:.4g} V, "
+                "nominal energy over nominal capacity)"
+            )

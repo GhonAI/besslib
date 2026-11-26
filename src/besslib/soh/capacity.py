@@ -710,7 +710,7 @@ def implausible_dates(capacity: pd.DataFrame) -> pd.DataFrame:
     value or low end is at or below zero. Rule 3: a pair of the wrong sign in memory. The
     range rules of version 0.3 are numbered 5 (a level too far inside the documented limits)
     and 6 (charges end above the full level); rule 4 is ``fade_rate_checked``'s own.
-    Returns the index (``time``) and ``rule`` (1, 2 or 3) of each such row.
+    Returns the index (``time``) and ``rule`` (1, 2, 3, 5 or 6) of each such row.
     """
     status = capacity["status"]
     rule = pd.Series(0, index=capacity.index)
@@ -739,7 +739,8 @@ def fade_rate_checked(
     end). If any row holds rule 1, 2, 3, 5 or 6 (``implausible_dates``) the rate is NaN and the
     status names the first such date and its rule (``first_implausible_date``,
     ``first_implausible_rule``); with ``config.plausibility`` off, or no such row, the
-    result is ``fade_rate``'s, unchanged.
+    result is ``fade_rate``'s, unchanged (so rules 5 and 6 refuse the rate only with
+    ``plausibility`` on, while the capacity's own statuses 14 and 15 are set either way).
     """
     config = config or CapacityConfig()
     out = fade_rate(pairs, spec, config, n_boot=n_boot, seed=seed)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
 
 
 #: The forms of ``CapacityConfig.voltage_terms``.
@@ -143,8 +143,11 @@ class CapacityConfig:
         return replace(self, **{**_V0_2["CapacityConfig"], **_V0_1["CapacityConfig"]})
 
     def v0_2(self) -> "CapacityConfig":
-        """A copy with the version 0.3 settings at their release 0.2.0 values."""
-        return replace(self, **_V0_2["CapacityConfig"])
+        """A copy with the version 0.3 settings at their release 0.2.0 values, and the version 0.2
+        settings at theirs (so ``v0_1().v0_2()`` is release 0.2.0's setting too)."""
+        default = {f.name: f.default for f in fields(CapacityConfig)}
+        added = {name: default[name] for name in _V0_1["CapacityConfig"]}
+        return replace(self, **{**added, **_V0_2["CapacityConfig"]})
 
 
 @dataclass(frozen=True)
@@ -207,8 +210,11 @@ class RecordConfig:
         return replace(self, **_V0_1["RecordConfig"])
 
     def v0_2(self) -> "RecordConfig":
-        """A copy with the settings of release 0.2.0 (version 0.3 adds none here)."""
-        return replace(self, **_V0_2["RecordConfig"])
+        """A copy with the settings of release 0.2.0 (version 0.3 adds none here; the version 0.2
+        setting at its 0.2 value, so ``v0_1().v0_2()`` is release 0.2.0's setting too)."""
+        default = {f.name: f.default for f in fields(RecordConfig)}
+        added = {name: default[name] for name in _V0_1["RecordConfig"]}
+        return replace(self, **{**added, **_V0_2["RecordConfig"]})
 
     @property
     def charge_sigma(self) -> float:

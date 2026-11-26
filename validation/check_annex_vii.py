@@ -133,6 +133,17 @@ def w9_counters() -> dict:
     }
 
 
+def id_ranges(ids) -> str:
+    """System numbers as ranges: [1, 2, 3, 5] -> "1-3, 5"."""
+    ids, parts, start = sorted(int(i) for i in ids), [], None
+    for k, i in enumerate(ids):
+        start = i if start is None else start
+        if k + 1 == len(ids) or ids[k + 1] != i + 1:
+            parts.append(f"{start}" if start == i else f"{start}-{i}")
+            start = None
+    return ", ".join(parts)
+
+
 # --- W10: phase 2 rebuilt --------------------------------------------------------------
 
 
@@ -190,7 +201,7 @@ def synthetic_rows(record_hash: str) -> list[tuple]:
         value = f"band held the truth in {int(held.sum())} of {len(held)} ({share:.1%})"
         scope = f"{len(table)} synthetic packs: {what}"
         if column == "w2_value_held":
-            value = f"fails under each truth. {w2_value_reason(table)}"
+            value = f"fails under each truth: {w2_value_reason(table)}"
         elif column == "w2_growth_held_param":
             known = float(table["w2_growth_truth_param"].median())
             same = table["w2_growth_held"].fillna(False).astype(bool)
@@ -531,7 +542,7 @@ def w3_rows(scope_ids, label: str, path: Path) -> tuple:
     median = float(np.median(diff)) if len(diff) else np.nan
     bias = refs.groupby("chemistry")["difference_percent"].median().round(1).to_dict()
     value = (f"median |difference| {median:.1f} % over {len(refs)} of {len(t)} tests with a reference; "
-             f"median difference by chemistry {bias}")
+             "median difference by chemistry " + ", ".join(f"{k} {v:+.1f} %" for k, v in sorted(bias.items())))
     if label != "held-out":
         return ("W3 info", f"{label} capacity tests", value, "information", None)
     if len(refs) < ONSET_MIN_REFERENCES:
@@ -610,7 +621,7 @@ def main(argv: list[str]) -> None:
         rows.append(("W9", f"core against batch, {part}: {n} daily estimates (months of tests {', '.join(core['months'])})",
                      f"max relative difference {w64:.1e} (64-bit); {w32:.1e} (32-bit, information)", "<= 1e-6", bool(n and w64 <= 1e-6)))
     counters = w9_counters()
-    rows.append(("W9", f"daily counters against rest counters: {counters['n_rests']} rests, systems {counters['systems']}",
+    rows.append(("W9", f"daily counters against rest counters: {counters['n_rests']} rests, {len(counters['systems'])} systems ({id_ranges(counters['systems'])})",
                  f"max relative difference {counters['worst']:.1e} ({counters['where']})", "<= 1e-6",
                  bool(counters["n_rests"] and counters["worst"] <= 1e-6)))
 
@@ -618,11 +629,11 @@ def main(argv: list[str]) -> None:
     scratch = Path(argv[argv.index("--scratch") + 1]) if "--scratch" in argv else ROOT / "data" / "rebuild"
     ids = list(DEVELOPMENT) if development_only else list(figgener.SYSTEM_IDS)
     rebuilt = phase2_rebuild(ids, scratch / "phase2")
-    rows.append(("W10", f"phase 2 rebuilt for {len(ids)} systems", f"{len(rebuilt['different'])} of {rebuilt['compared']} files differ"
+    rows.append(("W10", f"capacity run rebuilt for {len(ids)} systems", f"{len(rebuilt['different'])} of {rebuilt['compared']} files differ"
                  + (f": {rebuilt['different']}" if rebuilt["different"] else ""), "0 differences", not rebuilt["different"]))
     again = records_rebuild(ids, scratch / "phase3")
     a1 = again["a1"]
-    rows.append(("W10", f"record A1 against the phase 2 capacity run, every month end, {len(ids)} systems",
+    rows.append(("W10", f"record A1 against the capacity run, every month end, {len(ids)} systems",
                  f"{a1['different']} values differ over {a1['compared']} month ends ({a1['systems']} systems with a file)",
                  "0 differences, every system", a1["different"] == 0 and a1["systems"] == len(ids)))
     rows.append(("W10", f"records rebuilt twice for {len(ids)} systems", f"{len(again['different'])} differences over {again['compared']} files"

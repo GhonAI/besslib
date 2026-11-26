@@ -1,4 +1,6 @@
-"""Version 0.3 check F1: the settings of releases 0.1.0 and 0.2.0 give those releases' numbers.
+"""Version 0.3 checks F1, R2 and W7.
+
+F1: the settings of releases 0.1.0 and 0.2.0 give those releases' numbers.
 
 The run scripts write the results of the two settings to ``data/f1/v0.1`` and ``data/f1/v0.2``
 (``run_capacity.py`` and ``run_annex_vii.py``, each with ``--settings 0.1`` or ``0.2`` and
@@ -9,10 +11,21 @@ has; what a later version adds is not compared and is named). The core vectors
 (``tests/vectors/``) are compared byte for byte with the tag's; that the core still gives them is
 ``tests/test_core.py``. The configuration hashes must be those of the releases.
 
+R2: on the development field systems, rule A (``ABOVE_FULL``, charges end above the full
+level) removes no month end that release 0.2.0 estimated. Read from the monthly files of the
+capacity run at today's settings (``validation/results/phase2``, or ``--phase2 DIR``) against
+the same files at ``v0.2.0``; the held-out systems are not read.
+
+W7 (version 0.3's rule): on the 200 synthetic packs of ``synthetic_phase3.py`` (today's settings), A4's
+band holds the hidden drain in 85-95 % of the packs and the mean error lies within 2 sd / sqrt(n) of
+zero (release 0.2.0's W7 judged the share only: 188 of 200).
+
 Writes ``validation/results/checks_v03.csv``.
 
 Usage:
     python validation/check_v03.py
+    python validation/check_v03.py --phase2 data/dev_s20/phase2   # R2 from another folder
+    python validation/check_v03.py --f1 data/f1_s20                # F1 from another folder (default data/f1)
 """
 
 from __future__ import annotations
@@ -21,9 +34,14 @@ from pathlib import Path
 
 import pandas as pd
 
+import io
+import sys
+
 import check_v02
 from besslib.io import figgener
+from besslib.soh import _core
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
+from tune_capacity import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "data" / "f1"
@@ -53,8 +71,52 @@ def f1(tag: str) -> list[dict]:
     return out
 
 
-def main() -> None:
-    rows = f1("v0.1.0") + f1("v0.2.0")
+def r2(folder: Path) -> list[dict]:
+    """R2: month ends of the development systems that 0.2.0 estimated and rule A now refuses."""
+    ok, above = _core.STATUS_TEXT[_core.OK], _core.STATUS_TEXT[_core.ABOVE_FULL]
+    check_v02.TAG = "v0.2.0"
+    base = removed = 0
+    hashes = set()
+    for sid in DEVELOPMENT:
+        name = f"system_{sid:02d}_monthly.csv"
+        now = pd.read_csv(folder / name, dtype={"config_hash": str})
+        then = pd.read_csv(io.StringIO(check_v02.tag_file(f"validation/results/phase2/{name}")), dtype={"config_hash": str})
+        hashes |= set(now["config_hash"])
+        both = then.merge(now, on="time", suffixes=("_02", ""), validate="one_to_one")
+        was = both["status_02"] == ok
+        base += int(was.sum())
+        removed += int((was & (both["status"] == above)).sum())
+    digest = config_hash(CapacityConfig())
+    if hashes != {digest}:
+        raise SystemExit(f"{folder} holds results of {sorted(hashes)}, not of today's settings {digest}")
+    return [check_v02.row("R2", "0 removed", f"{removed} of {base} month ends that 0.2.0 estimated on the "
+                          f"{len(DEVELOPMENT)} development systems are refused by rule A", removed == 0,
+                          f"settings {digest}; held-out systems not read")]
+
+
+def w7() -> list[dict]:
+    """W7 with the mean clause, from ``synthetic_phase3.csv`` at today's settings."""
+    t = pd.read_csv(ROOT / "validation" / "results" / "synthetic_phase3.csv", dtype={"capacity_config_hash": str})
+    digest = config_hash(CapacityConfig())
+    if set(t["capacity_config_hash"]) != {digest}:
+        raise SystemExit(f"synthetic_phase3.csv holds results of {sorted(set(t['capacity_config_hash']))}, not {digest}")
+    held = t["w7_held"].fillna(False).astype(bool)
+    error = t["w7_error_ma"].dropna()
+    mean, limit = float(error.mean()), float(2.0 * error.std(ddof=1) / len(error) ** 0.5)
+    share = float(held.mean())
+    passed = 0.85 <= share <= 0.95 and abs(mean) <= limit
+    return [check_v02.row("W7", "85-95 % and mean error within 2 sd / sqrt(n) of zero",
+                          f"band held the hidden drain in {int(held.sum())} of {len(t)} packs ({share:.1%}); mean error "
+                          f"{mean:+.3f} mA, limit +-{limit:.3f} ({len(error)} packs with an estimate)", passed,
+                          f"settings {digest}; release 0.2.0 judged the share only")]
+
+
+def main(argv: list[str]) -> None:
+    global FOLDER
+    if "--f1" in argv:
+        FOLDER = Path(argv[argv.index("--f1") + 1])
+    folder = Path(argv[argv.index("--phase2") + 1]) if "--phase2" in argv else ROOT / "validation" / "results" / "phase2"
+    rows = f1("v0.1.0") + f1("v0.2.0") + r2(folder) + w7()
     path = ROOT / "validation" / "results" / "checks_v03.csv"
     pd.DataFrame(rows, columns=check_v02.COLUMNS).to_csv(path, index=False)
     for r in rows:
@@ -63,4 +125,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
