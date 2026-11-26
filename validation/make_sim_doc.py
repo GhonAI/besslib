@@ -3,7 +3,10 @@
 Written from the result files; no number on the page is typed. Every number, also in a sentence, is read from a
 file or from a case file; the words "passes" and "fails" are those of the rows' ``passed`` column.
 
-Reads ``results/sim_checks.csv`` (the simulator's own checks), ``results/checks_sim.csv`` (the case checks),
+Version 0.3's section reads ``results/checks_sim_v03.csv`` (the case checks of version 0.3, seeds 2000-2199),
+``results/sim_v03/*.csv`` (its rows, today's settings), ``results/sim_v03/drift_pack.csv`` (``sim_drift_figure.py``) and
+``results/diag_a4_band.csv`` (``diag_a4_band.py``). The sections of version 0.2 (the baseline, seeds 1000-1199, at the
+settings of release 0.2.0) read ``results/sim_checks.csv`` (the simulator's own checks), ``results/checks_sim.csv`` (the case checks),
 ``results/sim/{heat,imbalance,leak,cold,grid,drift}.csv`` (one row per pack), ``results/sim/one_path.csv``,
 ``results/sim/{lfp_preset,tran_preset,s10_lfp}.csv`` and the case files. Without options it refuses results that
 are not the held-out seeds or that come from other settings. ``--development`` reads ``data/sim_dev/`` instead and
@@ -31,6 +34,7 @@ import besslib
 from besslib import sim
 from besslib.sim.bus import sunspec
 
+import diag_a4_band
 import sim_case_cold
 import sim_case_drift
 import sim_case_grid
@@ -41,10 +45,12 @@ import sim_truth
 from make_capacity_doc import DASH, num
 from make_reference_doc import AXIS, INK, INK2, MUTED, SURFACE, table
 from sim_drift_points import drift_terms
+from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "validation" / "results"
 DEV = "--development" in sys.argv
+V02_LABEL = "" if DEV else (f" (version 0.2, seeds {sim_truth.HELD_OUT_02.start}–{sim_truth.HELD_OUT_02.stop - 1})")  # the 0.2 sections
 BASE = ROOT / "data" / "sim_dev" if DEV else RESULTS / "sim"
 CHECKS = BASE / "checks_sim.csv" if DEV else RESULTS / "checks_sim.csv"
 for _a in sys.argv:
@@ -58,6 +64,10 @@ BLUE, ORANGE, GREEN = "#2a78d6", "#eb6834", "#1baf7a"
 CASE_FILES = {"heat": "heat.csv", "imbalance": "imbalance.csv", "leak": "leak.csv", "cold": "cold.csv",
               "grid": "grid.csv", "drift": "drift.csv"}
 DRIFT_SETTING = re.compile(r"D\d+")
+V03 = RESULTS / "sim_v03"
+V03_CHECKS = RESULTS / "checks_sim_v03.csv"
+#: The baseline sections read the run of version 0.2, at the settings of release 0.2.0.
+BASELINE = {"capacity_config_hash": config_hash(CapacityConfig().v0_2()), "record_config_hash": config_hash(RecordConfig().v0_2())}
 WORD = {"True": "passes", "False": "fails", "": "information"}
 
 plt.rcParams.update({"font.size": 9, "axes.facecolor": SURFACE, "figure.facecolor": SURFACE, "axes.edgecolor": AXIS,
@@ -89,9 +99,9 @@ def load() -> dict:
         wanted = "development" if DEV else "held-out"
         if set(t["seed_set"]) != {wanted}:
             raise SystemExit(f"{path.name}: its seeds are {sorted(set(t['seed_set']))}, this build reads {wanted} seeds")
-        for column, value in sim_truth.HASHES.items():
+        for column, value in BASELINE.items():
             if set(t[column]) != {value}:
-                raise SystemExit(f"{path.name}: {column} is not today's {value}: run it again")
+                raise SystemExit(f"{path.name}: {column} is not release 0.2.0's {value}: the baseline is the 0.2 run")
         ctx["cases"][name] = t
     if not CHECKS.exists():
         raise SystemExit(f"{CHECKS}: missing: run `python validation/sim_cases.py summary`")
@@ -101,6 +111,21 @@ def load() -> dict:
     ctx["s10"] = pd.read_csv(RESULTS / "sim" / "s10_lfp.csv")
     ctx["lfp"] = pd.read_csv(RESULTS / "sim" / "lfp_preset.csv", keep_default_na=False)
     ctx["tran"] = pd.read_csv(RESULTS / "sim" / "tran_preset.csv", keep_default_na=False)
+    if not DEV:
+        for name, file in CASE_FILES.items():
+            t = pd.read_csv(V03 / file, keep_default_na=False, na_values=[""])
+            for column, value in sim_truth.HASHES.items():
+                if set(t[column]) != {value}:
+                    raise SystemExit(f"sim_v03/{file}: {column} is not today's {value}")
+        ctx["checks03"] = pd.read_csv(V03_CHECKS, keep_default_na=False)
+        ctx["drift_pack"] = pd.read_csv(V03 / "drift_pack.csv", parse_dates=["time"])
+        ctx["diag_a4"] = pd.read_csv(RESULTS / "diag_a4_band.csv", parse_dates=["time"])
+        for name, frame in (("drift_pack.csv", ctx["drift_pack"]),):
+            if set(frame["capacity_config_hash"]) != {sim_truth.HASHES["capacity_config_hash"]}:
+                raise SystemExit(f"{name}: not today's settings")
+        want = config_hash(CapacityConfig())
+        if set(ctx["diag_a4"].loc[ctx["diag_a4"]["setting"] == "v03", "config_hash"]) != {want}:
+            raise SystemExit("diag_a4_band.csv: its v03 rows are not today's settings: run it again")
     return ctx
 
 
@@ -123,6 +148,19 @@ def rows(ctx: dict, check: str, setting: str | None = None) -> pd.DataFrame:
 
 def word(passed) -> str:
     return WORD.get(str(passed), str(passed))
+
+
+def side_of(row) -> str:
+    """Where a share lies against its rule's range (``85-95 %``), from the row itself."""
+    lo, hi = (float(x) for x in grab(r"^(\d+)-(\d+)", row["pass_if"]))
+    share = float(grab(r"\(([\d.]+)%\)", first(row["result"]))[0])
+    return "above the range" if share > hi else "below the range" if share < lo else "inside the range"
+
+
+def both_words(rows) -> str:
+    """One result word when the settings agree, else each in turn."""
+    words = [word(r["passed"]) for r in rows]
+    return words[0] if len(set(words)) == 1 else " and ".join(words)
 
 
 def first(text: str) -> str:
@@ -487,8 +525,7 @@ def bus_section(ctx: dict) -> list[str]:
         "",
         "S7 checks the encoding and the effect of the set-points; the BMS state is checked against literal values in `tests/test_sim_bus.py`. "
         f"`WChaRteMax` and `WDisChaRteMax`, mandatory in model 802, read 'not implemented' in the {unlimited} of {len(names)} cases that set no "
-        "current limit. The server needs `pip install \"besslib[modbus]\"`; the simulator and this extra are not in release "
-        f"{besslib.__version__} on PyPI.",
+        "current limit. The server needs `pip install \"besslib[modbus]\"`; the simulator and this extra are on PyPI from release 0.3.0.",
         "",
         "SunSpec's model files do not state the sign of A and W; besslib uses positive = discharging on the bus.", "",
     ]
@@ -598,10 +635,10 @@ def causes(ctx: dict, found: list[dict]) -> list[str]:
         r = rows(ctx, chk, st)
         return f"{chk} {st}: {first(r['result'].iloc[0])}" if len(r) else None
 
-    def line(finding, support, *cites):
+    def line(finding, support, *cites, next_version="not decided"):
         where = "; ".join(x for x in (seen(*c) for c in cites) if x)
         tail = "" if support is None or support else " (the rows of this build do not show it)"
-        return {"Finding": finding + tail, "Where seen": where or DASH, "What the next version does": "not decided"}
+        return {"Finding": finding + tail, "Where seen": where or DASH, "What the next version does": next_version}
 
     out = []
     t = cs.get("imbalance")
@@ -610,7 +647,8 @@ def causes(ctx: dict, found: list[dict]) -> list[str]:
         b = t[t["setting"] == "sd1-balance"]
         ok = bool(b["held_stop"].sum() / max(b["with_stop_truth"].sum(), 1) > b["held_rest"].sum() / max(b["with_band"].sum(), 1))
     out.append(line("A1 is read at the mean full and empty rest voltages; on a curved open-circuit curve (the NMC plateau) the state of charge at the "
-                    "mean voltage is not the mean state of charge: the estimate lies nearer T_stop than T_rest", ok, ("T2a", "sd1-balance"), ("T2b", "sd1-balance")))
+                    "mean voltage is not the mean state of charge: the estimate lies nearer T_stop than T_rest", ok, ("T2a", "sd1-balance"), ("T2b", "sd1-balance"),
+                    next_version="0.3 reads A1 with two quadratic voltage terms ([version 0.3](#version-03-on-new-seeds))"))
     t = cs.get("leak")
     ok = None
     if t is not None:
@@ -631,13 +669,15 @@ def causes(ctx: dict, found: list[dict]) -> list[str]:
         n = t[t["setting"].str.endswith("-never")]
         ok = bool(len(n) and (n["estimated_months"] > 0).all())
     out.append(line("A1 in mid-state-of-charge duty reads the daily window's edges as full and empty, because its levels are quantiles of the rest "
-                    "edge voltages; with no full charge it still gives an estimate", ok, ("T5a", "nmc-never"), ("T5a", "lfp-never"), ("T5a", "string-never")))
+                    "edge voltages; with no full charge it still gives an estimate", ok, ("T5a", "nmc-never"), ("T5a", "lfp-never"), ("T5a", "string-never"),
+                    next_version="0.3 refuses it when the pack's voltage limits are given (rule B); without them it labels the record "
+                                 "([version 0.3](#version-03-on-new-seeds))"))
     return [md(pd.DataFrame(out)), ""]
 
 
 def one_path(ctx: dict) -> list[str]:
-    t = ctx["one_path"].rename(columns={"check": "Check", "quantity": "Quantity", "published": "Published", "one_path": "One-path pack"})
-    return [md(t), "", "The published numbers stay as they are: they are the numbers of the release, and this run changes none of them.", ""]
+    t = ctx["one_path"].rename(columns={"check": "Check", "quantity": "Quantity", "published": "Published in 0.2.0", "one_path": "One-path pack"})
+    return [md(t), "", "The published numbers stay as they are: they are the numbers of release 0.2.0, and this run changes none of them.", ""]
 
 
 LIMITS = [
@@ -674,6 +714,136 @@ def sources(ctx: dict) -> list[str]:
 # ----------------------------------------------------------------------------- page
 
 
+# ----------------------------------------------------------------------------- version 0.3
+
+
+def r3(ctx: dict, check: str, setting: str | None = None) -> pd.DataFrame:
+    return rows({"checks": ctx["checks03"]}, check, setting)
+
+
+def one(ctx: dict, check: str, setting: str, three: bool = True) -> pd.Series:
+    t = r3(ctx, check, setting) if three else rows(ctx, check, setting)
+    if len(t) != 1:
+        raise SystemExit(f"{'checks_sim_v03' if three else 'checks_sim'}.csv: {len(t)} rows for {check} {setting}")
+    return t.iloc[0]
+
+
+def grab(pattern: str, text: str) -> tuple:
+    m = re.search(pattern, str(text))
+    if m is None:
+        raise SystemExit(f"the pattern {pattern!r} is not in {text!r}: write the sentence again")
+    return m.groups()
+
+
+def seeds_text(r: range) -> str:
+    return f"{r.start}-{r.stop - 1}"
+
+
+def fig_drift_pack(ctx: dict) -> tuple[str, str]:
+    t = ctx["drift_pack"]
+    m, k = t[t["kind"] == "month"], t[t["kind"] == "test"]
+    nominal = float(t["nominal_ah"].iloc[0])
+    pts = 100.0 / nominal
+    fig, ax = plt.subplots(figsize=(7.2, 3.4))
+    ax.fill_between(m["time"], m["low_ah"] * pts, m["high_ah"] * pts, color=BLUE, alpha=0.25, lw=0, label="besslib A1, 90 % band")
+    ax.plot(m["time"], m["estimate_ah"] * pts, color=BLUE, lw=1.2, label="besslib A1")
+    ax.plot(m["time"], m["t_rest"] * pts, color=INK, lw=1.0, ls="--", label="true capacity it is built for (T_rest)")
+    ax.plot(k["time"], k["test_ah"] * pts, "o", color=ORANGE, ms=6, label="simulated capacity tests")
+    ax.set_ylabel("Capacity, % of nominal")
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left")
+    name = finish(fig, "05_drift_pack.png")
+    held = int(((m["low_ah"] <= m["t_rest"]) & (m["t_rest"] <= m["high_ah"])).sum())
+    in_band = int(k["held"].sum())
+    caption = (f"*One simulated pack of case 6 (setting {t['setting'].iloc[0]}, seed {int(t['seed'].iloc[0])}): its discharge stop falls over the run. "
+               f"The band holds the capacity it is built for at {held} of {len(m)} month ends; the simulated tests lie in the band at "
+               f"{in_band} of {len(k)} test dates, and {sum(k['test_ah'] < k['t_rest'])} of {len(k)} lie below T_rest. T_rest rises because the empty rest "
+               "voltage falls with the stop (S9), so the voltage window A1 reads widens: a falling stop hides fade.*")
+    return name, caption
+
+
+def v03_section(ctx: dict) -> list[str]:
+    from sim_case_leak import MEMORY_DAYS
+
+    h3 = sim_truth.HASHES["capacity_config_hash"]
+    out = ["## Version 0.3 on new seeds", "",
+           f"Version 0.3 of besslib (capacity settings `{h3}`) reads A1 with a linear and a quadratic voltage term at each end and with the time "
+           "between the moments its two rests are read, and refuses a capacity whose full or empty level is not the pack's (charges that end above "
+           "the full level; with the pack's documented voltage limits, a level too far inside them). It was built on the development seeds "
+           f"{seeds_text(sim_truth.DEVELOPMENT)} and run once on 200 new packs per setting, seeds {seeds_text(sim_truth.HELD_OUT)}; the pass rules "
+           f"were fixed before that run and did not move. Version 0.2's sections below (seeds {seeds_text(sim_truth.HELD_OUT_02)}) keep their numbers.", ""]
+    found = []
+    a, b = one(ctx, "T6a", "D0"), one(ctx, "T6a", "D0", three=False)
+    w = grab(r"([\d.]+) against ([\d.]+) \(([\d.]+) times\)", one(ctx, "W", "D0")["result"])
+    found.append(f"**A1 now holds the capacity it is built for**, the charge between the two rest voltages it reads at (T_rest): "
+                 f"{first(a['result'])} month ends without drift (target 85-95 % and a mean error within its limit): {word(a['passed'])}; "
+                 f"0.2 held {first(b['result'])} (seeds {seeds_text(sim_truth.HELD_OUT_02)}). Its median band width is {w[0]} points of nominal, {w[2]} times 0.2's {w[1]} (W: {word(one(ctx, 'W', 'D0')['passed'])}), "
+                 "so it does not hold by widening. [T6a, W]")
+    tb = [one(ctx, "T6b'", d) for d in ("D0", "D50", "D100", "D157")]
+    found.append("**With the discharge stop drifting, the band at the test date holds T_rest** at "
+                 + "; ".join(f"{d}: {first(r['result'])} ({word(r['passed'])})" for d, r in zip(("0 mV", "50 mV", "100 mV", "157 mV"), tb))
+                 + " (target 85-95 %; a test with a band but no reading voltage counts as not held). [T6b']")
+    old = [one(ctx, "T6b", d) for d in ("D0", "D50", "D100", "D157")]
+    shares = [float(grab(r"\(([\d.]+)%\)", r["result"])[0]) for r in old]
+    terms = [grab(r"estimate - T_rest ([+-][\d.]+) \(estimator\); T_rest - T_ops ([+-][\d.]+) \(drift\); T_ops - T_test ([+-][\d.]+) \(rate\)",
+                  one(ctx, "T6d", d)["result"]) for d in ("D0", "D50", "D100", "D157")]
+    span = lambda i: f"{min(float(x[i]) for x in terms):+.2f} to {max(float(x[i]) for x in terms):+.2f}"
+    found.append(f"**It does not hold a simulated capacity test**: the test value lies in the band at {min(shares):.1f} to {max(shares):.1f} % of the "
+                 "test dates (0.2's rule, at least 80 %, kept as information). A test measures the charge between the stops at its own rate, "
+                 f"a different quantity: over 0 to 157 mV the rate term gives {span(2)} points of nominal, the drift {span(1)} and the estimator "
+                 f"{span(0)}. [T6b, T6d]")
+    lim = [one(ctx, "T5a-L", f"{k}-never") for k in ("nmc", "lfp", "string")]
+    nol = [one(ctx, "T5a", f"{k}-never") for k in ("nmc", "lfp", "string")]
+    cal = r3(ctx, "T5b'")
+    pattern = r"the estimate is a median ([\d.]+)% of the true capacity"
+    ratio = ", ".join(f"{grab(pattern, r['result'])[0]} % ({k})" for k, r in zip(("NMC", "LFP", "string"), nol))
+    same = len({first(r["result"]) for r in lim}) == 1 and len({r["passed"] for r in lim}) == 1
+    refused = (f"{first(lim[0]['result'])}, for each of NMC, LFP and the string: {word(lim[0]['passed'])}" if same else
+               "; ".join(f"{k}: {first(r['result'])} ({word(r['passed'])})" for k, r in zip(("NMC", "LFP", "string"), lim)))
+    found.append("**Grid duty without a full charge: with the pack's documented voltage limits A1 refuses every month** "
+                 f"({refused}), and with a weekly or monthly "
+                 f"calibration charge but no limits it estimates no month end on {int((cal['passed'] == 'True').sum())} of {len(cal)} settings "
+                 f"(T5b'). **Without limits and without a full charge it still reads a median {ratio} of the true capacity**: "
+                 f"{', '.join(word(r['passed']) for r in nol)}, published as it came; the record says the levels were not checked against voltage limits. [T5a-L, T5b', T5a]")
+    t2 = [one(ctx, "T2a", k) for k in ("sd1-balance", "sd3-balance")]
+    t2p = [grab(r"mean error ([+-][\d.]+) Ah, limit \+-([\d.]+)", r["result"]) for r in t2]
+    found.append(f"**With cell imbalance the band holds T_rest at {first(t2[0]['result'])} and {first(t2[1]['result'])} month ends (sd 1 % and 3 %, "
+                 f"balancing on), but its mean error, {t2p[0][0]} and {t2p[1][0]} Ah, lies outside the limit of {t2p[0][1]} and {t2p[1][1]} Ah**: "
+                 f"{both_words(t2)} on the mean clause. With balancing off: sd 3 % {first(one(ctx, 'T2a', 'sd3-off')['result'])} "
+                 f"({word(one(ctx, 'T2a', 'sd3-off')['passed'])}); sd 1 % has no month end with a band ({word(one(ctx, 'T2a', 'sd1-off')['passed'])}). [T2a]")
+    rr = r3(ctx, "R")
+    judged = rr[rr["passed"].isin(["True", "False"])]
+    fewer = judged[judged["passed"] == "False"]
+    found.append(f"**Not fewer estimates than 0.2** on {int((judged['passed'] == 'True').sum())} of {len(judged)} judged settings; fewer on "
+                 + "; ".join(f"{setting_of(r.what)} ({first(r.result)})" for r in fewer.itertuples())
+                 + ". The cold case has no R row: its packs run "
+                 f"{sim_case_cold.SETTINGS['block']['months']} months, and A1 gives no estimate before {CapacityConfig().level_warmup_days:.0f} days of history. [R]")
+    t3 = {k: one(ctx, "T3a", k) for k in ("leak0", "leak5", "leak15", "leak50")}
+    t3_02 = one(ctx, "T3a", "leak5", three=False)
+    det = {k: one(ctx, "T3b", k) for k in ("leak5", "leak15", "leak50")}
+    det_02 = one(ctx, "T3b", "leak5", three=False)
+    d = diag_a4_band.summary(ctx["diag_a4"])
+    cell = lambda cs, part, st, col: float(d[(d["case_setting"] == cs) & (d["part"] == part) & (d["setting"] == st)][col].iloc[0])
+    found.append(f"**A4 holds the true charge loss without a leak but trails a new one**: {first(t3['leak0']['result'])} month ends without a "
+                 f"leak (target {t3['leak0']['pass_if']}: {word(t3['leak0']['passed'])}, {side_of(t3['leak0'])}), {first(t3['leak5']['result'])} at 5 mA (0.2: "
+                 f"{first(t3_02['result'])}), {first(t3['leak15']['result'])} at 15 mA. It now detects a 5 mA leak in "
+                 f"{first(det['leak5']['result'])} (0.2: {first(det_02['result'])}). Why, on development seeds 0-59 with the same packs under "
+                 f"four settings (`validation/diag_a4_band.py`): from 0.2 to 0.3 A4's band narrows about "
+                 f"{cell('leak0', 'after', 'v02', 'median_half_ma') / cell('leak0', 'after', 'v03', 'median_half_ma'):.0f} times (median half-width without a leak "
+                 f"{cell('leak0', 'after', 'v02', 'median_half_ma'):.2f} → {cell('leak0', 'after', 'v03', 'median_half_ma'):.2f} mA) and its bias there moves "
+                 f"({cell('leak0', 'after', 'v02', 'median_error_ma'):+.2f} → {cell('leak0', 'after', 'v03', 'median_error_ma'):+.2f} mA). After a leak the estimate "
+                 f"trails the change ({MEMORY_DAYS:.0f}-day memory; at 5 mA a median {cell('leak5', 'after', 'v03', 'median_error_ma'):+.2f} mA from "
+                 f"{MEMORY_DAYS:.0f} days after the onset) and the narrower band no longer covers it: held "
+                 f"{cell('leak5', 'after', 'v02', 'held_share'):.1%} → {cell('leak5', 'after', 'v03', 'held_share'):.1%} there. The reading times move it "
+                 f"less ({cell('leak5', 'after', 'v03_start', 'held_share'):.1%} without them); the quadratic terms do the narrowing. [T3a, T3b]")
+    fig, caption = fig_drift_pack(ctx)
+    out += [f"{k}. {x}" for k, x in enumerate(found, 1)] + ["", fig, "", caption, ""]
+    sel = ctx["checks03"][~ctx["checks03"]["pass_if"].str.startswith("information") & (ctx["checks03"]["pass_if"] != "reported")]
+    t = pd.DataFrame({"Check": sel["check"], "Setting": sel["what"].map(setting_of), "Result (0.3)": sel["result"],
+                      "Pass if": sel["pass_if"], "Outcome": sel["passed"].map(word)})
+    out += ["Every judged row of version 0.3 (`checks_sim_v03.csv`; the information rows are in the file):", "", md(t), ""]
+    return out
+
+
 def document(ctx: dict) -> str:
     setup, found, cs = setup_sentences(ctx), findings(ctx), ctx["cases"]
     figs = {1: fig_heat, 2: fig_imbalance, 3: fig_leak, 4: fig_cold, 5: fig_grid, 6: fig_drift}
@@ -697,7 +867,8 @@ def document(ctx: dict) -> str:
     return "\n".join([
         "# The simulator: besslib.sim",
         "",
-        "Written by `validation/make_sim_doc.py` from `validation/results/` (the case rows, `sim_checks.csv`, `checks_sim.csv`). "
+        "Written by `validation/make_sim_doc.py` from `validation/results/` (the case rows of `sim_v03/` and `sim/`, `checks_sim_v03.csv`, "
+        "`checks_sim.csv`, `sim_checks.csv`, `diag_a4_band.csv`). "
         "No number on this page is typed by hand." + (" **This is a trial build from development seeds, not a result.**" if DEV else ""),
         "",
         "## What it is",
@@ -713,13 +884,15 @@ def document(ctx: dict) -> str:
         "python validation/sim_cases.py run heat --seeds held-out        # many packs, one case",
         "```",
         "",
-        "## What it found",
+        *([] if DEV else v03_section(ctx)),
+        "## What it found in version 0.2",
         "",
         "Version 0.2 of besslib, run on the six cases " + (f"({packs} packs per setting, "
-                                                            "development seeds)." if DEV else "(200 packs per setting, held-out seeds).") + " Most important first.",
+                                                            "development seeds)." if DEV else f"(200 packs per setting, seeds {seeds_text(sim_truth.HELD_OUT_02)}, "
+                                                            "at the settings of release 0.2.0).") + " Most important first.",
         "",
         *story, "",
-        "## The six cases",
+        f"## The six cases{V02_LABEL}",
         "",
         "The pass rules were fixed before any result and never moved. These set-ups were changed after development runs (seeds 0-9) and before the "
         "held-out run: case 6, the test's stop, the size of the limit's fall and the C/10 tests' stop; the BMS's balancing rule, which at first bled every "
@@ -734,10 +907,10 @@ def document(ctx: dict) -> str:
         "",
         *own_table(ctx),
         *bus_section(ctx),
-        "## The cases",
+        f"## The cases{V02_LABEL}",
         "",
         *cases,
-        "## Known causes", "",
+        f"## Known causes{V02_LABEL}", "",
         "Each line is an explanation only where the row in the second column supports it. Nothing here is a promise.", "",
         *causes(ctx, found),
         "## The rerun on one state-of-charge path", "",

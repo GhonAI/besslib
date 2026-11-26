@@ -1,6 +1,6 @@
 # The simulator: besslib.sim
 
-Written by `validation/make_sim_doc.py` from `validation/results/` (the case rows, `sim_checks.csv`, `checks_sim.csv`). No number on this page is typed by hand.
+Written by `validation/make_sim_doc.py` from `validation/results/` (the case rows of `sim_v03/` and `sim/`, `checks_sim_v03.csv`, `checks_sim.csv`, `sim_checks.csv`, `diag_a4_band.csv`). No number on this page is typed by hand.
 
 ## What it is
 
@@ -15,9 +15,93 @@ python -m besslib.sim run --case cold --seed 1 --out run_cold
 python validation/sim_cases.py run heat --seeds held-out        # many packs, one case
 ```
 
-## What it found
+## Version 0.3 on new seeds
 
-Version 0.2 of besslib, run on the six cases (200 packs per setting, held-out seeds). Most important first.
+Version 0.3 of besslib (capacity settings `b30137b3f868`) reads A1 with a linear and a quadratic voltage term at each end and with the time between the moments its two rests are read, and refuses a capacity whose full or empty level is not the pack's (charges that end above the full level; with the pack's documented voltage limits, a level too far inside them). It was built on the development seeds 0-199 and run once on 200 new packs per setting, seeds 2000-2199; the pass rules were fixed before that run and did not move. Version 0.2's sections below (seeds 1000-1199) keep their numbers.
+
+1. **A1 now holds the capacity it is built for**, the charge between the two rest voltages it reads at (T_rest): 10416 of 11031 (94.4%) month ends without drift (target 85-95 % and a mean error within its limit): passes; 0.2 held 8068 of 10964 (73.6%) (seeds 1000-1199). Its median band width is 0.694 points of nominal, 1.00 times 0.2's 0.695 (W: passes), so it does not hold by widening. [T6a, W]
+2. **With the discharge stop drifting, the band at the test date holds T_rest** at 0 mV: 873 of 1000 tests (87.3%) (passes); 50 mV: 860 of 1000 tests (86.0%) (passes); 100 mV: 849 of 1000 tests (84.9%) (fails); 157 mV: 843 of 1000 tests (84.3%) (fails) (target 85-95 %; a test with a band but no reading voltage counts as not held). [T6b']
+3. **It does not hold a simulated capacity test**: the test value lies in the band at 0.4 to 3.3 % of the test dates (0.2's rule, at least 80 %, kept as information). A test measures the charge between the stops at its own rate, a different quantity: over 0 to 157 mV the rate term gives +1.25 to +2.27 points of nominal, the drift -0.09 to +0.70 and the estimator -0.07 to -0.03. [T6b, T6d]
+4. **Grid duty without a full charge: with the pack's documented voltage limits A1 refuses every month** (200 of 200 packs with 0 estimated month ends and every reason 'not possible from this data', for each of NMC, LFP and the string: passes), and with a weekly or monthly calibration charge but no limits it estimates no month end on 6 of 6 settings (T5b'). **Without limits and without a full charge it still reads a median 51.8 % (NMC), 51.0 % (LFP), 51.0 % (string) of the true capacity**: fails, fails, fails, published as it came; the record says the levels were not checked against voltage limits. [T5a-L, T5b', T5a]
+5. **With cell imbalance the band holds T_rest at 4013 of 4508 (89.0%) and 3898 of 4532 (86.0%) month ends (sd 1 % and 3 %, balancing on), but its mean error, -0.063 and -0.079 Ah, lies outside the limit of 0.036 and 0.035 Ah**: fails on the mean clause. With balancing off: sd 3 % 93 of 98 (94.9%) (passes); sd 1 % has no month end with a band (fails). [T2a]
+6. **Not fewer estimates than 0.2** on 20 of 22 judged settings; fewer on leak50 (3579 against 3584); leak0-off (6 against 7). The cold case has no R row: its packs run 12 months, and A1 gives no estimate before 365 days of history. [R]
+7. **A4 holds the true charge loss without a leak but trails a new one**: 3424 of 3549 (96.5%) month ends without a leak (target 85-95 % of month ends with a band: fails, above the range), 1869 of 3574 (52.3%) at 5 mA (0.2: 2775 of 3511 (79.0%)), 1033 of 3590 (28.8%) at 15 mA. It now detects a 5 mA leak in 88 of 200 packs (44.0%) (0.2: 2 of 200 packs (1.0%)). Why, on development seeds 0-59 with the same packs under four settings (`validation/diag_a4_band.py`): from 0.2 to 0.3 A4's band narrows about 3 times (median half-width without a leak 2.52 → 0.76 mA) and its bias there moves (-0.94 → -0.04 mA). After a leak the estimate trails the change (180-day memory; at 5 mA a median -1.05 mA from 180 days after the onset) and the narrower band no longer covers it: held 72.5% → 32.7% there. The reading times move it less (28.2% without them); the quadratic terms do the narrowing. [T3a, T3b]
+
+![05_drift_pack.png](img/05_drift_pack.png)
+
+*One simulated pack of case 6 (setting D157, seed 2000): its discharge stop falls over the run. The band holds the capacity it is built for at 58 of 58 month ends; the simulated tests lie in the band at 0 of 5 test dates, and 5 of 5 lie below T_rest. T_rest rises because the empty rest voltage falls with the stop (S9), so the voltage window A1 reads widens: a falling stop hides fade.*
+
+Every judged row of version 0.3 (`checks_sim_v03.csv`; the information rows are in the file):
+
+| Check | Setting | Result (0.3) | Pass if | Outcome |
+|---|---|---|---|---|
+| R | fan-fails | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T1a | fan-fails | 200 of 200 packs within tolerance; 0 bands outside; worst band error 4.55e-13 h | 200 of 200 packs | passes |
+| T1b | fan-fails | 2426 of 2426 pairs (100.0%) | at least 80% of pairs | passes |
+| R | fan-works | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T2a | sd1-balance | 4013 of 4508 (89.0%); mean error -0.063 Ah, limit +-0.036 (200 packs); 292 month ends with a band left out (no reference voltages) | 85-95 % and mean error within 2 sd / sqrt(n) of zero | fails |
+| R | sd1-balance | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T2a | sd1-off | no month end with a band; 6 month ends with a band left out (no reference voltages) | 85-95 % and mean error within 2 sd / sqrt(n) of zero | fails |
+| T2a | sd3-balance | 3898 of 4532 (86.0%); mean error -0.079 Ah, limit +-0.035 (200 packs); 268 month ends with a band left out (no reference voltages) | 85-95 % and mean error within 2 sd / sqrt(n) of zero | fails |
+| R | sd3-balance | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T2a | sd3-off | 93 of 98 (94.9%); mean error -0.006 Ah, limit +-0.150 (10 packs); 41 month ends with a band left out (no reference voltages) | 85-95 % and mean error within 2 sd / sqrt(n) of zero | passes |
+| T3a | leak0 | 3424 of 3549 (96.5%); before 992 of 1016, after 2432 of 2533; against the memory-weighted truth (information) 3434 of 3549 (96.8%) | 85-95 % of month ends with a band | fails |
+| R | leak0 | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T3b | leak0 | 0 of 200 packs (0.0%); A1 changes by a median of -1.10 Ah over the same dates (178 packs with both) | at most 10% of the controls | passes |
+| T3a | leak5 | 1869 of 3574 (52.3%); before 993 of 1016, after 876 of 2558; against the memory-weighted truth (information) 2936 of 3574 (82.1%) | 85-95 % of month ends with a band | fails |
+| R | leak5 | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T3a | leak15 | 1033 of 3590 (28.8%); before 993 of 1016, after 40 of 2574; against the memory-weighted truth (information) 1751 of 3590 (48.8%) | 85-95 % of month ends with a band | fails |
+| R | leak15 | 4800 against 4800; packs with fewer: 0 of 200 | not fewer | passes |
+| T3b | leak15 | 150 of 200 packs (75.0%); A1 changes by a median of -1.45 Ah over the same dates (178 packs with both) | at least 90% of packs | fails |
+| T3a | leak50 | 1177 of 2379 (49.5%); before 993 of 1016, after 184 of 1363; against the memory-weighted truth (information) 1329 of 2379 (55.9%) | 85-95 % of month ends with a band | fails |
+| R | leak50 | 3579 against 3584; packs with fewer: 3 of 200 | not fewer | fails |
+| T3b | leak50 | 80 of 200 packs (40.0%); A1 changes by a median of -2.66 Ah over the same dates (86 packs with both) | at least 90% of packs | fails |
+| R | leak0-off | 6 against 7; packs with fewer: 1 of 200 | not fewer | fails |
+| R | leak5-off | 0 against 0; packs with fewer: 0 of 200 | not fewer | passes |
+| R | leak15-off | 0 against 0; packs with fewer: 0 of 200 | not fewer | passes |
+| R | leak50-off | 0 against 0; packs with fewer: 0 of 200 | not fewer | passes |
+| T4a | block | 0 of 1200 (0.0%); same-days form 1200 of 1200 (100.0%) | 85-95 % of band values | fails |
+| T4b | block | 1000 of 1000 pairs (100.0%) | at least 80 % of pairs | passes |
+| T4c | block | 200 of 200 packs equal; besslib median 0.0 h, truth median 0.0 h | all packs | passes |
+| T4a | noblock | 4 of 1800 (0.2%); same-days form 1800 of 1800 (100.0%) | 85-95 % of band values | fails |
+| T4b | noblock | 1600 of 1600 pairs (100.0%) | at least 80 % of pairs | passes |
+| T4c | noblock | 194 of 200 packs equal; besslib median 854.5 h, truth median 854.8 h | all packs | fails |
+| T5b' | nmc-7 | 200 of 200 packs with 0 estimated month ends; 0 estimated of 7200 month ends (with the limits given: 0) | 200 of 200 packs | passes |
+| T5b' | nmc-30 | 200 of 200 packs with 0 estimated month ends; 0 estimated of 7200 month ends (with the limits given: 0) | 200 of 200 packs | passes |
+| T5a | nmc-never | 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; 4795 estimated of 7200 month ends; the estimate is a median 51.8% of the true capacity; reasons: not possible from this data: not enough history yet to set the full and empty levels (33.3% of month ends); not possible from this data: too few full-to-full or empty-to-empty pairs to fix the offset (0.1% of month ends) | 200 of 200 packs | fails |
+| T5a-L | nmc-never | 200 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; 0 estimated of 7200 month ends | 200 of 200 packs | passes |
+| T5b' | lfp-7 | 200 of 200 packs with 0 estimated month ends; 0 estimated of 7200 month ends (with the limits given: 0) | 200 of 200 packs | passes |
+| T5b' | lfp-30 | 200 of 200 packs with 0 estimated month ends; 0 estimated of 7200 month ends (with the limits given: 0) | 200 of 200 packs | passes |
+| T5a | lfp-never | 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; 4800 estimated of 7200 month ends; the estimate is a median 51.0% of the true capacity; reasons: not possible from this data: not enough history yet to set the full and empty levels (33.3% of month ends) | 200 of 200 packs | fails |
+| T5a-L | lfp-never | 200 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; 0 estimated of 7200 month ends | 200 of 200 packs | passes |
+| T5b' | string-7 | 200 of 200 packs with 0 estimated month ends; 0 estimated of 7200 month ends (with the limits given: 0) | 200 of 200 packs | passes |
+| T5b' | string-30 | 200 of 200 packs with 0 estimated month ends; 0 estimated of 7200 month ends (with the limits given: 0) | 200 of 200 packs | passes |
+| T5a | string-never | 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; 4800 estimated of 7200 month ends; the estimate is a median 51.0% of the true capacity; reasons: not possible from this data: not enough history yet to set the full and empty levels (33.3% of month ends) | 200 of 200 packs | fails |
+| T5a-L | string-never | 200 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; 0 estimated of 7200 month ends | 200 of 200 packs | passes |
+| S9 | D0 | 199 of 200 packs within 10 mV (99.5%); median -0.1 mV, 5-95 % -4.8 to +4.3; true fall of the relaxed empty stop voltage, year 1 to the end of month 72 on its line: +0.1 mV (median) | >= 95% of packs within 10 mV | passes |
+| S9 | D50 | 198 of 200 packs within 10 mV (99.0%); median -46.1 mV, 5-95 % -50.6 to -42.0; true fall of the relaxed empty stop voltage, year 1 to the end of month 72 on its line: -52.1 mV (median) | >= 95% of packs within 10 mV | passes |
+| S9 | D100 | 146 of 200 packs within 10 mV (73.0%); median -91.9 mV, 5-95 % -96.3 to -87.6; true fall of the relaxed empty stop voltage, year 1 to the end of month 72 on its line: -101.6 mV (median) | >= 95% of packs within 10 mV | fails |
+| S9 | D157 | 78 of 200 packs within 10 mV (39.0%); median -146.2 mV, 5-95 % -150.5 to -142.3; true fall of the relaxed empty stop voltage, year 1 to the end of month 72 on its line: -158.6 mV (median) | >= 95% of packs within 10 mV | fails |
+| T6a | D0 | 10416 of 11031 (94.4%); mean error -0.004 Ah, limit +-0.005 (200 packs); 1 month ends after the first year without a band, 952 with a band but without a reading voltage; median band width 0.69 points of nominal | 85-95 % and mean error within 2 sd / sqrt(n) of zero | passes |
+| R | D0 | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D50 | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D100 | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D157 | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D157-steps | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D100-growth | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D0-c10 | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D157-c10 | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D0-onestop | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| R | D157-onestop | 11999 against 11999; packs with fewer: 0 of 200 | not fewer | passes |
+| W | D0 | 0.694 against 0.695 (1.00 times) | at most 1.2 times | passes |
+| T6b' | D0 | 873 of 1000 tests (87.3%); 0 without a band; 69 with a band but without a reading voltage, counted as not held (information: 873 of 931 without them, 93.8%) | 85%-95% of tests | passes |
+| T6b' | D50 | 860 of 1000 tests (86.0%); 0 without a band; 56 with a band but without a reading voltage, counted as not held (information: 860 of 944 without them, 91.1%) | 85%-95% of tests | passes |
+| T6b' | D100 | 849 of 1000 tests (84.9%); 0 without a band; 47 with a band but without a reading voltage, counted as not held (information: 849 of 953 without them, 89.1%) | 85%-95% of tests | fails |
+| T6b' | D157 | 843 of 1000 tests (84.3%); 0 without a band; 40 with a band but without a reading voltage, counted as not held (information: 843 of 960 without them, 87.8%) | 85%-95% of tests | fails |
+
+## What it found in version 0.2
+
+Version 0.2 of besslib, run on the six cases (200 packs per setting, seeds 1000-1199, at the settings of release 0.2.0). Most important first.
 
 1. **On grid duty without a full charge, version 0.2 gives a wrong capacity instead of refusing.** The pack never leaves the middle of its range, yet A1 is `estimated` at month ends of every pack (NMC: 4791 of 7200 (66.5%); LFP: 4800 of 7200 (66.7%); the string: 4800 of 7200 (66.7%)), at a median 52% (NMC), 51% (LFP), 51% (string) of the true capacity. It takes the edges of the daily window for full and empty. [T5a]
 2. **A weekly full charge does not repair it on any of the three**: the estimate is a median 56% (NMC), 55% (LFP), 55% (string) of the true capacity. On LFP it also lies 51 Ah below T_rest (16 cells of 280 Ah) and 51 Ah below T_rest (the 396-cell string). The empty end is never reached. [T5b]
@@ -31,7 +115,7 @@ Version 0.2 of besslib, run on the six cases (200 packs per setting, held-out se
 10. A5 orders the bands right in 1600 of 1600 (100.0%) neighbouring pairs; its one-step value is a median of -14.9% from the model's r0, and the band holds the median-step truth in 4 of 1800 (0.2%) band values, the estimator's own same-days form in 1800 of 1800 (100.0%). Hours charging below 0 °C (no block) agree with the truth in 199 of 200 (99.5%) packs; the others are off by at most 2.20 h (tolerance 1.98 h). A full pack at constant 0.5 C of its nominal energy runs 105 min and gives 12.6 kWh at -15 °C, 117 min and 14.0 kWh at 25 °C. [T4a, T4b, T4c, T4d]
 11. B4's temperature hours are counted exactly: 200 of 200 (100.0%) packs agree with the true sensor trace within one sample step per edge crossing. The housing sensor is at or above 45 °C for a median 3779 h, the hottest cell group for 3824 h. [T1a, T1c]
 
-## The six cases
+## The six cases (version 0.2, seeds 1000–1199)
 
 The pass rules were fixed before any result and never moved. These set-ups were changed after development runs (seeds 0-9) and before the held-out run: case 6, the test's stop, the size of the limit's fall and the C/10 tests' stop; the BMS's balancing rule, which at first bled every high group alike and so could not balance; case 3, the month in which the true loss is read; case 5, a fade of 2 points a year was added. Nothing was changed after the held-out run.
 
@@ -72,11 +156,11 @@ Full rows, with the packs and months of each: `validation/results/sim_checks.csv
 
 `python -m besslib.sim serve --case failing-cell --port 5020` shows the pack's BMS as SunSpec models 1, 802, 803 and 804 over Modbus TCP. The bus never shows the true capacity, the true state of charge, the resistances, a leak or a planted event; its voltages, current and temperatures are the simulator's own, without sensor errors. It binds to 127.0.0.1 by default, because Modbus has no login. These models hold no power command: a client can connect or disconnect the battery and set its state-of-charge reserves. S7: pysunspec2, the SunSpec Alliance's client, made 40320 point reads over the 168 points of the 4 models on 9 cases; 0 mismatches. It made 110 writes in 10 runs; 9 of their effects could not be tried, because no current flowed for them to act on. The first full run had 1 mismatch (overheating), a fault of the check: the test value was computed before the current flowed. The check was corrected and the cold case's second start added, with the bus and the pass number unchanged. The run shown here came after a review that changed the bus (the serial number, refused function codes, write handling) and widened the check.
 
-S7 checks the encoding and the effect of the set-points; the BMS state is checked against literal values in `tests/test_sim_bus.py`. `WChaRteMax` and `WDisChaRteMax`, mandatory in model 802, read 'not implemented' in the 8 of 9 cases that set no current limit. The server needs `pip install "besslib[modbus]"`; the simulator and this extra are not in release 0.2.0 on PyPI.
+S7 checks the encoding and the effect of the set-points; the BMS state is checked against literal values in `tests/test_sim_bus.py`. `WChaRteMax` and `WDisChaRteMax`, mandatory in model 802, read 'not implemented' in the 8 of 9 cases that set no current limit. The server needs `pip install "besslib[modbus]"`; the simulator and this extra are on PyPI from release 0.3.0.
 
 SunSpec's model files do not state the sign of A and W; besslib uses positive = discharging on the bus.
 
-## The cases
+## The cases (version 0.2, seeds 1000–1199)
 
 ### 1. Overheating
 
@@ -237,22 +321,22 @@ Information settings:
 
 **What this shows.** Findings 4, 5, 6 above.
 
-## Known causes
+## Known causes (version 0.2, seeds 1000–1199)
 
 Each line is an explanation only where the row in the second column supports it. Nothing here is a promise.
 
 | Finding | Where seen | What the next version does |
 |---|---|---|
-| A1 is read at the mean full and empty rest voltages; on a curved open-circuit curve (the NMC plateau) the state of charge at the mean voltage is not the mean state of charge: the estimate lies nearer T_stop than T_rest | T2a sd1-balance: 93 of 4502 (2.1%); T2b sd1-balance: 2751 of 4800 (57.3%) | not decided |
+| A1 is read at the mean full and empty rest voltages; on a curved open-circuit curve (the NMC plateau) the state of charge at the mean voltage is not the mean state of charge: the estimate lies nearer T_stop than T_rest | T2a sd1-balance: 93 of 4502 (2.1%); T2b sd1-balance: 2751 of 4800 (57.3%) | 0.3 reads A1 with two quadratic voltage terms ([version 0.3](#version-03-on-new-seeds)) |
 | A4 follows a leak through its 180-day memory: after the onset its band holds the truth less often than before it | T3a leak15: 1324 of 3545 (37.3%); T3b leak15: 109 of 200 packs (54.5%) | not decided |
 | A5 at 10 s samples includes the open-circuit rise of one sample; T4a's truth uses the median step, the same-days form (the estimator on the true signals) is the estimate's own quantity | T4a noblock: 4 of 1800 (0.2%) | not decided |
-| A1 in mid-state-of-charge duty reads the daily window's edges as full and empty, because its levels are quantiles of the rest edge voltages; with no full charge it still gives an estimate | T5a nmc-never: 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; T5a lfp-never: 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; T5a string-never: 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data' | not decided |
+| A1 in mid-state-of-charge duty reads the daily window's edges as full and empty, because its levels are quantiles of the rest edge voltages; with no full charge it still gives an estimate | T5a nmc-never: 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; T5a lfp-never: 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data'; T5a string-never: 0 of 200 packs with 0 estimated month ends and every reason 'not possible from this data' | 0.3 refuses it when the pack's voltage limits are given (rule B); without them it labels the record ([version 0.3](#version-03-on-new-seeds)) |
 
 ## The rerun on one state-of-charge path
 
 The checks V6, X3 and W7 ran on `tests/synth.py`, whose BMS decides its stops on a copy of the pack that drifts slowly from the plant. The same seeds on a pack with one path:
 
-| Check | Quantity | Published | One-path pack |
+| Check | Quantity | Published in 0.2.0 | One-path pack |
 |---|---|---|---|
 | V6 | V6: the band holds the expected usable fade (V6's rule, 85-95 %) | 152 of 200 (76.0%) | 109 of 200 (54.5%) |
 | V6 | expected usable fade, points per year | -1.875 | -1.875 |
@@ -265,7 +349,7 @@ The checks V6, X3 and W7 ran on `tests/synth.py`, whose BMS decides its stops on
 | W7 | W7: the band holds the true apparent charge loss (W7's rule, 85-95 %) | 188 of 200 (94.0%) | 183 of 200 (91.5%) |
 | W7 | W7: mean error, mA (sd over packs) | -0.03 (0.19) | -0.06 (0.23) |
 
-The published numbers stay as they are: they are the numbers of the release, and this run changes none of them.
+The published numbers stay as they are: they are the numbers of release 0.2.0, and this run changes none of them.
 
 ## What an equivalent circuit cannot show
 

@@ -57,7 +57,8 @@ def f1(tag: str) -> list[dict]:
     rows = check_v02.x0(figgener.SYSTEM_IDS, FOLDER / short)
     out = []
     for r in rows:
-        r = dict(r, check=r["check"].replace("X0", f"F1 {tag}"), pass_if="0 differences")
+        # release 0.1.0 is compared with check X0's exception (the A3 text and the W4/W6 rows changed in 0.2 on purpose)
+        r = dict(r, check=r["check"].replace("X0", f"F1 {tag}"), pass_if=r["pass_if"] if tag == "v0.1.0" else "0 differences")
         out.append({k: v.replace("release 0.1.0 ", "") if isinstance(v, str) else v for k, v in r.items()})
     for r in out:
         for old, new in (("keys 0.2 adds", "keys later versions add"), ("columns and keys added in 0.2", "columns and keys added later")):
@@ -109,6 +110,27 @@ def w7() -> list[dict]:
                           f"band held the hidden drain in {int(held.sum())} of {len(t)} packs ({share:.1%}); mean error "
                           f"{mean:+.3f} mA, limit +-{limit:.3f} ({len(error)} packs with an estimate)", passed,
                           f"settings {digest}; release 0.2.0 judged the share only")]
+
+
+W7_V03 = "W7 (0.3 rule)"  # the name of version 0.3's W7 row on the pages
+
+
+def with_w7_v03(checks: pd.DataFrame) -> pd.DataFrame:
+    """``checks_phase3.csv`` with version 0.3's W7 row (``checks_v03.csv``) right after release 0.2.0's W7 row.
+
+    Release 0.2.0's W7 judged the share only; the pages show that row and, under it, version 0.3's rule with the
+    mean clause, so a pass by the old rule is never shown alone.
+    """
+    v03 = pd.read_csv(ROOT / "validation" / "results" / "checks_v03.csv", keep_default_na=False)
+    new, at = v03[v03["check"] == "W7"], checks.index[checks["check"] == "W7"]
+    if len(new) != 1 or len(at) != 1:
+        raise SystemExit("checks_v03.csv and checks_phase3.csv must each hold one W7 row")
+    old = checks.loc[at[0]]
+    row = {c: "" for c in checks.columns}
+    row.update(check=W7_V03, scope=old["scope"], value=new["value"].iloc[0], pass_if=new["pass_if"].iloc[0],
+               result=new["result"].iloc[0])
+    k = checks.index.get_loc(at[0]) + 1
+    return pd.concat([checks.iloc[:k], pd.DataFrame([row]), checks.iloc[k:]], ignore_index=True)
 
 
 def main(argv: list[str]) -> None:

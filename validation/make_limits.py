@@ -1,8 +1,9 @@
-"""Write ``docs/limits.md`` and ``validation/results/limits.csv``: the known limits of version 0.2.
+"""Write ``docs/limits.md`` and ``validation/results/limits.csv``: the known limits of version 0.3.
 
 The four limits release 0.1.0 named are found again by the same rules, applied to today's result
-files and to the files of the release tag (``git show``). A limit whose rule finds nothing moves to
-"Fixed in version 0.2", with the number its rule gives now; one it still finds stays open. This
+files and to the files of the release tag v0.1.0 (``git show``). A limit whose rule finds nothing stays
+under "Fixed in version 0.2", with the number its rule gives now; one it still finds stays open. The
+limits version 0.3's own checks found (the simulator, V6) are open, with their rows. This
 script holds no number of any system. Check R4 tokenizes this file and refuses any number literal
 beyond a tiny set. The limits already published on the pages are listed with a link and no new
 number.
@@ -16,6 +17,7 @@ from __future__ import annotations
 import io
 import json
 import math
+import re
 import sys
 import tokenize
 from pathlib import Path
@@ -28,7 +30,7 @@ from besslib.soh import _core
 from besslib.soh.config import CapacityConfig
 
 from check_v02 import TAG, tag_file
-from sim_drift_points import OTHER_SET_UPS, drift_points
+from sim_case_leak import MEMORY_DAYS
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "validation" / "results"
@@ -104,16 +106,33 @@ def limit_charge_loss() -> dict:
         f"Release {TAG.lstrip('v')}: the band held {old['held']} of {old['n']}; {old['mean']:+.2f} mA on average "
         f"(standard deviation {old['sd']:.2f} mA); {old['above']} of {old['n']} packs read above the truth."
     )
+    v03 = pd.read_csv(RESULTS / "checks_v03.csv", keep_default_na=False)
+    v03 = v03[v03["check"] == "W7"]
+    if len(v03) != 1 or f"{now['held']} of {now['n']}" not in str(v03["value"].iloc[0]):
+        sys.exit("the W7 row of checks_v03.csv does not agree with synthetic_phase3.csv")
+    rule03 = v03.iloc[0]
+    fixed = now["result"] == "pass" and rule03["result"] == "pass"
+    rule = ("W7 row, synthetic packs: the band's share, and the mean and the standard deviation of the error (`w7_error_ma`) "
+            "against the true drain (`w7_truth_ma`); version 0.3's rule adds the mean clause "
+            f"({rule03['pass_if']}: {rule03['result']}).")
+    if fixed:
+        return {"title": "Apparent charge loss (A4) was biased", "short": "A4 bias",
+                "what": "The offset current of the capacity fit, and with it the apparent charge loss, read too high on synthetic packs.",
+                "before": before, "found": found, "fixed": True, "rule": rule, "systems": "synthetic packs",
+                "files": "validation/results/checks_phase3.csv, validation/results/checks_v03.csv, validation/results/synthetic_phase3.csv"}  # fmt: skip
+    side = "below" if now["mean"] < 0 else "above"
     return {
-        "title": "Apparent charge loss (A4) was biased",
+        "title": "Apparent charge loss (A4) is biased on synthetic packs",
         "short": "A4 bias",
-        "what": "The offset current of the capacity fit, and with it the apparent charge loss, read too high on synthetic packs.",
-        "before": before,
-        "found": found,
-        "fixed": now["result"] == "pass",
-        "rule": "W7 row, synthetic packs: the band's share, and the mean and the standard deviation of the error (`w7_error_ma`) against the true drain (`w7_truth_ma`).",
+        "what": (f"The apparent charge loss reads {side} the true drain on synthetic packs: the band's share passes, the mean "
+                 "error lies outside version 0.3's limit."),
+        "found": f"{found} {before}",
+        "readme": f"{found} Version 0.3's rule for W7 ({rule03['pass_if']}): {rule03['result']}.",
+        "fixed": False,
+        "rule": rule,
+        "status": "Open: published as measured; no fix in 0.3.",
         "systems": "synthetic packs",
-        "files": "validation/results/checks_phase3.csv, validation/results/synthetic_phase3.csv",
+        "files": "validation/results/checks_phase3.csv, validation/results/checks_v03.csv, validation/results/synthetic_phase3.csv",
     }
 
 
@@ -189,31 +208,46 @@ def limit_power_without_resistance() -> dict:
     }
 
 
+def sim_row(check: str, setting: str) -> pd.Series:
+    """One row of the simulator checks of version 0.3 (seeds of ``sim_truth.HELD_OUT``)."""
+    table = pd.read_csv(RESULTS / "checks_sim_v03.csv", keep_default_na=False)
+    row = table[(table["check"] == check) & (table["what"].str.split(":").str[0] == setting)]
+    if len(row) != 1:
+        sys.exit(f"make_limits: checks_sim_v03.csv has {len(row)} rows for {check} {setting}")
+    return row.iloc[0]
+
+
+def head(text: str) -> str:
+    """A result up to its first semicolon."""
+    return str(text).split(";")[0]
+
+
+def grab(pattern: str, text: str) -> tuple:
+    m = re.search(pattern, str(text))
+    if m is None:
+        sys.exit(f"make_limits: {pattern!r} is not in {text!r}: write the sentence again")
+    return m.groups()
+
+
 def limit_band() -> dict:
     table = pd.read_csv(RESULTS / "synthetic_lag.csv")
     total, at_date = int(table["n_band"].sum()), int(table["n_held_at_date"].sum())
     ref_total, ref_held = int(table["n_reference"].sum()), int(table["n_held_reference"].sum())
-    one_path = pd.read_csv(RESULTS / "sim" / "one_path_x3.csv")
-    path_total, path_held = int(one_path["n_reference"].sum()), int(one_path["n_held_reference"].sum())
-    if set(one_path["seed"]) != set(range(1, len(table) + 1)) or path_held / path_total >= ref_held / ref_total:
-        sys.exit("make_limits: the one-path rerun does not support the sentence")
-    same_seeds = (" On the same seeds with one state-of-charge path (a pack whose BMS copy equals its plant) it held "
-                  f"{path_held} of {path_total} ({path_held / path_total * 100:.0f} %); [simulator]({{link}}).")
-    d = drift_points()
     found = (
         f"On {len(table)} synthetic packs the monthly {BAND} band held the charge between the stops at the date in "
         f"{at_date} of {total} month ends ({at_date / total * 100:.0f} %); the estimate reads "
         f"{table['mean_lag_points'].mean():+.2f} points of nominal capacity above it on average. Against the capacity "
         f"between the rest voltages it reports, the band held {ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %), "
         f"{table['mean_lag_reference_points'].mean():+.2f} points on average; that truth was chosen after the first results."
-        + same_seeds.format(link="05_simulator.md#the-rerun-on-one-state-of-charge-path")
     )
     readme = (
         f"On {len(table)} synthetic packs the monthly {BAND} band held the charge between the stops at the date in {at_date} of "
         f"{total} month ends ({at_date / total * 100:.0f} %). It held the capacity between the rest voltages it reports in "
         f"{ref_held} of {ref_total} ({ref_held / ref_total * 100:.0f} %), against a truth chosen after the first results."
-        + same_seeds.format(link="{{url_main:docs/05_simulator.md}}#the-rerun-on-one-state-of-charge-path")
     )
+    settings = ("D0", "D50", "D100", "D157")
+    shares = [float(grab(r"\(([\d.]+)%\)", sim_row("T6b", d)["result"])[0]) for d in settings]
+    rate = [float(grab(r"T_ops - T_test ([+-][\d.]+) \(rate\)", sim_row("T6d", d)["result"])[0]) for d in settings]
     return {
         "title": "The capacity band does not hold the charge between the BMS stops",
         "short": "band and BMS stops",
@@ -226,51 +260,86 @@ def limit_band() -> dict:
         "fixed": False,
         "rule": "Share of month ends whose band holds the true charge between the stops at the date (release 0.1.0's rule), "
                 "with the share against the capacity between the rest voltages beside it.",
-        "status": "On simulated packs whose test stop falls with the daily stop, the drift of the stops does not carry the gap to a capacity test: estimate less test is "
-                  f"{d['miss_none']:+.2f} points without drift and {d['miss_last']:+.2f} at {d['mv']} mV per cell "
-                  f"([simulator](05_simulator.md#6-a-drifting-stop)). {OTHER_SET_UPS.format(**d)} No band term for it is planned. The cause of the field "
-                  "misses is not verified. See the "
-                  f"[version 0.2 page]({MISMATCH}).",
+        "status": f"On the simulator, version 0.3 holds the capacity it is built for ({head(sim_row('T6a', 'D0')['result'])} month ends "
+                  f"without drift), but a simulated capacity test lies in its band at {min(shares):.1f} to {max(shares):.1f} % of the test "
+                  f"dates: the test's rate gives {min(rate):+.2f} to {max(rate):+.2f} points of the gap "
+                  "([simulator](05_simulator.md#version-03-on-new-seeds)). No band term for the test's quantity is planned. The cause of "
+                  "the field misses is not verified ([version 0.3 page](06_version_0_3.md)).",
         "systems": "synthetic packs",
-        "files": "validation/results/synthetic_lag.csv",
+        "files": "validation/results/synthetic_lag.csv, validation/results/checks_sim_v03.csv",
     }
 
 
-def mid_range_text() -> str:
-    """What version 0.2 does on simulated mid-range storage (docs/05, case 5), from the results file."""
-    table = pd.read_csv(RESULTS / "sim" / "grid.csv")
-    table = table[table["seed_set"] == "held-out"]
-    if not (table["estimated_months"] > 0).all():
-        sys.exit("make_limits: a simulated grid-duty pack has no estimate; the sentence does not hold")
-    runs = table.groupby("setting")["estimate_over_true_capacity"]
-    share = runs.median() * 100
-    sizes = set(runs.size())
-    if len(sizes) != 1 or (share >= 100).any():
-        sys.exit("make_limits: the grid-duty settings do not support the sentence")
-    return (
-        "Do not use the capacity (A1) on storage that works at a middle state of charge. Version 0.2 takes the edges of the "
-        "daily window for full and empty and reports the charge between them as the capacity, with the status `estimated`. "
-        f"On simulated packs cycled daily between {GridDuty.cycle_low * 100:g} and {GridDuty.cycle_high * 100:g} % it reports "
-        f"a median {share.min():.0f} to {share.max():.0f} % of the true capacity ({len(share)} settings of {sizes.pop()} packs: "
-        "a full charge every week, every month or never)."
-    )
-
-
 def limit_partial_windows() -> dict:
-    text = mid_range_text()
+    kinds = (("nmc", "NMC"), ("lfp", "LFP"), ("string", "the string"))
+    refused = [sim_row("T5a-L", f"{k}-never") for k, _ in kinds]
+    wrong = [sim_row("T5a", f"{k}-never") for k, _ in kinds]
+    if not all(r["passed"] == "True" for r in refused):
+        sys.exit("make_limits: the refusal with limits did not pass on every pack: write the limit again")
+    pattern = r"the estimate is a median ([\d.]+)% of the true capacity"
+    share = ", ".join(f"{grab(pattern, r['result'])[0]} % ({name})"
+                      for r, (_, name) in zip(wrong, kinds))
+    text = (
+        "Do not use the capacity (A1) on storage that works at a middle state of charge unless the pack's documented voltage "
+        "limits are given (`PackSpec.voltage_max_v`, `voltage_min_v`). With them, version 0.3 refuses: on simulated packs cycled "
+        f"daily between {GridDuty.cycle_low * 100:g} and {GridDuty.cycle_high * 100:g} % and never charged full, "
+        f"{head(refused[0]['result'])}, for NMC, LFP and the string. Without them it still takes the edges of the daily window for "
+        f"full and empty and reports a median {share} of the true capacity, with the status `estimated` and the label \"full and "
+        "empty are the ends of the observed window; not checked against voltage limits\"."
+    )
     return {
-        "title": "Storage at a middle state of charge gets a wrong capacity",
+        "title": "Storage at a middle state of charge gets a wrong capacity without the pack's voltage limits",
         "short": "partial windows",
-        "what": "Version 0.2 does not recognise storage that works in partial windows, and does not refuse it. Systems without "
-                "regular full cycles need the partial-window form of the capacity fit (Plett's form).",
+        "what": "Systems without regular full cycles need the partial-window form of the capacity fit (Plett's form). Version 0.3 "
+                "refuses such storage when the pack's voltage limits are given; it cannot recognise it without them.",
         "found": text,
         "readme": text,
         "fixed": False,
-        "rule": "The A1 estimate over the true capacity, median per setting, in case 5 of the pack simulator "
-                "([page](05_simulator.md#5-grid-duty-at-middle-state-of-charge)).",
-        "status": "Open: neither a refusal nor the partial-window form is built.",
+        "rule": "The A1 estimate over the true capacity and the refusals, per setting, in case 5 of the pack simulator "
+                "([page](05_simulator.md#version-03-on-new-seeds)).",
+        "status": "Partly fixed: the refusal with documented limits is built; the partial-window form is not.",
         "systems": "simulated packs",
-        "files": "validation/results/sim/grid.csv",
+        "files": "validation/results/checks_sim_v03.csv, validation/results/sim_v03/grid.csv",
+    }
+
+
+def limit_a4_lag() -> dict:
+    t3 = {k: sim_row("T3a", k) for k in ("leak0", "leak5", "leak15")}
+    found = (f"On simulated packs with a cell leak the A4 band holds the true apparent charge loss at {head(t3['leak0']['result'])} "
+             f"month ends without a leak, {head(t3['leak5']['result'])} at 5 mA and {head(t3['leak15']['result'])} at 15 mA, "
+             f"before the onset and from {MEMORY_DAYS:g} days after it. Version 0.3's band is narrower; the estimate weighs its "
+             f"history with a {CapacityConfig().tau_days:g}-day memory, so after a new leak it trails the change and the band no "
+             "longer covers it.")
+    return {
+        "title": "Apparent charge loss (A4) trails a new leak",
+        "short": "A4 after a leak",
+        "what": "A4 is a weighted value over the memory time; a step in the true loss reaches it late.",
+        "found": found,
+        "fixed": False,
+        "rule": "T3a of the pack simulator, case 3, and the four-setting diagnosis `validation/diag_a4_band.py` "
+                "([page](05_simulator.md#version-03-on-new-seeds)).",
+        "status": "Open: published as measured; no fix in 0.3.",
+        "systems": "simulated packs",
+        "files": "validation/results/checks_sim_v03.csv, validation/results/diag_a4_band.csv",
+    }
+
+
+def limit_fade_band() -> dict:
+    row = pd.read_csv(RESULTS / "checks_phase2.csv", keep_default_na=False)
+    v6 = row[row["check"] == "V6"].iloc[0]
+    found = (f"On {v6['scope']} the band of the fade rate {head(v6['value']).replace('band held', 'held')} (rule "
+             f"{v6['pass_if']}: {v6['result']}). The reading times move the rate's bias, the quadratic terms narrow its band; "
+             "together the band is too narrow for the bias.")
+    return {
+        "title": "The fade rate's band is too narrow on synthetic packs",
+        "short": "fade-rate band",
+        "what": "The capacity fade per year (`fade_rate`) carries a band that should hold the true fade.",
+        "found": found,
+        "fixed": False,
+        "rule": "V6, and the five-setting diagnosis `validation/diag_fade_band.py` ([version 0.3 page](06_version_0_3.md#why-v6-fell)).",
+        "status": "Open: published as measured; no fix in 0.3.",
+        "systems": "synthetic packs",
+        "files": "validation/results/synthetic_coverage.csv, validation/results/diag_fade_band.csv",
     }
 
 
@@ -328,9 +397,9 @@ PUBLISHED = [
 
 def main() -> None:
     check_r4()
-    known = [limit_charge_loss(), limit_zero_capacity(), limit_power_without_resistance(), limit_band()]
+    known = [limit_band(), limit_charge_loss(), limit_zero_capacity(), limit_power_without_resistance()]
     fixed = [f for f in known if f["fixed"]]
-    still = [f for f in known if not f["fixed"]] + [limit_partial_windows()]
+    still = [f for f in known if not f["fixed"]] + [limit_partial_windows(), limit_a4_lag(), limit_fade_band()]
     rows = [
         {"id": k, "status": "fixed" if f["fixed"] else "open", "title": f["title"], "short": f["short"],
          "found": f["found"], "readme": f.get("readme", f["found"]), "systems": f["systems"], "files": f["files"]}
@@ -342,22 +411,22 @@ def main() -> None:
         return ["- **File:** " + ", ".join(f"`{name}`" for name in f["files"].split(", "))] if f["files"] else []
 
     lines = [
-        "# Known limits of version 0.2",
+        "# Known limits of version 0.3",
         "",
         "Every number on this page is written by `validation/make_limits.py` from the result files, today's and those of "
         f"release {TAG.lstrip('v')} (tag `{TAG}`).",
         "",
-        "## Open in version 0.2",
+        "## Open in version 0.3",
         "",
     ]
     for k, f in enumerate(still, start=1):
         lines += [f"### {k}. {f['title']}", "", f"- **What:** {f['what']}", f"- **The number:** {f['found']}",
                   f"- **The rule that found it:** {f['rule']}", *files_line(f), f"- **Status:** {f['status']}", ""]  # fmt: skip
     lines += ["## Fixed in version 0.2", "",
-              "Found in release 0.1.0 and fixed in version 0.2: the same rule, applied to the 0.2 results, no longer finds the fault.", ""]  # fmt: skip
+              "Found in release 0.1.0 and fixed in version 0.2: the same rule, applied to today's results, still finds no fault.", ""]  # fmt: skip
     for k, f in enumerate(fixed, start=1):
         lines += [f"### {k}. {f['title']}", "", f"- **What:** {f['what']}", f"- **Before:** {f['before']}",
-                  f"- **Version 0.2:** {f['found']}", f"- **The rule:** {f['rule']}", *files_line(f), ""]  # fmt: skip
+                  f"- **Now:** {f['found']}", f"- **The rule:** {f['rule']}", *files_line(f), ""]  # fmt: skip
     lines += ["## Limits already published on the pages", ""]
     for text, link in PUBLISHED:
         lines.append(f"- {text} ([page]({link}))")

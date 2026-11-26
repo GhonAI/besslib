@@ -10,8 +10,10 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 
 - **Configuration:** capacity `b30137b3f868` (unchanged from the capacity page), record `d49cbfdcd5b6`, frozen on the development systems 01, 04, 07, 11, 14, 17 and 19 and on synthetic packs before the held-out systems were run at them. They had been run before, at the settings of releases 0.1.0 (capacity `109e9eb1efa5`, record `c2f7f545cebb`) and 0.2.0 (capacity `b3959941c19b`, record `d49cbfdcd5b6`).
 - **Held-out records:** 14 of 14.
-- **Passed:** W1, W2 growth, W5, W7, W8, X5, W4, W9, W10. **Failed:** W2 value, W6. **Not possible:** W3. **Not run:** none.
+- **Passed:** W1, W2 growth, W5, W7, W8, X5, W4, W9, W10. **Failed:** W2 value, W7 (0.3 rule), W6. **Not possible:** W3. **Not run:** none.
   - W2 value failed (200 synthetic packs: resistance at the weighted mean age of the days in memory): fails under each truth: same days 200 of 200 (too wide: that truth shares every day with the estimate; the systematic half-width alone holds 187); at the date 0 of 200 (the estimate lags the growing resistance by a median 2.3%); at 25 degrees C 90 of 200 (no temperature model; the days read a median +0.9%) (rule 85-95 %).
+  - W7 (0.3 rule) failed (200 synthetic packs: apparent charge loss (hidden drain)): band held the hidden drain in 182 of 200 packs (91.0%); mean error -0.084 mA, limit +-0.024 (200 packs with an estimate) (rule 85-95 % and mean error within 2 sd / sqrt(n) of zero).
+    The estimate reads a mean -0.08 mA (standard deviation 0.17) against a hidden drain of 50 mA; 62 of 200 packs read above it.
   - W6 failed (held-out: full-to-full against empty-to-empty loop ratios within 1 point (no band needed)): 39 of 55 (71%) (rule >= 80%).
   - W3 not possible (held-out capacity tests): 18 of 38 tests have a reference: not possible (rule >= 30 references, then <= 20 %). The rule, fixed before the held-out run, publishes this case as `not possible`. In version 0.1 the check script first wrote it as `fail`, and that label was corrected after that run, with no result changed.
 
@@ -25,6 +27,7 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 | W2 | 200 synthetic packs: resistance growth per year, whole record, against the simulator's known growth (median 4.93 % per year at the fit's origin; this truth was chosen after the first results) | band held the truth in 184 of 200 (92.0%); same-days truth (information): 199 of 200 (99.5%) | 85-95 % | pass |
 | W5 | 200 synthetic packs: round-trip efficiency, full-to-full loops | band held the truth in 176 of 200 (88.0%) | 85-95 % | pass |
 | W7 | 200 synthetic packs: apparent charge loss (hidden drain) | band held the truth in 182 of 200 (91.0%) | 85-95 % | pass |
+| W7 (0.3 rule) | 200 synthetic packs: apparent charge loss (hidden drain) | band held the hidden drain in 182 of 200 packs (91.0%); mean error -0.084 mA, limit +-0.024 (200 packs with an estimate) | 85-95 % and mean error within 2 sd / sqrt(n) of zero | **fail** |
 | W8 | 200 synthetic packs: Ah, kWh, cycles; planted events (pack B: current gain error only) | largest relative error 0.498%; events exact on 200 of 200; 200 of 200 packs within the rule | <= 0.6 % and exact, every pack | pass |
 | W8 info | 200 synthetic packs: the same on pack B with current and voltage noise | largest relative error 0.498%; events exact on 189 of 200; 189 of 200 packs within the rule | information | information |
 | W3 info | development capacity tests | median \|difference\| 21.9 % over 12 of 22 tests with a reference; median difference by chemistry LFP +64.1 %, LMO/NMC -8.2 %, NMC -11.5 % | information | information |
@@ -44,7 +47,7 @@ besslib computes the ten parameters that Annex VII of Regulation (EU) 2023/1542 
 | W10 | record A1 against the capacity run, every month end, 21 systems | 0 values differ over 1139 month ends (21 systems with a file) | 0 differences, every system | pass |
 | W10 | records rebuilt twice for 21 systems | 0 differences over 42 files | 0 differences | pass |
 
-W1, W3, W4 and W6 pass or fail on the held-out systems; their development and all-systems lines are information. A check without results says `not run`, never pass or fail. Every word in the Result column is the one in `validation/results/checks_phase3.csv`.
+W1, W3, W4 and W6 pass or fail on the held-out systems; their development and all-systems lines are information. A check without results says `not run`, never pass or fail. Every word in the Result column is the one in `validation/results/checks_phase3.csv`; W7 (0.3 rule), version 0.3's rule with the mean clause, is the W7 row of `validation/results/checks_v03.csv` (release 0.2.0 judged the share only).
 
 ### Readings chosen after the development results
 

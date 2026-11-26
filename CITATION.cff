@@ -5,8 +5,10 @@ title: besslib
 abstract: >-
   State of health from battery storage operating data, with confidence bands, in the fields of
   EU Regulation 2023/1542, Annex VII. Checked against field capacity tests on open data.
-version: 0.2.0
-date-released: "2026-11-23"
+  Includes besslib.sim, a battery pack simulator with fault cases and its BMS over SunSpec
+  Modbus TCP, as a test bench with a known truth.
+version: 0.3.0
+date-released: "2026-11-26"
 license: BSD-3-Clause
 repository-code: "https://github.com/GhonAI/besslib"
 authors:

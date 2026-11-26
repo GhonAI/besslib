@@ -39,6 +39,7 @@ from besslib.soh.charge_loss import HOURS_PER_MONTH
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
 from check_annex_vii import ONSET_MIN_REFERENCES, one_row_per_day, w4_pairs
+from check_v03 import W7_V03, with_w7_v03
 from make_capacity_doc import DASH, ids_text, num, plural, sid_text, threshold
 from make_reference_doc import AXIS, COLOUR, INK, INK2, MUTED, ORDER, SURFACE, table
 from onset_resistance import AFTER, BEFORE
@@ -224,6 +225,7 @@ def load() -> dict:
     checks = read("checks_phase3.csv", keep_default_na=False)
     if checks is None:
         raise SystemExit("validation/results/checks_phase3.csv is missing: run check_annex_vii.py first")
+    checks = with_w7_v03(checks)
     synth = read("synthetic_phase3.csv")
     onset = [read(n, parse_dates=["onset"]) for n in ("onset_resistance_development.csv", "onset_resistance.csv")]
     onset = pd.concat([t for t in onset if t is not None], ignore_index=True) if any(t is not None for t in onset) else None
@@ -649,7 +651,7 @@ def verdict_block(ctx: dict) -> list[str]:
 def failure_note(ctx: dict, row: pd.Series) -> list[str]:
     """Numbers behind a failure, where the result files hold more than the check row."""
     s = ctx["synth"]
-    if row["check"] == "W7" and s is not None and "w7_error_ma" in s:
+    if row["check"] in ("W7", W7_V03) and s is not None and "w7_error_ma" in s:
         err, truth = s["w7_error_ma"].dropna(), s["w7_truth_ma"].dropna()
         above = int((err > 0).sum())
         return [
@@ -670,7 +672,8 @@ def checks_block(ctx: dict) -> list[str]:
         "",
         "W1, W3, W4 and W6 pass or fail on the held-out systems; their development and all-systems lines are "
         "information. A check without results says `not run`, never pass or fail. Every word in the Result column is "
-        "the one in `validation/results/checks_phase3.csv`.",
+        f"the one in `validation/results/checks_phase3.csv`; {W7_V03}, version 0.3's rule with the mean clause, is the W7 "
+        "row of `validation/results/checks_v03.csv` (release 0.2.0 judged the share only).",
     ]
 
 

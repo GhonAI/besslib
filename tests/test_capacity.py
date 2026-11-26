@@ -356,8 +356,23 @@ def test_the_gate_of_the_quadratic_terms_reaches_the_estimate(candidates):
     (dict(voltage_max_v=3.65, voltage_min_v=2.5), "not of one cell"),  # one cell's limits given for the pack
     (dict(voltage_max_v=3.65), "not of one cell"),
     (dict(voltage_min_v=52.0), "at or above the pack's nominal voltage"),
+    (dict(voltage_max_v=float("inf"), voltage_min_v=40.0), "positive number"),
+    (dict(voltage_max_v=58.4, voltage_min_v=0.0), "positive number"),
+    (dict(voltage_max_v=58.4, voltage_min_v=58.4), "must lie above"),
+    (dict(voltage_max_v=51.2), "at or below the pack's nominal voltage"),  # 1000 * 5.12 / 100 = 51.2 V exactly
+    (dict(voltage_min_v=51.2), "at or above the pack's nominal voltage"),
+    (dict(nominal_voltage_v=0.0, voltage_max_v=58.4), "nominal_voltage_v must be a positive number"),
+    (dict(nominal_voltage_v=60.0, voltage_max_v=58.4), "nominal_voltage_v"),  # the given nominal voltage is used
 ])
 def test_pack_spec_refuses_limits_that_are_not_the_packs(limits, message):
     with pytest.raises(ValueError, match=message):
         PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.12, cells_in_series=16, **limits)
     PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.12, cells_in_series=16, voltage_max_v=58.4, voltage_min_v=40.0)
+
+
+def test_pack_spec_uses_the_given_nominal_voltage():
+    # usable energy entered as the nominal one: 1000 * 4.6 / 100 = 46 V lies below a 48 V lower limit (3.0 V x 16)
+    usable = dict(nominal_capacity_ah=100.0, nominal_energy_kwh=4.6, cells_in_series=16, voltage_max_v=58.4, voltage_min_v=48.0)
+    with pytest.raises(ValueError, match="nominal energy over nominal capacity"):
+        PackSpec(**usable)
+    PackSpec(**usable, nominal_voltage_v=51.2)  # 3.2 V x 16: inside the window

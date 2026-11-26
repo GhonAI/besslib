@@ -144,7 +144,9 @@ class CapacityConfig:
 
     def v0_2(self) -> "CapacityConfig":
         """A copy with the version 0.3 settings at their release 0.2.0 values, and the version 0.2
-        settings at theirs (so ``v0_1().v0_2()`` is release 0.2.0's setting too)."""
+        settings at theirs (so ``v0_1().v0_2()`` is release 0.2.0's setting too). The settings
+        version 0.2 added go back to their defaults: ``CapacityConfig(plausibility=False).v0_2()``
+        has ``plausibility`` on, as release 0.2.0 had."""
         default = {f.name: f.default for f in fields(CapacityConfig)}
         added = {name: default[name] for name in _V0_1["CapacityConfig"]}
         return replace(self, **{**added, **_V0_2["CapacityConfig"]})
@@ -211,7 +213,7 @@ class RecordConfig:
 
     def v0_2(self) -> "RecordConfig":
         """A copy with the settings of release 0.2.0 (version 0.3 adds none here; the version 0.2
-        setting at its 0.2 value, so ``v0_1().v0_2()`` is release 0.2.0's setting too)."""
+        setting goes back to its 0.2 default, so ``v0_1().v0_2()`` is release 0.2.0's setting too)."""
         default = {f.name: f.default for f in fields(RecordConfig)}
         added = {name: default[name] for name in _V0_1["RecordConfig"]}
         return replace(self, **{**added, **_V0_2["RecordConfig"]})

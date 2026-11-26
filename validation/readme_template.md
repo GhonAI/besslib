@@ -1,8 +1,10 @@
 # besslib
 
 State of health from battery storage operating data — with confidence bands, in the fields of the
-EU Battery Regulation (2023/1542, Annex VII). Checked so far on home storage that reaches full and empty regularly;
-not on grid-scale or mid-state-of-charge duty.
+EU Battery Regulation (2023/1542, Annex VII) — and a pack simulator that tests it, and your BMS or
+energy-management code, against a known truth. Checked on field data only on home storage that reaches full and
+empty regularly. On mid-state-of-charge duty it refuses when the pack's voltage limits are given; without them it
+reads about half the true capacity ({{t5a_share}}, simulated packs).
 
 **Version {{version}}, {{release_date}}.** It computes the Annex VII parameters; it does not certify them. It is not a
 compliance certificate and not legal advice.
@@ -14,7 +16,7 @@ Author: Islam Ghonaiem, ghonaiem@vgtai.com — questions on the method and its f
 *{{figure_caption}}*
 
 Checked on open field data: {{n_systems}} home storage systems, {{n_months}} months, {{n_tests}} field capacity tests.
-On the {{n_heldout}} held-out systems (not used to tune any threshold; their release {{previous_release}} results showed two faults that this version's rules now catch, so these numbers are a second look, not a blind test):
+On the {{n_heldout}} held-out systems (not used to tune any threshold; seen at releases {{seen_releases}}, so these numbers are a third look, not a blind test):
 
 - LMO/NMC and NMC, {{v2_tests}} tests: median error {{v2_value}} points of nominal capacity, a test without an estimate counted as infinite (target ≤ {{v2_target}}): **{{v2_result}}**; over the {{v2_have}} tests with an estimate, {{v2_est_error}} points.
 - LFP, {{v3_tests}} tests: {{v3_missing}} have no estimate ({{v3_reasons}}) and the other {{v3_have}} read a median {{v3_bias}} points {{v3_direction}} (target: median error ≤ {{v3_target}} points, a test without an estimate counted as infinite): **{{v3_result}}**.
@@ -23,6 +25,8 @@ On the {{n_heldout}} held-out systems (not used to tune any threshold; their rel
 {{version_sentence}}
 
 {{data_showed}}
+
+{{sim_block}}
 
 Every number on this page is written by `validation/make_readme.py` from a results file in `validation/results/`.
 
@@ -61,9 +65,10 @@ filled in silently.
 
 Thresholds were tuned on {{n_development}} development systems and frozen. The results below come from the
 {{n_heldout}} held-out systems and from synthetic packs with a known truth. The held-out systems were run once at the
-settings of release {{previous_release}} and once more at the settings of this version. The capacity plausibility
-rules and the power-capability rule of this version were found on them. What changed, with every check before and
-after: {{version_page_link}}. A failed check is published as failed, with its reason.
+settings of releases {{seen_releases}} and once more at the settings of this version. The capacity plausibility
+rules and the power-capability rule of version {{previous_minor}} were found on them; the changes of this version were found on the
+pack simulator. What changed, with every check before and after: {{version_page_link}}. A failed check is published as
+failed, with its reason.
 
 Configuration hashes: capacity `{{capacity_hash}}`, record `{{record_hash}}`. Every result file carries them.
 

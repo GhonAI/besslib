@@ -42,8 +42,8 @@ from besslib.soh import annex_vii
 from besslib.soh.config import CapacityConfig, RecordConfig, config_hash
 
 from make_reference_doc import GRID, INK, INK2, MUTED, SURFACE  # noqa: F401  (also sets the plot style)
-from check_v02 import TAG, tag_file
-from sim_drift_points import drift_points
+import sim_truth
+from check_v03 import with_w7_v03
 from tune_capacity import DEVELOPMENT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +52,17 @@ IMG = ROOT / "docs" / "img"
 TEMPLATE = ROOT / "validation" / "readme_template.md"
 PNG = {"Software": None}  # no version stamp: two runs give the same bytes
 SAMPLE_SYSTEM = 5
-VERSION_PAGE = ("0.2", "docs/04_version_0_2.md")  # the version page: what this version changed, every check before and after
+VERSION_PAGE = ("0.3", "docs/06_version_0_3.md")  # the version page: what this version changed, every check before and after
+TAG = "v0.2.0"  # the previous release: the version sentence compares with its files
+SEEN = ("v0.1.0", "v0.2.0")  # the releases whose settings ran on the held-out systems before this version
+
+
+def tag_file(path: str) -> str | None:
+    """A file of the previous release (``TAG``) as text; ``None`` when the tag does not have it."""
+    import subprocess
+
+    done = subprocess.run(["git", "show", f"{TAG}:{path}"], cwd=ROOT, capture_output=True, text=True)
+    return done.stdout if done.returncode == 0 else None
 BLUE = "#2a78d6"
 RAW = "https://raw.githubusercontent.com/GhonAI/besslib"
 
@@ -190,32 +200,62 @@ def test_details() -> dict:
 
 
 def version_sentence() -> str:
-    """What this version improved, what got worse, and why: held-out LMO/NMC and NMC tests, now against the tag."""
-    def summary(t: pd.DataFrame) -> tuple[float, float, float, int, int]:
-        """Median error over the tests with an estimate, median band width, median error over all tests (a test
-        without an estimate counted as infinite, as V2 judges), and the two counts."""
+    """What this version changed, and the held-out LMO/NMC and NMC tests against the previous release's files."""
+    def summary(t: pd.DataFrame) -> tuple[float, int, int, int]:
+        """Median error over the tests with an estimate, the tests held, and the two counts."""
         t = t[t["chemistry"] != "LFP"]
         est = t[t["capacity_ah"].notna()]
-        return (float(est["error_points"].abs().median()), float(est["band_points"].median()),
-                float(t["error_points"].abs().fillna(np.inf).median()), len(est), len(t))
+        held = int(t["held"].astype(str).eq("True").sum())
+        return float(est["error_points"].abs().median()), held, len(est), len(t)
 
     text = tag_file("validation/results/phase2_tests.csv")
-    checks = tag_file("validation/results/checks_phase2.csv")
-    if text is None or checks is None:
+    if text is None:
         refuse(f"the files of {TAG} cannot be read")
-    (e_old, w_old, a_old, _, _), (e_new, w_new, a_new, n_est, n_all) = summary(held_tests(text)), summary(held_tests())
-    pattern = r"held the test in (\d+)% of"
-    (s_old,) = parse(pattern, check_row(pd.read_csv(io.StringIO(checks)), "V4")["value"], "V4 at the tag")
-    (s_new,) = parse(pattern, check_row(pd.read_csv(RESULTS / "checks_phase2.csv"), "V4")["value"], "V4")
-    if not (e_new < e_old and w_new < w_old and int(s_new) < int(s_old) and a_new > a_old):
-        refuse("the version sentence no longer fits the numbers: write it again")
+    (e_old, h_old, n_old, all_old), (e_new, h_new, n_est, n_all) = summary(held_tests(text)), summary(held_tests())
+    if n_all != all_old:
+        refuse("the two versions judge a different number of tests: write the sentence again")
     return (
-        f"**Version {VERSION_PAGE[0]}** is closer to the held-out field tests where it gives an estimate (median error "
-        f"{e_old:.2f} → {e_new:.2f} points over the {n_est} tests with one), but the median over all {n_all}, which V2 "
-        f"judges, rose ({a_old:.2f} → {a_new:.2f}); its band narrowed (median width {w_old:.2f} → {w_new:.2f} points) "
-        f"and held fewer tests ({s_old} % → {s_new} %). The band is built for the capacity between two rest voltages, "
-        "not for the charge a test measures between the stops; which band change narrowed it most is not separated. "
-        f"[Why →]({{{{url_main:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
+        f"**Version {VERSION_PAGE[0]}** reads the capacity with two quadratic voltage terms and the rests' reading times, and refuses "
+        f"mid-range storage against documented voltage limits. On the {n_all} held-out LMO/NMC and NMC field tests: median "
+        f"error {e_old:.2f} → {e_new:.2f} points over the {n_est} with an estimate (0.2: {n_old}); the band held "
+        f"{pct(h_old / all_old)} → {pct(h_new / n_all)}. {fade_sentence()} "
+        f"[What changed →]({{{{url_main:{VERSION_PAGE[1]}}}}})"
+    )
+
+
+def pct(share: float) -> str:
+    return f"{share * 100:.0f} %"
+
+
+def fade_sentence() -> str:
+    """The fade rate, 0.2 against 0.3: V5 on the held-out LFP systems and V6 on the synthetic packs."""
+    now, then = pd.read_csv(RESULTS / "checks_phase2.csv"), tag_file("validation/results/checks_phase2.csv")
+    if then is None:
+        refuse(f"the files of {TAG} cannot be read")
+    then = pd.read_csv(io.StringIO(then))
+
+    def lfp(t: pd.DataFrame) -> tuple:
+        row = t[(t["check"] == "V5") & t["scope"].str.startswith("held-out LFP")]
+        if len(row) != 1:
+            refuse("checks_phase2.csv has no single V5 row for the held-out LFP systems")
+        r = row.iloc[0]
+        fade, paper = parse(r"mean fade ([+-][\d.]+) points/year; paper ([+-][\d.]+)", r["value"], "V5 LFP")
+        (n,) = parse(r"\((\d+) systems\)", r["scope"], "V5 LFP systems")
+        return float(fade), float(paper), int(n), result_word(r["result"])
+
+    def v6(t: pd.DataFrame) -> tuple:
+        r = check_row(t, "V6")
+        (share,) = parse(r"in ([\d.]+)%", r["value"], "V6")
+        (n,) = parse(r"^(\d+) synthetic packs", r["scope"], "V6 packs")
+        return share, n, result_word(r["result"])
+
+    (f3, paper, n3, w3), (f2, _, n2, w2) = lfp(now), lfp(then)
+    (s3, packs, v3), (s2, _, v2) = v6(now), v6(then)
+    worse = "got worse" if (w2 == "passed" and w3 == "failed") or float(s3) < float(s2) else "changed"
+    return (
+        f"The fade rate {worse}: on the {n3} held-out LFP systems the mean is {f3:+.2f} points/year against the paper's "
+        f"{paper:+.1f} (0.2: {f2:+.2f} on {n2}, {w2}; now {w3}), and the band held the synthetic fade in {s3} % of {packs} "
+        f"packs (0.2: {s2} %; {v3})."
     )
 
 
@@ -233,19 +273,118 @@ def data_showed() -> str:
             changes.append(1000 * (e["ref_empty_v"].iloc[-1] - e["ref_empty_v"].iloc[0]) / spec.cells_in_series)
     if not changes or max(changes) >= 0:
         refuse("the drift line no longer fits the numbers: write it again")
-    d = drift_points()
     low, high = sorted(abs(round(c)) for c in changes)[0], sorted(abs(round(c)) for c in changes)[-1]
     return (
         f"**What the data showed.** On the {len(changes)} LMO/NMC systems the relaxed voltage of the empty rests fell by "
         f"{low} to {high} mV per cell between the first and the last month end that has one: the systems were "
-        "discharged to a lower voltage as they aged (cause not verified). On simulated LMO packs a discharge stop that "
-        f"lowers the empty rest voltage by {d['mv']} mV per cell hides fade in A1: the capacity between the first year's rest voltages is "
-        f"{d['hidden_last']:.1f} points below the capacity between the voltages A1 is read at ({d['hidden_none']:.1f} without "
-        f"drift). In this simulation, whose test stop falls with the daily stop, the drift does not account for the missed tests: the estimate reads {d['miss_none']:.2f} points above the simulated "
-        f"test without drift and {d['miss_last']:.2f} with it. The cause of the field misses is not verified. "
-        f"[Data →]({{{{url_main:{VERSION_PAGE[1]}}}}}#what-the-capacity-measures-and-what-the-checks-compare-it-with) "
-        "[Simulator →]({{url_main:docs/05_simulator.md}}#6-a-drifting-stop)"
+        "discharged to a lower voltage as they aged (cause not verified). The cause of the field misses is not verified; "
+        "on simulated packs the drift does not carry them (below). "
+        "[Data →]({{url_main:docs/04_version_0_2.md}}#what-the-capacity-measures-and-what-the-checks-compare-it-with)"
     )
+
+
+def sim_row(check: str, setting: str) -> pd.Series:
+    table = pd.read_csv(RESULTS / "checks_sim_v03.csv", keep_default_na=False)
+    row = table[(table["check"] == check) & (table["what"].str.split(":").str[0] == setting)]
+    if len(row) != 1:
+        refuse(f"checks_sim_v03.csv has {len(row)} rows for {check} {setting}")
+    return row.iloc[0]
+
+
+def commas(text: str) -> str:
+    """Counts of four digits and more with a thousands separator, as elsewhere on the page (1,269)."""
+    return re.sub(r"(?<![\d.])\d{4,}(?![\d.])", lambda m: f"{int(m.group()):,}", text)
+
+
+def sim_word(passed: str) -> str:
+    return {"True": "passed", "False": "failed"}.get(str(passed)) or refuse(f"unknown sim result {passed!r}")
+
+
+def t5a_share() -> str:
+    pattern = r"the estimate is a median ([\d.]+)% of the true capacity"
+    shares = sorted(float(parse(pattern, sim_row("T5a", f"{k}-never")["result"], "T5a")[0]) for k in ("nmc", "lfp", "string"))
+    return f"{shares[0]:.1f} %" if shares[0] == shares[-1] else f"{shares[0]:.1f} to {shares[-1]:.1f} %"
+
+
+def sim_block() -> str:
+    """The A2 block: what besslib.sim is, how to serve a case, and what it showed on the held-out seeds."""
+    head = lambda r: str(r["result"]).split(";")[0]  # noqa: E731
+    seeds = f"{sim_truth.HELD_OUT.start}–{sim_truth.HELD_OUT.stop - 1}"
+    a, w = sim_row("T6a", "D0"), sim_row("W", "D0")
+    (width_now, width_old, _) = parse(r"([\d.]+) against ([\d.]+) \(([\d.]+) times\)", w["result"], "W")
+    old = pd.read_csv(RESULTS / "checks_sim.csv", keep_default_na=False)
+    a02 = old[(old["check"] == "T6a") & old["what"].str.startswith("D0:")]["result"].iloc[0]
+    drift = {d: sim_row("T6b'", d) for d in ("D0", "D50", "D100", "D157")}
+    failed = [d for d, r in drift.items() if r["passed"] == "False"]
+    shares = [float(parse(r"\(([\d.]+)%\)", sim_row("T6b", d)["result"], "T6b")[0]) for d in drift]
+    rate = [float(parse(r"T_ops - T_test ([+-][\d.]+) \(rate\)", sim_row("T6d", d)["result"], "T6d")[0]) for d in drift]
+    dterm = [float(parse(r"T_rest - T_ops ([+-][\d.]+) \(drift\)", sim_row("T6d", d)["result"], "T6d")[0]) for d in drift]
+    lim = [sim_row("T5a-L", f"{k}-never") for k in ("nmc", "lfp", "string")]
+    t2 = [sim_row("T2a", k) for k in ("sd1-balance", "sd3-balance")]
+    t2p = [parse(r"mean error ([+-][\d.]+) Ah, limit \+-([\d.]+)", r["result"], "T2a") for r in t2]
+    rr = pd.read_csv(RESULTS / "checks_sim_v03.csv", keep_default_na=False)
+    rr = rr[(rr["check"] == "R") & rr["passed"].isin(["True", "False"])]
+    fewer = rr[rr["passed"] == "False"]
+    mv = lambda d: d[1:]  # noqa: E731
+    packs = pd.read_csv(RESULTS / "sim_v03" / "drift.csv")["seed"].nunique()
+    n_tests = int(parse(r"of (\d+) tests", drift["D157"]["result"], "T6b'")[0])
+    low = float(parse(r"^(\d+)%", drift["D157"]["pass_if"], "T6b' rule")[0]) / 100
+    need = int(np.ceil(low * n_tests - 1e-9))
+    lines = [
+        "**besslib.sim: a battery pack that fails on demand, with its truth.** Six cases, each with its truth file: "
+        "overheating, cell imbalance, a failing cell, the cold, grid duty at mid state of charge, a drifting discharge stop. "
+        "It writes the frames besslib reads, and serves the pack's BMS over SunSpec Modbus TCP (models 1, 802, 803 and 804), "
+        "checked with the SunSpec Alliance's own client (pysunspec2).",
+        "",
+        "```",
+        'pip install "besslib[modbus]"',
+        "python -m besslib.sim serve --case failing-cell --port 5020 --speed 100 --out truth/",
+        "# your EMS reads the BMS at localhost:5020; truth/ keeps what really happened",
+        "```",
+        "",
+        f"What it showed on {packs} packs per setting, seeds {seeds} (no fix was designed on them):",
+        "",
+        f"- A1's band holds the capacity it is built for (between two rest voltages) at {commas(head(a))} month ends (target "
+        f"{a['pass_if'].split(' and ')[0]}, mean error within its limit): **{sim_word(a['passed'])}**; 0.2 held {commas(a02.split(';')[0])} (seeds "
+        f"{sim_truth.HELD_OUT_02.start}–{sim_truth.HELD_OUT_02.stop - 1}). Width {width_now} points (0.2: {width_old}).",
+        f"- With the discharge stop drifting down {mv('D157')} mV per cell, the band holds that capacity at "
+        f"{head(drift['D157']).replace(' tests', ' test dates')} (target {drift['D157']['pass_if'].replace('%-', '–').replace('% of tests', ' %')}): "
+        f"**{'failed' if failed else 'passed'}** at "
+        + " and ".join(f"{mv(d)} mV" for d in failed)
+        + f" ({' and '.join(head(drift[d]).split(' of ')[0] for d in failed)} of {n_tests}; {need} pass)"
+        + (", passed at " + " and ".join(f"{mv(d)} mV" for d in drift if d not in failed) if len(failed) < len(drift) else "") + ".",
+        f"- A simulated capacity test lies in the band at {min(shares):.1f} to {max(shares):.1f} % of test dates: the test "
+        f"measures the charge between the stops at its rate, a different quantity; the rate gives {min(rate):+.2f} to "
+        f"{max(rate):+.2f} points of the miss, the drift {min(dterm):+.2f} to {max(dterm):+.2f}. "
+        "[Why →]({{url_main:docs/05_simulator.md}}#version-03-on-new-seeds)",
+        f"- Grid duty that never charges full: with the pack's documented voltage limits it refuses every month on "
+        f"{head(lim[0]).split(' packs')[0]} packs: **{sim_word(lim[0]['passed'])}**; without them it reads a median {t5a_share()} "
+        f"of the true capacity: **{sim_word(sim_row('T5a', 'nmc-never')['passed'])}** (labelled on the record).",
+        f"- Other failed checks include: with cell imbalance the band holds {head(t2[0]).split(' (')[1].rstrip(')')} of month ends "
+        f"but reads a mean {abs(float(t2p[0][0])):.3f} Ah {'low' if float(t2p[0][0]) < 0 else 'high'} (limit {t2p[0][1]}); "
+        f"{a4_clause()}; on {len(fewer)} of {len(rr)} settings 0.3 estimates fewer month ends than 0.2 ("
+        + " and ".join(f"{int(n) - int(m)} of {int(n):,}" for m, n in (parse(r"(\d+) against (\d+)", r, "R") for r in fewer["result"]))
+        + "). [All checks →]({{url_main:docs/05_simulator.md}}#version-03-on-new-seeds)",
+    ]
+    return "\n".join(lines)
+
+
+def a4_clause() -> str:
+    """A4 on the simulator: T3a after a 5 mA leak (0.3 against 0.2), and W7's mean clause (``checks_v03.csv``)."""
+    now = sim_row("T3a", "leak5")
+    old = pd.read_csv(RESULTS / "checks_sim.csv", keep_default_na=False)
+    old = old[(old["check"] == "T3a") & (old["what"].str.split(":").str[0] == "leak5")]
+    if len(old) != 1 or now["passed"] != "False":
+        refuse("the A4 clause no longer fits the T3a rows: write it again")
+    share = lambda r: parse(r"^\d+ of \d+ \(([\d.]+)%\)", r["result"], "T3a")[0]  # noqa: E731
+    v03 = pd.read_csv(RESULTS / "checks_v03.csv", keep_default_na=False)
+    w7 = v03[v03["check"] == "W7"]
+    if len(w7) != 1 or w7["result"].iloc[0] != "fail":
+        refuse("the A4 clause no longer fits the W7 row of checks_v03.csv: write it again")
+    (mean, limit) = parse(r"mean error ([+-][\d.]+) mA, limit \+-([\d.]+)", w7["value"].iloc[0], "W7")
+    (packs,) = parse(r"in \d+ of (\d+) packs", w7["value"].iloc[0], "W7 packs")
+    return (f"A4's band after a 5 mA leak holds {share(now)} % of month ends (0.2: {share(old.iloc[0])} %), and on {packs} "
+            f"packs its mean error is {float(mean):+.3f} mA (limit ±{limit})")
 
 
 def counts() -> dict:
@@ -276,6 +415,8 @@ def md_table(header: list, rows: list) -> str:
 
 def checks_table(path: Path, leave_out: tuple[str, ...] = ()) -> str:
     table = pd.read_csv(path, keep_default_na=False)
+    if path.name == "checks_phase3.csv":
+        table = with_w7_v03(table)
     rows = []
     for _, r in table.iterrows():
         if r["check"] in leave_out:
@@ -302,7 +443,7 @@ def limits_list() -> str:
         "at the battery terminals; resistance is a short-pulse value, not the impedance-spectroscopy one."
     )
     if len(fixed):
-        lines += ["", f"Fixed in version {VERSION_PAGE[0]}, by the same rules: " + ", ".join(fixed["short"])
+        lines += ["", f"Fixed in version {TAG.lstrip('v').rsplit('.', 1)[0]}, by the same rules: " + ", ".join(fixed["short"])
                   + " ([limits]({{url_main:docs/limits.md}}))."]  # fmt: skip
     return "\n".join(lines)
 
@@ -492,6 +633,10 @@ def main() -> None:
         data_showed=data_showed(),
         limits_list=limits_list(),
         previous_release=TAG.lstrip("v"),
+        previous_minor=TAG.lstrip("v").rsplit(".", 1)[0],
+        seen_releases=" and ".join(t.lstrip("v") for t in SEEN),
+        t5a_share=t5a_share(),
+        sim_block=sim_block(),
         version_page_link=f"[version {VERSION_PAGE[0]} page]({{{{url_main:{VERSION_PAGE[1]}}}}})",
         data_credit=figgener.CREDIT,
         paper_credit=figgener.PAPER,

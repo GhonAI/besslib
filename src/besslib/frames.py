@@ -65,7 +65,8 @@ class PackSpec:
     its terminals). With both, the capacity estimate checks that the full and empty levels it
     finds lie near them (``CapacityConfig.limits_share``); without them it cannot. A limit that
     is not a positive number, limits in the wrong order, or a limit on the wrong side of the
-    nominal voltage (``1000 * nominal_energy_kwh / nominal_capacity_ah``) raise ``ValueError``.
+    nominal voltage (``nominal_voltage_v`` when given, else ``1000 * nominal_energy_kwh /
+    nominal_capacity_ah``) raise ``ValueError``.
     """
 
     nominal_capacity_ah: float
@@ -94,23 +95,28 @@ class PackSpec:
     def _check_limits(self) -> None:
         """The documented voltage limits: finite, positive, in order, and of the whole pack.
 
-        The pack's nominal voltage, ``1000 * nominal_energy_kwh / nominal_capacity_ah``, lies
-        inside its voltage window; a limit on the wrong side of it is not the pack's (a limit of
-        one cell given for the pack is the usual slip)."""
+        The pack's nominal voltage lies inside its voltage window; a limit on the wrong side of it
+        is not the pack's (a limit of one cell given for the pack is the usual slip). The nominal
+        voltage is ``nominal_voltage_v`` when given, else ``1000 * nominal_energy_kwh /
+        nominal_capacity_ah`` (a usable energy below the nominal one gives a lower value)."""
         limits = {"voltage_max_v": self.voltage_max_v, "voltage_min_v": self.voltage_min_v}
         for name, value in limits.items():
             if value is not None and not (math.isfinite(value) and value > 0):
                 raise ValueError(f"{name} must be a positive number of volts, not {value!r}")
-        nominal = 1000.0 * self.nominal_energy_kwh / self.nominal_capacity_ah
+        given = self.nominal_voltage_v
+        if given is not None and not (math.isfinite(given) and given > 0):
+            raise ValueError(f"nominal_voltage_v must be a positive number of volts, not {given!r}")
+        nominal = given if given is not None else 1000.0 * self.nominal_energy_kwh / self.nominal_capacity_ah
+        source = "nominal_voltage_v" if given is not None else "nominal energy over nominal capacity"
         if self.voltage_max_v is not None and self.voltage_min_v is not None and not self.voltage_max_v > self.voltage_min_v:
             raise ValueError(f"voltage_max_v ({self.voltage_max_v} V) must lie above voltage_min_v ({self.voltage_min_v} V)")
         if self.voltage_max_v is not None and not self.voltage_max_v > nominal:
             raise ValueError(
                 f"voltage_max_v ({self.voltage_max_v} V) lies at or below the pack's nominal voltage ({nominal:.4g} V, "
-                "nominal energy over nominal capacity): the limits are of the whole pack, at its terminals, not of one cell"
+                f"{source}): the limits are of the whole pack, at its terminals, not of one cell"
             )
         if self.voltage_min_v is not None and not self.voltage_min_v < nominal:
             raise ValueError(
                 f"voltage_min_v ({self.voltage_min_v} V) lies at or above the pack's nominal voltage ({nominal:.4g} V, "
-                "nominal energy over nominal capacity)"
+                f"{source})"
             )

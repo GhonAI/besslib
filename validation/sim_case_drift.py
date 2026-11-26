@@ -200,7 +200,8 @@ def rounded(row: dict) -> dict:
     return {k: float(f"{v:.6g}") if isinstance(v, float) else v for k, v in row.items()}
 
 
-def run_pack(setting: str, seed: int) -> list[dict]:
+def run_pack(setting: str, seed: int, series: dict | None = None) -> list[dict]:
+    """The rows of one pack. With ``series`` (a dict) it also receives the pack's month ends and tests, for a figure."""
     cfg = SETTINGS[setting]
     frames = {}
 
@@ -271,6 +272,13 @@ def run_pack(setting: str, seed: int) -> list[dict]:
         n += 1
         held += int(e["capacity_ah_low"] <= truth <= e["capacity_ah_high"])
         err.append(float(e["capacity_ah"]) - truth)
+        if series is not None:
+            series.setdefault("months", []).append({"time": time, "estimate_ah": float(e["capacity_ah"]), "low_ah": float(e["capacity_ah_low"]),
+                                                    "high_ah": float(e["capacity_ah_high"]), "t_rest": truth})
+    if series is not None:
+        series["tests"] = [{"time": rec.start + pd.Timedelta(seconds=s), "test_ah": r["test_ah"], "t_rest": r["t_rest"],
+                            "held": r["held"], "has_band": r["has_band"]} for r, s in zip(rows, starts)]
+        series["nominal_ah"] = float(nominal)
     est = monthly[monthly["status"] == sim_truth.OK].dropna(subset=["ref_empty_v"])
     v = est["ref_empty_v"].to_numpy(float) / spec.cells_in_series
     _, fall = true_fall(stops, rec.ocv)
