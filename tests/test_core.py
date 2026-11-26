@@ -1092,20 +1092,33 @@ def test_saved_v03_vectors():
     assert set(ok["fit"]) == {"capacity", "fade"}
 
 
-def v03_float32_errors():
-    """Largest relative error of C (or r) and of the band's width, 32-bit state against 64-bit, and the rows whose
-    status differs, over the 0.3 vectors (reported, not judged: docs)."""
+def v03_float32_errors() -> dict:
+    """Per fit (capacity, fade): the largest relative error of C (or r) and of the band's width, 32-bit state against
+    64-bit, over the rows both estimate; and the rows whose status differs, over the 0.3 vectors."""
     inputs, queries = _v03_vector_inputs()
     e64 = _v03_vector_outputs(inputs, queries)
     e32 = _v03_vector_outputs(inputs, queries, rounder=_to_f32)
-    ok = (e64["status"] == _core.OK) & (e32["status"] == _core.OK)
-    main = np.where(e64["fit"] == "fade", "theta2", "theta0")
-    v64 = np.array([e64[c].iloc[i] for i, c in enumerate(main)])[ok]
-    v32 = np.array([e32[c].iloc[i] for i, c in enumerate(main)])[ok]
-    w64 = (e64["high"] - e64["low"])[ok].to_numpy()
-    w32 = (e32["high"] - e32["low"])[ok].to_numpy()
-    return (float(np.max(np.abs(v32 - v64) / np.abs(v64))), float(np.max(np.abs(w32 - w64) / np.abs(w64))),
-            int((e64["status"] != e32["status"]).sum()), int(ok.sum()))
+    out = {"status_diff": int((e64["status"] != e32["status"]).sum())}
+    for fit, main in (("capacity", "theta0"), ("fade", "theta2")):
+        ok = ((e64["status"] == _core.OK) & (e32["status"] == _core.OK) & (e64["fit"] == fit)).to_numpy()
+        v64, v32 = e64[main].to_numpy(float)[ok], e32[main].to_numpy(float)[ok]
+        w64 = (e64["high"] - e64["low"]).to_numpy(float)[ok]
+        w32 = (e32["high"] - e32["low"]).to_numpy(float)[ok]
+        out[fit] = (float(np.max(np.abs(v32 - v64) / np.abs(v64))), float(np.max(np.abs(w32 - w64) / np.abs(w64))), int(ok.sum()))
+    return out
+
+
+def test_float32_state_v03():
+    """The capacity is held to 0.2's bound; the fade rate's error is reported, not loosened (it is the inputs':
+    the same inputs with linear voltage terms give about the same)."""
+    got = v03_float32_errors()
+    assert got["status_diff"] == 0
+    value_err, width_err, n = got["capacity"]
+    assert n > 0 and value_err < 1e-4 and width_err < 1e-2
+    fade_value, fade_width, n_fade = got["fade"]
+    assert n_fade > 0 and np.isfinite(fade_value) and np.isfinite(fade_width)
+    print(f"32-bit, 0.3 vectors: capacity {value_err:.2g} (width {width_err:.2g}, {n} rows); "
+          f"fade rate {fade_value:.2g} (width {fade_width:.2g}, {n_fade} rows)")
 
 
 if __name__ == "__main__" and "--write-v03-vectors" in sys.argv:

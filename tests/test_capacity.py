@@ -255,11 +255,13 @@ def test_charges_above_the_full_level_are_refused(candidates):
     at = rests["start"].iloc[-1]
     charges = rests.index[rests["accepted"] & (rests["direction"] == "charge") & (rests["start"] > at - pd.Timedelta(days=60))]
 
-    def status(n, share=0.12, config=config, direction=None, when=at):
+    def status(n, share=0.12, config=config, direction=None, when=at, accepted=True):
         changed = rests.copy()
         changed.loc[charges[-n:] if n else [], "edge_v"] = full + share * (full - empty)
         if direction:
             changed.loc[charges[-n:], "direction"] = direction
+        if not accepted:
+            changed.loc[charges[-n:], "accepted"] = False
         return estimate_capacity(None, SPEC, rests=changed, pairs=pairs, config=config, at=[when])["status"].iloc[0]
 
     refused = _core.STATUS_TEXT[_core.ABOVE_FULL]
@@ -267,6 +269,7 @@ def test_charges_above_the_full_level_are_refused(candidates):
     assert status(5) == refused
     assert status(5, share=0.08) == "estimated"
     assert status(5, direction="discharge") == "estimated"  # only rests after a charge count
+    assert status(5, accepted=False) == "estimated"  # and only accepted ones
     assert status(5, config=config.v0_2()) == "estimated"
     # causal: before those rests the rule does not hold
     assert status(5, when=rests["start"].loc[charges[-5]] - pd.Timedelta(hours=1)) == "estimated"
@@ -286,6 +289,16 @@ def test_fade_rate_is_refused_with_the_range_rules(candidates):
     out = fade_rate_checked(table, pairs, spec, config, n_boot=0)
     assert out["status"].startswith("not possible from this data: the capacity is implausible at ")
     assert out["first_implausible_rule"] == 5 and np.isnan(out["rate_points_per_year"])
+    # rule 6: charges end above the full level (rule A), no limits given
+    at = rests["start"].iloc[-1]
+    charges = rests.index[rests["accepted"] & (rests["direction"] == "charge") & (rests["start"] > at - pd.Timedelta(days=60))]
+    high = rests.copy()
+    high.loc[charges[-5:], "edge_v"] = full + 0.12 * (full - empty)
+    table = estimate_capacity(None, SPEC, rests=high, pairs=pairs, config=config, at=[at])
+    assert table["status"].iloc[0] == _core.STATUS_TEXT[_core.ABOVE_FULL]
+    out = fade_rate_checked(table, pairs, SPEC, config, n_boot=0)
+    assert out["first_implausible_rule"] == 6 and np.isnan(out["rate_points_per_year"])
+    assert out["status"].endswith("(charges end above the full level)")
 
 
 def test_the_time_of_a_pair_is_between_the_readings(candidates):
@@ -303,6 +316,8 @@ def test_the_time_of_a_pair_is_between_the_readings(candidates):
 
 
 def test_settings_keep_their_release_hashes():
+    assert config_hash(CapacityConfig()) == "b30137b3f868"  # version 0.3, frozen before its held-out run
+    assert CapacityConfig().quad_min_rests == 2.0  # the gate as tuned (tune_quadratic.py)
     assert config_hash(CapacityConfig().v0_2()) == "b3959941c19b"
     assert config_hash(CapacityConfig().v0_1()) == "109e9eb1efa5"
     assert len({config_hash(c) for c in (CapacityConfig(), CapacityConfig().v0_2(), CapacityConfig().v0_1())}) == 3
@@ -313,3 +328,18 @@ def test_settings_keep_their_release_hashes():
         assert config_hash(base.with_(**change)) != config_hash(base), change
     with pytest.raises(ValueError, match="rest_time"):
         CapacityConfig(rest_time="end")
+
+
+def test_the_gate_of_the_quadratic_terms_reaches_the_estimate(candidates):
+    config = CapacityConfig(level_window_days=90.0, level_warmup_days=0.0)
+    rests = classify_rests(candidates, SPEC, config)
+    pairs = rest_pairs(rest_chain(rests, SPEC, config), config)
+
+    def terms(q):
+        return estimate_capacity(None, SPEC, rests=rests, pairs=pairs, config=config.with_(quad_min_rests=q))["terms"]
+
+    open_, some, closed = terms(0.0), terms(16.0), terms(1e9)
+    assert open_.str.contains("gamma_full2").all() and open_.str.contains("gamma_empty2").all()
+    assert not closed.str.contains("2").any()  # linear terms only
+    assert closed.str.contains("gamma_full").all() and closed.str.contains("gamma_empty").all()
+    assert (some != open_).any() and (some == open_).any()  # a month end with too few rests drops them

@@ -84,11 +84,16 @@ def _reasons(cap: pd.DataFrame) -> str:
     return " | ".join(f"{k} x{v}" for k, v in counts.items())
 
 
+def capacity_tables(reduced, spec, start, months) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The A1 tables of one pack: without the documented limits (T5a, T5b', as a field system) and with them (T5a-L)."""
+    return (common.capacity_table(reduced, common.without_limits(spec), start, months),
+            common.capacity_table(reduced, spec, start, months))
+
+
 def run_pack(setting: str, seed: int) -> list[dict]:
     rec = common.recorder(CASE, SETTINGS, setting, seed)
     reduced = sim_truth.reduce_pack(rec)
-    cap = common.capacity_table(reduced, common.without_limits(rec.spec), rec.start, rec.months)
-    limited = common.capacity_table(reduced, rec.spec, rec.start, rec.months)
+    cap, limited = capacity_tables(reduced, rec.spec, rec.start, rec.months)
     refused_l = limited[limited["status"] != sim_truth.OK]
     estimated = cap[cap["status"] == sim_truth.OK]
     n = held = n_no_reference = 0

@@ -222,3 +222,129 @@ def test_case_modules_follow_the_protocol():
             assert isinstance(cfg["overrides"], dict) and cfg["months"] >= 1, (name, setting)
         if name != "drift":
             assert module.CASE in sim.case_names()
+
+
+# --- the pass rules of version 0.3's case checks, on hand-made tables at their edges ------------------------
+
+def _rows(by_check: list[dict], check: str) -> list[dict]:
+    return [r for r in by_check if r["check"] == check]
+
+
+def test_held_out_rows_go_to_version_0_3s_files_only(tmp_path):
+    _validation()
+    import pandas as pd
+    import sim_case_heat
+    import sim_cases
+    from pathlib import Path
+
+    results = Path(sim_cases.ROOT) / "validation" / "results"
+    assert sim_cases.RESULTS == results / "sim_v03" and sim_cases.CHECKS == results / "checks_sim_v03.csv"
+    assert sim_cases.RESULTS_02 == results / "sim"
+    rows = [{"setting": next(iter(sim_case_heat.SETTINGS)), "seed": 2000}]
+    for folder in (sim_cases.RESULTS_02, results, tmp_path):
+        with pytest.raises(SystemExit):
+            sim_cases.write_rows(sim_case_heat, rows, "held-out", folder)
+    with pytest.raises(SystemExit):
+        sim_cases.write_rows(sim_case_heat, rows, "development", sim_cases.RESULTS_02)
+    path = sim_cases.write_rows(sim_case_heat, [{**rows[0], "seed": 0}], "development", tmp_path)
+    assert pd.read_csv(path)["seed_set"].tolist() == ["development"]
+
+
+def _grid_row(setting, seed, estimated=0, refusals_ok=True, estimated_l=0, refusals_ok_l=True):
+    return {"setting": setting, "seed": seed, "month_ends": 36, "estimated_months": estimated,
+            "all_refusals_say_not_possible": refusals_ok, "reasons": "not possible from this data: x x36",
+            "estimated_months_limits": estimated_l, "all_refusals_say_not_possible_limits": refusals_ok_l,
+            "reasons_limits": "not possible from this data: y x36", "with_band": 0, "n_no_reference": 0, "held_rest": 0,
+            "mean_error_rest_ah": math.nan, "estimate_over_true_capacity": 0.5}
+
+
+def test_t5a_l_and_t5b_prime_count_the_right_table():
+    _validation()
+    import pandas as pd
+    import sim_case_grid
+
+    def passed(rows, check):
+        (r,) = _rows(sim_case_grid.summary(pd.DataFrame(rows)), check)
+        return r["passed"]
+
+    never = [_grid_row("nmc-never", k, estimated=3) for k in range(3)]  # T5a, no limits: a published fail
+    assert passed(never, "T5a") is False and passed(never, "T5a-L") is True
+    assert passed(never[:2] + [_grid_row("nmc-never", 2, estimated=3, estimated_l=1)], "T5a-L") is False
+    assert passed(never[:2] + [_grid_row("nmc-never", 2, estimated=3, refusals_ok_l=False)], "T5a-L") is False
+    weekly = [_grid_row("nmc-7", k, estimated_l=30) for k in range(3)]  # T5b': no limits given, rule A alone
+    assert passed(weekly, "T5b'") is True
+    assert passed(weekly[:2] + [_grid_row("nmc-7", 2, estimated=1)], "T5b'") is False
+
+
+def test_t5a_without_limits_is_the_field_case(monkeypatch):
+    _validation()
+    import sim_case_common
+    import sim_case_grid
+    from besslib.frames import PackSpec
+
+    monkeypatch.setattr(sim_case_common, "capacity_table", lambda reduced, spec, start, months: spec)
+    spec = PackSpec(nominal_capacity_ah=100.0, nominal_energy_kwh=5.0, cells_in_series=14, chemistry="LMO/NMC",
+                    voltage_max_v=58.0, voltage_min_v=42.0)
+    plain, limited = sim_case_grid.capacity_tables(None, spec, None, 1)
+    assert (plain.voltage_max_v, plain.voltage_min_v) == (None, None)
+    assert (limited.voltage_max_v, limited.voltage_min_v) == (58.0, 42.0)
+
+
+def test_r_needs_not_fewer_estimates_than_0_2():
+    _validation()
+    import pandas as pd
+    import sim_case_common
+
+    def row(new, old, judged=True):
+        return sim_case_common.r_row("x", pd.DataFrame({"estimated_months": new, "estimated_months_02": old}), judged)
+
+    assert row([10, 10], [10, 10])["passed"] is True
+    assert row([10, 9], [10, 10])["passed"] is False  # one month end fewer fails
+    assert row([11, 9], [10, 10])["passed"] is True  # the rule is the sum
+    assert row([0, 0], [10, 10], judged=False)["passed"] == ""
+
+
+def _drift_table(width_d0: float, rest_held: list[int], rest_nan: int = 0):
+    """Packs at D0 with a median band width; tests: ``rest_held`` (1/0 per test, with a band) plus ``rest_nan`` tests
+    with a band but without a reading voltage."""
+    import pandas as pd
+
+    packs = [{"row": "pack", "setting": "D0", "seed": k, "nominal_ah": 15.0, "empty_drift_mv": 0.0, "true_fall_mv": 0.0,
+              "month_ends_held": 9, "month_ends": 10, "mean_error_ah": 0.001 * (k - 1), "month_ends_without_band": 0,
+              "month_ends_without_truth": 0, "median_band_points": width_d0, "estimated_months": 60,
+              "estimated_months_02": 60} for k in range(3)]
+    tests = [{"row": "test", "setting": "D0", "seed": k % 3, "estimate_ah": 14.0, "test_ah": 14.0, "t_rest": 14.0,
+              "t_ops": 14.0, "t_test": 14.0, "t_fixed": 14.0, "held": h, "held_rest": h, "has_band": 1, "test_status": "ok"}
+             for k, h in enumerate(rest_held)]
+    tests += [{**tests[0], "t_rest": math.nan, "held_rest": 0, "held": 0} for _ in range(rest_nan)]
+    return pd.DataFrame(packs + tests)
+
+
+def test_w_is_the_width_against_1_2_times_version_0_2s():
+    _validation()
+    import sim_case_drift
+
+    old = sim_case_drift.width_02()
+    assert sim_case_drift.WIDTH_FACTOR == 1.2
+    for width, ok in ((1.19 * old, True), (1.21 * old, False)):
+        (w,) = _rows(sim_case_drift.summary(_drift_table(width, [1] * 9 + [0])), "W")
+        assert w["passed"] is ok
+
+
+def test_t6b_prime_counts_a_test_without_a_reading_voltage_as_not_held():
+    _validation()
+    import pandas as pd
+    import sim_case_drift
+
+    old = sim_case_drift.width_02()
+    # 17 held of 20 tests with a reading voltage (85 %); 2 more without one: 17 of 22 = 77 %, a fail (D93)
+    (r,) = _rows(sim_case_drift.summary(_drift_table(old, [1] * 17 + [0] * 3, rest_nan=2)), "T6b'")
+    assert r["passed"] is False and r["result"].startswith("17 of 22 tests")
+    assert "2 with a band but without a reading voltage" in r["result"] and "17 of 20 without them, 85.0%" in r["result"]
+    (r,) = _rows(sim_case_drift.summary(_drift_table(old, [1] * 17 + [0] * 3)), "T6b'")
+    assert r["passed"] is True
+    # a test without a band counts as not held too: 17 of 21
+    table = _drift_table(old, [1] * 17 + [0] * 3)
+    table = pd.concat([table, table.iloc[[-1]].assign(has_band=0)], ignore_index=True)
+    (r,) = _rows(sim_case_drift.summary(table), "T6b'")
+    assert r["passed"] is False and r["result"].startswith("17 of 21 tests")

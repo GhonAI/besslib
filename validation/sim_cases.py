@@ -37,6 +37,8 @@ import sim_truth  # noqa: E402
 CASES = {"heat": "sim_case_heat", "imbalance": "sim_case_imbalance", "leak": "sim_case_leak", "cold": "sim_case_cold",
          "grid": "sim_case_grid", "drift": "sim_case_drift"}
 RESULTS = ROOT / "validation" / "results" / "sim_v03"
+#: Version 0.2's held-out results (seeds 1000-1199): published, never written again.
+RESULTS_02 = ROOT / "validation" / "results" / "sim"
 DEVELOPMENT = ROOT / "data" / "sim_dev"
 CHECKS = ROOT / "validation" / "results" / "checks_sim_v03.csv"
 COLUMNS = ["check", "what", "result", "pass_if", "passed"]
@@ -81,6 +83,10 @@ def result_dir(seeds, out: str | None) -> Path:
 
 def write_rows(module, rows: list[dict], label: str, folder: Path) -> Path:
     """The rows of one run into the case's results file, replacing the same settings and seeds in it."""
+    if folder.resolve() in {RESULTS_02.resolve(), CHECKS.parent.resolve()}:
+        raise SystemExit(f"{folder} holds published results of version 0.2 or the checks files: no run writes there")
+    if label == "held-out" and folder.resolve() != RESULTS.resolve():
+        raise SystemExit(f"held-out rows go to {RESULTS}, not {folder}")
     new = pd.DataFrame(rows)
     new.insert(len(new.columns), "seed_set", label)
     path = folder / module.RESULT

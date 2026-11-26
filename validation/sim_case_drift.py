@@ -375,8 +375,11 @@ def summary(table: pd.DataFrame) -> list[dict]:
         rest = int(t["held_rest"].sum())
         share_rest = sim_truth.share(rest, len(t))
         lo, hi = sim_truth.PASS_RANGE
+        unread = int(((t["has_band"] == 1) & t["t_rest"].isna()).sum())
         rows.append(_row("T6b'", f"{s}: the A1 band at the test date holds T_rest",
-                         f"{rest} of {len(t)} tests ({share_rest:.1%}); {int((t['has_band'] == 0).sum())} without a band",
+                         f"{rest} of {len(t)} tests ({share_rest:.1%}); {int((t['has_band'] == 0).sum())} without a band; "
+                         f"{unread} with a band but without a reading voltage, counted as not held "
+                         f"(information: {rest} of {len(t) - unread} without them, {sim_truth.share(rest, len(t) - unread):.1%})",
                          f"{lo:.0%}-{hi:.0%} of tests" if main else "information", bool(lo <= share_rest <= hi) if main else ""))
         rows.append(_row("T6b", f"{s}: the test value lies in the A1 band at the test date (information; 0.2's rule: "
                                 f">= {T6B_SHARE:.0%} of tests)",
