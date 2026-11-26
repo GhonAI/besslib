@@ -1,5 +1,7 @@
 # besslib
 
+{{doi_badge}}
+
 State of health from battery storage operating data — with confidence bands, in the fields of the
 EU Battery Regulation (2023/1542, Annex VII) — and a pack simulator that tests it, and your BMS or
 energy-management code, against a known truth. Checked on field data only on home storage that reaches full and

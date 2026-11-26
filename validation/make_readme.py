@@ -104,7 +104,11 @@ def project() -> dict:
     if not found:
         refuse("CITATION.cff has no date-released line")
     released = pd.Timestamp(found.group(1))
+    doi = re.search(r"^doi:\s*(10\.\S+)\s*$", cff, re.M)
+    if not doi:
+        refuse("CITATION.cff has no doi line")
     return {
+        "doi_badge": f"[![DOI](https://zenodo.org/badge/DOI/{doi.group(1)}.svg)](https://doi.org/{doi.group(1)})",
         "version": meta["version"],
         "release_date": f"{released.day} {released:%B %Y}",
         "source": meta["urls"]["Source"].rstrip("/"),
